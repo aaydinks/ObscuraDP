@@ -141,7 +141,10 @@ reported at a fixed 0.5 threshold (AUC/AP shown alongside as threshold-free).
 
 ## 6. Reproduce
 
+All scripts use paths relative to this folder, so run them from inside it.
+
 ```bash
+cd "Experiment 1"
 python3.11 -m venv fedprox_env && source fedprox_env/bin/activate
 pip install -r requirements.txt
 python run_sweep.py                       # single-seed (SEED=42) + baselines  (~14 min)
