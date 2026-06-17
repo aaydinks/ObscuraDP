@@ -1,0 +1,10 @@
+# Reproduction of Sci. Rep. 10.1038/s41598-025-34536-9
+# (Standard FL vs DP-FL vs HE-FL on credit-risk loan approval). Python 3.11.
+matplotlib==3.11.0
+numpy==2.4.6
+opacus==1.6.0
+pandas==3.0.3
+scikit-learn==1.9.0
+scipy==1.17.1
+tenseal==0.3.16
+torch==2.12.0
