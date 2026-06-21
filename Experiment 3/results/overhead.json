@@ -1,0 +1,103 @@
+{
+  "config": {
+    "ckks": [
+      60,
+      40,
+      60
+    ],
+    "slots": 4096,
+    "clients": 5
+  },
+  "rows": [
+    {
+      "model": "SmallCNN",
+      "n_params": 282250,
+      "plain_prep_ms": 0.07483293302357197,
+      "plain_agg_ms": 1.1505000293254852,
+      "plain_ms": 1.2253329623490572,
+      "plain_payload_bytes": 1129000,
+      "he_enc_ms": 168.6940456274897,
+      "he_agg_ms": 47.15953953564167,
+      "he_ms": 215.85358516313136,
+      "he_ciphertext_bytes": 16240365,
+      "time_ratio": 176.15912718884465,
+      "payload_ratio": 14.384734278122233,
+      "n_chunks": 69
+    },
+    {
+      "model": "LSTM",
+      "n_params": 4653200,
+      "plain_prep_ms": 3.6363338585942984,
+      "plain_agg_ms": 28.419916983693838,
+      "plain_ms": 32.05625084228814,
+      "plain_payload_bytes": 18612800,
+      "he_enc_ms": 2545.289586763829,
+      "he_agg_ms": 717.7018923684955,
+      "he_ms": 3262.9914791323245,
+      "he_ciphertext_bytes": 267603020,
+      "time_ratio": 101.78955409307672,
+      "payload_ratio": 14.377365039112869,
+      "n_chunks": 1137
+    },
+    {
+      "model": "ResNet-18",
+      "n_params": 11173962,
+      "plain_prep_ms": 8.656416088342667,
+      "plain_agg_ms": 67.62741692364216,
+      "plain_ms": 76.28383301198483,
+      "plain_payload_bytes": 44695848,
+      "he_enc_ms": 6243.445412721485,
+      "he_agg_ms": 1750.6982593331486,
+      "he_ms": 7994.1436720546335,
+      "he_ciphertext_bytes": 642295863,
+      "time_ratio": 104.79472984529615,
+      "payload_ratio": 14.37036977125929,
+      "n_chunks": 2729
+    },
+    {
+      "model": "ResNet-34",
+      "n_params": 21282122,
+      "plain_prep_ms": 15.220833010971546,
+      "plain_agg_ms": 258.27504182234406,
+      "plain_ms": 273.4958748333156,
+      "plain_payload_bytes": 85128488,
+      "he_enc_ms": 11783.229970140383,
+      "he_agg_ms": 3348.186406539753,
+      "he_ms": 15131.416376680136,
+      "he_ciphertext_bytes": 1222931662,
+      "time_ratio": 55.32594005632482,
+      "payload_ratio": 14.365715763681836,
+      "n_chunks": 5196
+    },
+    {
+      "model": "ResNet-50",
+      "n_params": 23520842,
+      "plain_prep_ms": 17.06645800732076,
+      "plain_agg_ms": 290.5210421886295,
+      "plain_ms": 307.58750019595027,
+      "plain_payload_bytes": 94083368,
+      "he_enc_ms": 13031.182972947136,
+      "he_agg_ms": 3679.337647277862,
+      "he_ms": 16710.520620224997,
+      "he_ciphertext_bytes": 1351671900,
+      "time_ratio": 54.32769735304416,
+      "payload_ratio": 14.366746522084542,
+      "n_chunks": 5743
+    },
+    {
+      "model": "ViT-B/16",
+      "n_params": 85806346,
+      "plain_prep_ms": 63.77329211682081,
+      "plain_agg_ms": 1700.1899578608572,
+      "plain_ms": 1763.963249977678,
+      "plain_payload_bytes": 343225384,
+      "he_enc_ms": 51321.681916946545,
+      "he_agg_ms": 14691.458875313401,
+      "he_ms": 66013.14079225995,
+      "he_ciphertext_bytes": 4930552623,
+      "time_ratio": 37.42319506548411,
+      "payload_ratio": 14.365349571580639,
+      "n_chunks": 20949
+    }
+  ]
+}

@@ -16,3 +16,10 @@ ObscuraDP is an innovative differential privacy framework built to protect sensi
   quantifying DP's accuracy cost and HE's accuracy-neutrality (overhead without
   accuracy loss). Self-contained in [`Experiment 2/`](./Experiment%202)
   (see its [README](./Experiment%202/README.md)).
+
+- [**Experiment 3**](./Experiment%203) — Reproduction of the **FedML-HE** overhead
+  benchmarks ([arXiv:2303.10837](https://arxiv.org/abs/2303.10837)): the ~15× naive
+  CKKS-HE penalty and its **O(n)** scaling across models from 0.28M→86M params, the
+  **Selective Parameter Encryption** reduction (overhead ∝ encryption ratio *p*),
+  and the **losslessness** of homomorphic aggregation. Self-contained in
+  [`Experiment 3/`](./Experiment%203) (see its [README](./Experiment%203/README.md)).

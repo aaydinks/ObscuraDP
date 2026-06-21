@@ -1,0 +1,5 @@
+# CIFAR-10 is downloaded on demand (170 MB) -- never commit it.
+data/cifar-10-python.tar.gz
+data/cifar-10-batches-py/
+data/cifar_download.log
+results/accuracy_run.log

@@ -1,0 +1,9 @@
+# Reproduction of FedML-HE (arXiv:2303.10837) -- HE overhead benchmarks. Python 3.11.
+# We benchmark the HE mechanics directly with TenSEAL + torchvision models rather
+# than orchestrating through the full FedML framework (same in-process-simulation
+# choice as Experiments 1-2); FedML is not required for the overhead claims.
+matplotlib==3.11.0
+numpy==2.4.6
+tenseal==0.3.16
+torch==2.12.1
+torchvision==0.27.1

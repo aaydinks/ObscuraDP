@@ -1,0 +1,46 @@
+{
+  "config": {
+    "model": "ResNet-18",
+    "rounds": 6,
+    "train_subset": 5000,
+    "spe_fraction": 0.25,
+    "data_source": "CIFAR-10"
+  },
+  "agreement": {
+    "he_vs_plain_max_abs": 1.413819208373468e-07,
+    "spe_vs_plain_max_abs": 1.3998212766708207e-07,
+    "encrypted_fraction": 0.24999995525311433
+  },
+  "curves": {
+    "plaintext": [
+      0.1995,
+      0.2645,
+      0.299,
+      0.371,
+      0.3495,
+      0.408
+    ],
+    "full HE": [
+      0.1995,
+      0.2805,
+      0.2965,
+      0.372,
+      0.3325,
+      0.402
+    ],
+    "SPE (p=0.25)": [
+      0.1995,
+      0.2665,
+      0.2915,
+      0.3715,
+      0.364,
+      0.394
+    ]
+  },
+  "final": {
+    "plaintext": 0.408,
+    "full HE": 0.402,
+    "SPE (p=0.25)": 0.394
+  },
+  "max_spread_pct": 1.3999999999999957
+}
