@@ -607,3 +607,90 @@ Utility across mask modes is still exactly identical (accuracy 0.7262, recall
 0.6905, F1 0.7160, AUC 0.8050 for clean / dp / random alike), which is the SPE
 losslessness property and is unaffected by any of this. `run_smoke.py` passes
 7/7 with the two new regression assertions.
+
+---
+
+# ADDENDUM 2 -- the degenerate p-sweep, and finishing the wire-payload plumbing
+
+## The crypto-vs-p sweep measured nothing
+
+`run_overhead.py` swept `config.OVERHEAD_FRACTIONS` at the deployed stroke width
+(3137 parameters). A CKKS ciphertext costs the same ~235 KB whether 1 or all 4096
+of its slots carry data, so at that size **every p >= 0.1 is exactly one chunk**:
+`payload_ratio` was pinned at 18.757 at every p and `crypto_sec` was flat timing
+noise (0.0465 / 0.0256 / 0.0251 / 0.0271 / 0.0379 s). Published that way it reads
+as "SPE saves nothing" -- a statement about the model being smaller than a single
+ciphertext, not about SPE.
+
+The sweep now runs at `config.OVERHEAD_P_WIDTH_SCALE = 16` (541,697 parameters),
+where chunking bites. Analytic dry-run, confirmed against a live 3-chunk
+measurement that matched the model to 1e-15:
+
+| p | n_encrypted | chunks | `payload_ratio` | `wire_payload_ratio` |
+|---|---|---|---|---|
+| 0.00 | 0 | 0 | 0.000 | 1.000 |
+| 0.10 | 54,170 | 14 | **1.521** | 2.421 |
+| 0.25 | 135,424 | 34 | **3.693** | 4.443 |
+| 0.50 | 270,848 | 67 | **7.278** | 7.778 |
+| 0.75 | 406,273 | 100 | **10.862** | 11.112 |
+| 1.00 | 541,697 | 133 | **14.447** | 14.447 |
+
+Both cost axes are now linear in p, which is the actual SPE result. The width-1
+sweep is kept as an explicitly labelled `regime = "degenerate_single_chunk"`
+control (18.757 flat, wire 19.657 -> 18.757), because it is the clearest
+illustration of the padding floor. Every crypto record now carries `width_scale`,
+`n_params`, `n_chunks`, `regime`, `predicted_payload_ratio`,
+`wire_payload_ratio` and `bytes_per_ciphertext`, so a plot can separate the two
+regimes instead of averaging them.
+
+Estimated cost of the new sweep: ~45 s (scaled from the existing width-16 timing
+of 5.019 s per full-model repeat, x3 repeats, x2.617 for the summed chunk
+counts), against a 3-minute budget. The rest of `run_overhead.py` is unchanged.
+
+## The padding floor is now stated, not left to be reverse-engineered
+
+`payload_ratio(n) = ceil(n / slots) * bytes_per_ciphertext / (4n)` is documented
+in `bench.py`'s module docstring, implemented as `bench.payload_ratio_model()`,
+calibrated by `bench.ciphertext_quantum()` (measured, not hard-coded), attached to
+every record as `predicted_payload_ratio`, and printed as an analytic table
+covering the loan model, the stroke model and every width scale.
+
+Measured on this box: a full 4096-slot ciphertext serialises to **235,359 B** and
+a **1-slot** one to 235,386 B -- 27 bytes apart. That near-equality *is* the
+padding floor. Asymptote `bytes / (4 * slots)` = **14.365x**, matching the
+independent verification exactly, and `18.758 / 14.365 = 1.3058` against
+`4096 / 3137 = 1.3057`. So the 63.3x at loan's 929 parameters, 18.76x at stroke's
+3137 and 14.38x at 2.1M are one curve, not three measurements.
+
+## `wire_payload_ratio` plumbing finished
+
+Both gaps flagged in Addendum 1 are closed, additively:
+
+* `aggregate.aggregate_states` now emits `wire_payload_ratio = 1.0` from its two
+  plaintext literal dicts (`mode="plaintext"`, and `mode="spe"` with an empty
+  mask), matching the convention `he.fedavg_he_timed` already used at
+  `n_encrypted == 0`: no ciphertext, but the client still ships the whole model
+  as float32, so the wire cost is exactly 1.0x -- 0.0 would read as "this arm
+  sends nothing".
+* `run_stack`'s `crypto_stats_keys` list now includes it, so it is averaged over
+  rounds exactly like the other per-round crypto stats.
+
+Verified across the whole lattice (2 rounds, 1 local epoch):
+
+| stack | `payload_ratio` | `wire_payload_ratio` | n_encrypted |
+|---|---|---|---|
+| plain | 0.000 | **1.000** | 0 |
+| dp | 0.000 | **1.000** | 0 |
+| he | 18.757 | 18.757 | 3137 |
+| dp_he | 18.758 | 18.758 | 3137 |
+| dp_spe | 18.756 | **19.506** | 784 |
+
+`run_smoke.py` check 7 now asserts `crypto.payload_ratio == 0.0` and
+`crypto.wire_payload_ratio == 1.0` on a plaintext-stack run. 7/7 passes.
+
+Note for whoever runs the benchmark: `verify_claims.py`'s Claim 3 reads
+`crypto_vs_p` generically (it takes `n_params` from each record), so it will
+handle the new two-width file correctly -- but its printed section header still
+says "NOTE on the SPE rows of crypto_vs_p (n_params=3137)", which will be stale
+once width-16 rows are present. That is a label in someone else's file, left
+untouched deliberately.

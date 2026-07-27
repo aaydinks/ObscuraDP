@@ -490,7 +490,7 @@ def claim3(ctx):
 
     # the SPE payload_ratio definition issue
     if ovh:
-        print("\n  NOTE on the SPE rows of crypto_vs_p (n_params=3137):")
+        print("\n  NOTE on the SPE rows of crypto_vs_p:")
         for r in ovh["crypto_vs_p"]:
             if r["n_encrypted"] == 0:
                 continue
