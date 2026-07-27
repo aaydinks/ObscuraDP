@@ -34,65 +34,85 @@ def _load(name):
 
 
 def plot_frontier():
-    """Two-panel frontier: utility vs ε (left), crypto cost vs p (right).
+    """The separability figure: utility vs epsilon (left), crypto cost vs p (right).
 
-    Left panel plots primary metric vs epsilon for each encryption ratio p.
-    All lines should overlap, proving utility is independent of p.
-    Right panel plots crypto seconds vs p for each epsilon.
-    All lines should overlap, proving cost is independent of epsilon.
+    Prefers the aggregated multi-seed file so the headline result carries error
+    bars, and falls back to the single-seed frontier when only that exists. The
+    left panel's curves should coincide (utility independent of p) and the
+    right panel's should too (cost independent of epsilon).
     """
-    d = _load("frontier.json")
-    if not d:
-        print("SKIPPED plot_frontier (no frontier.json)")
+    agg = _load("multiseed.json")
+    rows = None
+    if agg and agg.get("aggregated"):
+        rows = agg["aggregated"]
+        n_seeds = max(r.get("n_seeds", 1) for r in rows)
+        source = f"{n_seeds} seeds, mean +/- s.d."
+        getm = lambda r, k: r.get(f"{k}_mean", np.nan)
+        gete = lambda r, k: r.get(f"{k}_std", 0.0)
+        get_crypto = lambda r: r.get("crypto_sec_mean", 0.0)
+        get_crypto_err = lambda r: r.get("crypto_sec_std", 0.0)
+    else:
+        d = _load("frontier.json")
+        if not d:
+            print("SKIPPED plot_frontier (no multiseed.json or frontier.json)")
+            return
+        rows = d["frontier"]
+        source = f"seed {d.get('meta', {}).get('seed', '?')}, single run"
+        getm = lambda r, k: r["metrics"].get(k, np.nan)
+        gete = lambda r, k: 0.0
+        get_crypto = lambda r: r["crypto"].get("crypto_sec", 0.0)
+        get_crypto_err = lambda r: 0.0
+
+    if not rows:
         return
-
-    rows = d["frontier"]
-    primary = config.LR.keys().__iter__().__next__()  # placeholder dataset
-    if rows:
-        primary = metrics_mod.primary_metric(rows[0].get("dataset", "stroke"))
-
+    primary = metrics_mod.primary_metric(rows[0].get("dataset", "stroke"))
     epsilons = sorted(set(r["epsilon"] for r in rows))
     fractions = sorted(set(r["spe_fraction"] for r in rows))
 
     fig, (ax_left, ax_right) = plt.subplots(1, 2, figsize=(14, 5))
 
-    colors = plt.cm.tab10(np.linspace(0, 1, len(fractions)))
-
-    for frac, color in zip(fractions, colors):
-        frac_rows = [r for r in rows if r["spe_fraction"] == frac]
-        frac_rows_sorted = sorted(frac_rows, key=lambda r: r["epsilon"])
-        eps_sorted = sorted(set(r["epsilon"] for r in frac_rows))
-        metrics = [r["metrics"].get(primary, 0.0) for r in frac_rows_sorted]
-        ax_left.plot(eps_sorted, metrics, "o-", color=color, label=f"p={frac:.2f}",
-                     linewidth=2, markersize=6)
+    # Offset the overlapping series slightly so a reader can see there really
+    # are three of them; without this they hide behind whichever draws last,
+    # and "the lines coincide" is the entire point of the panel.
+    offs = np.linspace(-0.006, 0.006, max(1, len(fractions)))
+    for frac, color, off in zip(fractions, plt.cm.tab10(np.linspace(0, 0.6, len(fractions))), offs):
+        sel = sorted([r for r in rows if r["spe_fraction"] == frac],
+                     key=lambda r: r["epsilon"])
+        ax_left.errorbar([r["epsilon"] for r in sel],
+                         [getm(r, primary) + off for r in sel],
+                         yerr=[gete(r, primary) for r in sel],
+                         fmt="o-", color=color, label=f"p={frac:.2f}",
+                         linewidth=2, markersize=6, capsize=3, alpha=0.85)
 
     ax_left.set_xscale("log")
-    ax_left.set_xlabel("Privacy budget  ε  (log scale)", fontsize=11)
-    ax_left.set_ylabel(f"Test {primary}", fontsize=11)
-    ax_left.set_title("Utility: independent of p", fontsize=12)
+    ax_left.set_xlabel("Privacy budget  eps  (log scale)", fontsize=11)
+    ax_left.set_ylabel(f"Test {primary}  (series offset for visibility)", fontsize=11)
+    ax_left.set_title("Utility: depends on eps, not on p", fontsize=12)
     ax_left.grid(True, which="both", alpha=0.3)
     ax_left.legend(fontsize=9)
 
-    for eps, color in zip(epsilons, plt.cm.tab10(np.linspace(0, 1, len(epsilons)))):
-        eps_rows = [r for r in rows if r["epsilon"] == eps]
-        eps_rows_sorted = sorted(eps_rows, key=lambda r: r["spe_fraction"])
-        fracs_sorted = sorted(set(r["spe_fraction"] for r in eps_rows))
-        crypto_secs = [r["crypto"].get("crypto_sec", 0.0) for r in eps_rows_sorted]
-        ax_right.plot(fracs_sorted, crypto_secs, "s-", color=color,
-                      label=f"ε={eps:.1f}", linewidth=2, markersize=6)
+    for eps, color in zip(epsilons, plt.cm.viridis(np.linspace(0, 0.9, len(epsilons)))):
+        sel = sorted([r for r in rows if r["epsilon"] == eps],
+                     key=lambda r: r["spe_fraction"])
+        ax_right.errorbar([r["spe_fraction"] for r in sel],
+                          [get_crypto(r) for r in sel],
+                          yerr=[get_crypto_err(r) for r in sel],
+                          fmt="o-", color=color, label=f"eps={eps:g}",
+                          linewidth=1.8, markersize=5, capsize=3, alpha=0.85)
 
     ax_right.set_xlabel("Encryption ratio  p", fontsize=11)
     ax_right.set_ylabel("Crypto time / round (s)", fontsize=11)
-    ax_right.set_title("Cost: independent of ε", fontsize=12)
-    ax_right.grid(True, alpha=0.3)
-    ax_right.legend(fontsize=9)
+    ax_right.set_title("Cost: depends on p, not on eps", fontsize=12)
+    ax_right.grid(alpha=0.3)
+    ax_right.legend(fontsize=8, ncol=2)
 
-    fig.suptitle("Trial 07/27 Separability: utility ⊥ cost", fontsize=13, y=1.00)
+    fig.suptitle(f"Separability: the utility and cost frontiers are orthogonal "
+                 f"axes  ({source})", fontsize=12)
     fig.tight_layout()
-    p = os.path.join(RES, "frontier.png")
-    fig.savefig(p, dpi=150)
+    pth = os.path.join(RES, "frontier.png")
+    fig.savefig(pth, dpi=150)
     plt.close(fig)
-    print(f"wrote {p}")
+    print(f"wrote {pth}")
 
 
 def plot_arms():

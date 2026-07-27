@@ -119,49 +119,62 @@ Every cell is a full 20-round run of the complete stack: DP-SGD locally, FedProx
 non-IID Dirichlet clients with per-client SMOTETomek, and CKKS aggregation of the
 resulting noisy updates at encryption ratio *p*.
 
-**Utility (recall) — should be flat along each row if utility is independent of *p*:**
+**Headline — mean ± s.d. over 5 seeds (42–46), 105 full runs:**
 
 | ε | p=0.00 | p=0.25 | p=1.00 | AUC | cumulative ε |
 |---:|---:|---:|---:|---:|---:|
-| 0.5 | 0.7857 | 0.7857 | 0.7857 | 0.7959 | 2.46 |
-| 1.0 | 0.7381 | 0.7381 | 0.7381 | 0.7999 | 4.78 |
-| 2.0 | 0.7143 | 0.7143 | 0.7143 | 0.8016 | 9.18 |
-| 5.0 | 0.6905 | 0.6905 | 0.6905 | 0.8027 | 21.62 |
-| 9.0 | 0.6905 | 0.6905 | 0.6905 | 0.8050 | 39.17 |
-| 15.0 | 0.6667 | 0.6667 | 0.6667 | 0.8050 | 68.51 |
-| 50.0 | 0.6667 | 0.6667 | 0.6667 | 0.8005 | 292.25 |
+| 0.5 | 0.8810 ± 0.0499 | 0.8810 ± 0.0499 | 0.8810 ± 0.0499 | 0.7848 ± 0.0277 | 2.46 |
+| 1.0 | 0.8619 ± 0.0628 | 0.8619 ± 0.0628 | 0.8619 ± 0.0628 | 0.7917 ± 0.0243 | 4.78 |
+| 2.0 | 0.8476 ± 0.0716 | 0.8476 ± 0.0716 | 0.8476 ± 0.0716 | 0.7941 ± 0.0231 | 9.18 |
+| 5.0 | 0.8238 ± 0.0747 | 0.8238 ± 0.0747 | 0.8238 ± 0.0747 | 0.7965 ± 0.0221 | 21.62 |
+| 9.0 | 0.7905 ± 0.0628 | 0.7905 ± 0.0628 | 0.7905 ± 0.0628 | 0.7980 ± 0.0237 | 39.17 |
+| 15.0 | 0.7810 ± 0.0697 | 0.7810 ± 0.0697 | 0.7810 ± 0.0697 | 0.7980 ± 0.0253 | 68.51 |
+| 50.0 | 0.7714 ± 0.0716 | 0.7714 ± 0.0716 | 0.7714 ± 0.0716 | 0.8010 ± 0.0265 | 292.25 |
 
-**Crypto cost (s/round) — should be flat down each column if cost is independent of ε:**
+**Separability holds, in the strongest form available.** Not only are the means
+identical across the encryption ratio — the **standard deviations are identical too**.
+The per-seed distributions coincide exactly, because encryption happens at aggregation
+time and is lossless (§5), so for a given seed the three arms are literally the same
+computation with different arithmetic underneath. Recall meanwhile moves 0.881 → 0.771
+down the ε grid, monotonically, on every individual seed.
+
+Crypto cost is the mirror image — flat down each ε column (0.031–0.044 s/round, and the
+variation is timing jitter on a shared 4-core machine, not an ε effect):
 
 | ε | p=0.00 | p=0.25 | p=1.00 |
 |---:|---:|---:|---:|
-| 0.5 | 0.0000 | 0.0280 | 0.0291 |
-| 1.0 | 0.0000 | 0.0280 | 0.0288 |
-| 2.0 | 0.0000 | 0.0282 | 0.0297 |
-| 5.0 | 0.0000 | 0.0299 | 0.0293 |
-| 9.0 | 0.0000 | 0.0282 | 0.0294 |
-| 15.0 | 0.0000 | 0.0297 | 0.0294 |
-| 50.0 | 0.0000 | 0.0282 | 0.0298 |
-
-**Separability holds.** Recall is *identical to four decimals* across the encryption
-ratio at every budget — not merely close, bit-identical, because encryption happens at
-aggregation time and is lossless (§5). Crypto cost varies by under 7% down each column,
-which is timing jitter on a shared machine, not an ε effect.
+| 0.5 | 0.0000 | 0.0435 ± 0.0125 | 0.0366 ± 0.0043 |
+| 2.0 | 0.0000 | 0.0323 ± 0.0031 | 0.0335 ± 0.0028 |
+| 9.0 | 0.0000 | 0.0356 ± 0.0055 | 0.0353 ± 0.0048 |
+| 50.0 | 0.0000 | 0.0309 ± 0.0024 | 0.0317 ± 0.0025 |
 
 **So the two frontiers are orthogonal axes.** An operator picks ε from the utility
-column and *p* from the cost row, and neither choice constrains the other. That is the
-practical payoff of composing DP with SPE-HE, and it is not something any of the three
-prior trials could have established: Experiment 1 had no *p* axis, Experiment 2 never
-varied both, and Experiment 3 had no ε axis.
+column and *p* from the cost row, and neither choice constrains the other. None of the
+three prior trials could have established this: Experiment 1 had no *p* axis,
+Experiment 2 never varied both, and Experiment 3 had no ε axis.
 
-**A wrinkle worth stating.** Recall *falls* as ε loosens (0.786 → 0.667) while AUC
-*rises* (0.7959 → 0.8050). These are not in conflict, and Experiment 1 documented the
+> **What this panel does *not* show.** The cost column above is flat between p=0.25 and
+> p=1.00 (0.035 vs 0.035 s). That is **not** evidence that SPE fails to save anything —
+> it is the single-ciphertext floor again. The stroke model's 3,137 parameters fit
+> inside one 4096-slot ciphertext, so every p ≥ 1/4096 costs exactly one chunk. This
+> frontier therefore demonstrates *cost is independent of ε* but says nothing about
+> *cost vs p*. The linear-in-p result needs a model spanning many chunks and is in §7.
+
+**A wrinkle worth stating.** Recall *falls* as ε loosens (0.881 → 0.771) while AUC
+*rises* (0.7848 → 0.8010). These are not in conflict, and Experiment 1 documented the
 same effect: because every client trains on SMOTE-balanced data, discrimination is
 nearly constant, so ε mainly moves the **operating point**. More noise predicts more
 positives — higher recall, lower precision — and less noise is more conservative. The
 threshold-free metric is the one that improves monotonically with the privacy budget, in
 the textbook direction; recall at a fixed 0.5 threshold moves the other way. Reporting
 only one of them would misrepresent the trade-off.
+
+Note also that the AUC spread (±0.022–0.028) is comparable to its trend across the whole
+ε grid (0.785 → 0.801), so the threshold-free direction is suggestive at 5 seeds rather
+than established. The recall trend is the solid one — it is monotone on every individual
+seed, which is a stronger statement than the overlapping error bars alone convey.
+
+---
 
 ## 5. Losslessness under DP noise
 
