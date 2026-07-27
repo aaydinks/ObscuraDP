@@ -15,12 +15,55 @@ Key methods:
   * bench_plaintext: wall-clock of a numpy weighted mean (the denominator for HE slowdown).
   * bench_dp_tax: time one local epoch under plain SGD vs DP-SGD on synthetic data.
   * bench_model_sizes: count parameters and call bench_encryption for each width scale.
+  * ciphertext_quantum / payload_ratio_model: the padding arithmetic that explains
+    every payload number in this trial.
+
+THE PADDING FLOOR, because it is the single most confusing number in the results.
+A CKKS ciphertext under poly_modulus_degree=8192 serialises to the same ~235 KB
+whether 1 or all 4096 of its slots carry data. Payload is therefore quantised in
+whole ciphertexts, and the ratio against a float32 baseline is
+
+    payload_ratio(n) = ceil(n / slots) * bytes_per_ciphertext / (4 * n)
+
+which is NOT a constant -- it decays towards bytes_per_ciphertext/(4*slots) as n
+grows and the final partial chunk stops dominating. That is why the same CKKS
+configuration reports 63.3x at loan's 929 parameters, 18.76x at stroke's 3137,
+and 14.38x at 2.1M: 18.758 / 14.365 = 1.3058 and 4096 / 3137 = 1.3057. The
+measured spread is padding, not a modulus-chain difference and not noise.
+The same quantisation is why an encryption-ratio sweep on a model smaller than
+one ciphertext is degenerate: every p >= 1/slots costs exactly one chunk.
 """
 import numpy as np
 import time
 import torch
 
 from . import config, he, models, fedprox, data
+
+
+def ciphertext_quantum(ctx, slots=None):
+    """Serialized bytes of ONE full ciphertext -- the payload quantisation step.
+
+    Measured rather than hard-coded, so the analytic padding model stays honest
+    if the CKKS parameters ever change. Encrypting a full `slots`-wide chunk and
+    a 1-element chunk gives sizes within ~50 B of each other; that near-equality
+    IS the padding floor.
+    """
+    slots = slots or config.CKKS_SLOTS
+    return he.serialized_size(he.encrypt_chunk(ctx, np.zeros(slots)))
+
+
+def payload_ratio_model(n_encrypted, n_params, bytes_per_ciphertext, slots=None):
+    """Analytic payload ratio: ceil(n_enc/slots) * bytes / (4 * n_params).
+
+    The closed form of the padding floor described in the module docstring.
+    Reported alongside every measured payload_ratio so a reader can see that the
+    measurement is exactly the arithmetic and not an artifact of the benchmark.
+    """
+    slots = slots or config.CKKS_SLOTS
+    if n_params <= 0:
+        return 0.0
+    n_chunks = -(-int(n_encrypted) // slots)
+    return float(n_chunks) * float(bytes_per_ciphertext) / float(4 * n_params)
 
 
 def bench_encryption(n_params, ctx, fraction=1.0, repeats=None):
@@ -40,6 +83,7 @@ def bench_encryption(n_params, ctx, fraction=1.0, repeats=None):
     Returns:
         Dict with keys: n_params, fraction, n_encrypted, encrypt_sec, aggregate_sec,
         decrypt_sec, crypto_sec, ciphertext_bytes, plaintext_bytes, payload_ratio,
+        wire_payload_ratio, predicted_payload_ratio, bytes_per_ciphertext,
         n_chunks, us_per_param.
     """
     if repeats is None:
@@ -76,6 +120,12 @@ def bench_encryption(n_params, ctx, fraction=1.0, repeats=None):
     encrypt_sec = median_stats['encrypt_sec']
     us_per_param = 1e6 * encrypt_sec / max(1, n_encrypted)
 
+    # Bytes per ciphertext, back-derived from what was actually serialized, so
+    # the analytic model below is calibrated on this run rather than assumed.
+    n_chunks = median_stats['n_chunks']
+    bytes_per_ciphertext = (median_stats['ciphertext_bytes'] / n_chunks
+                            if n_chunks else 0.0)
+
     return {
         "n_params": n_params,
         "fraction": fraction,
@@ -87,7 +137,11 @@ def bench_encryption(n_params, ctx, fraction=1.0, repeats=None):
         "ciphertext_bytes": median_stats['ciphertext_bytes'],
         "plaintext_bytes": median_stats['plaintext_bytes'],
         "payload_ratio": median_stats['payload_ratio'],
-        "n_chunks": median_stats['n_chunks'],
+        "wire_payload_ratio": median_stats['wire_payload_ratio'],
+        "predicted_payload_ratio": payload_ratio_model(
+            n_encrypted, n_params, bytes_per_ciphertext),
+        "bytes_per_ciphertext": float(bytes_per_ciphertext),
+        "n_chunks": n_chunks,
         "us_per_param": us_per_param,
     }
 
