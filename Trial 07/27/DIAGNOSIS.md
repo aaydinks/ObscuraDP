@@ -419,3 +419,191 @@ against a 1.49e-08 float32 floor.
 (CLAIM 5b, the "below-random Jaccard at eps=0.5" in `sensitivity.json`) is a
 pre-existing 3-repeat sampling artefact in `run_sensitivity.py` and is unrelated
 to anything here.
+
+---
+
+# ADDENDUM -- the five defects from the independent crypto verification
+
+`VERIFICATION.md` (independent agent, re-derived from raw TenSEAL / Opacus /
+numpy) confirmed losslessness, weighted HE, the payload ratio and the
+`dp_noise_std` formula, and raised five defects. All five are fixed below.
+
+Constraint under which this was done: the full campaign was running in four
+background processes at the time, so nothing they depend on was touched --
+`obscura/orchestrator.py`, `fedprox.py`, `aggregate.py`, `data.py`, `models.py`,
+`dp.py`, `metrics.py` and every config constant those runs read are unchanged.
+Every new quantity is an ADDED key; no existing key changed meaning, so results
+produced before and after remain comparable.
+
+Files changed: `obscura/he.py`, `obscura/sensitivity.py`,
+`obscura/config.py` (`SENS_REPEATS` only), `run_losslessness.py`,
+`run_sensitivity.py`, `run_smoke.py`.
+
+## D1 -- `fedavg_he_timed` ignored its own `slots` argument
+
+`encrypt_vector` chunked at `config.CKKS_SLOTS` while the aggregation loop
+chunked at `slots`, so for any non-default slot count the loop indexed past the
+end of the ciphertext list. Fixed by giving `encrypt_vector` a `slots` parameter
+(defaulting to `config.CKKS_SLOTS`, so every existing caller is unaffected) and
+threading it through from `fedavg_he_timed`.
+
+| call | before | after |
+|---|---|---|
+| `fedavg_he(..., slots=1024)` | dev 2.9e-08 (correct) | unchanged |
+| `fedavg_he_timed(..., slots=1024)` | **IndexError** | dev 3.85e-08, 4 chunks, agrees with `fedavg_he` |
+
+Regression added to `run_smoke.py` check 4: it now aggregates the 3137-parameter
+model at `slots=1024`, asserts the deviation is within `CKKS_TOLERANCE`, asserts
+`fedavg_he` and `fedavg_he_timed` agree, and asserts `n_chunks == 4`. Still 7/7.
+
+## D2 -- SPE payload accounting understated the wire cost
+
+Added `wire_payload_ratio = (ciphertext_bytes + 4 * n_plaintext_params) /
+(4 * n_params)` to `fedavg_he_timed`'s stats. `payload_ratio` is untouched and
+still means "ciphertext cost against a full-plaintext baseline"; both are now
+defined in he.py's module docstring.
+
+| p (n_params = 3137) | `payload_ratio` | `wire_payload_ratio` | verifier's predicted true ratio |
+|---|---|---|---|
+| 0.25 | 18.757 | **19.505** | 19.507 |
+| 1.00 | 18.758 | **18.758** | 18.758 |
+
+At `n_encrypted == 0` the new key is 1.0, not 0.0 -- the client sends the whole
+model in the clear, which is exactly 1.0x the plaintext baseline.
+
+**Propagation, and where it stops.** `aggregate.aggregate_states` passes the HE
+stats dict through wholesale, so `wire_payload_ratio` appears automatically in
+its `he` and `spe` stats with no edit to `aggregate.py` (verified: `he` 18.756,
+`spe` 19.506). It does **not** appear in two places, both of which would have
+required editing a file the running campaign depends on:
+
+* `aggregate.aggregate_states(mode="plaintext")`, which builds its own literal
+  stats dict -- the key is simply absent there;
+* `run_stack`'s `crypto` block, which copies a hard-coded list of keys in
+  `orchestrator.py`.
+
+Both are one-line additions once the campaign is finished; flagging rather than
+doing them, as instructed. `run_losslessness.py` records both ratios on every
+record in the meantime, so the number is available in `results/lossless.json`.
+
+## D3 -- duplicate `(epsilon, 1.0, "he")` records
+
+The full-HE aggregation does not depend on p but sat inside the p loop, so with
+`LOSSLESS_FRACTIONS = [0.25, 1.0]` it emitted two indistinguishable records per
+epsilon. Hoisted out of the loop.
+
+| | before | after |
+|---|---|---|
+| records | 16 | 12 |
+| distinct `(eps, p, mode)` keys | 12 | **12** |
+| duplicated keys | 4 (one per epsilon) | **none** |
+
+Per epsilon the file now holds exactly `(eps, 1.0, "he")`, `(eps, 0.25, "spe")`,
+`(eps, 1.0, "spe")`.
+
+## D4 -- `rel_to_noise_floor` is dimensionally inconsistent
+
+It divides a weight-space deviation by a per-step gradient-space noise std.
+`rel_to_noise_floor` is kept for continuity; `rel_to_update_scale =
+max_abs_dev / update_scale` is added and is what the verdict table now leads
+with. Measured over all 12 records of the regenerated `lossless.json`:
+
+| normalisation | range | spread |
+|---|---|---|
+| `rel_to_update_scale` (new, same space) | 4.12e-07 .. 5.19e-07 | **1.26x** |
+| `rel_to_noise_floor` (legacy, mixed spaces) | 3.57e-07 .. 4.11e-06 | 11.52x |
+
+Per-epsilon HE rows, showing the numerator barely moves while only the legacy
+denominator does:
+
+| eps | max abs dev | update scale | `rel_to_update_scale` | `rel_to_noise_floor` |
+|---|---|---|---|---|
+| 0.5 | 4.28e-08 | 8.422e-02 | 5.08e-07 | 4.25e-07 |
+| 2.0 | 4.37e-08 | 8.432e-02 | 5.19e-07 | 1.10e-06 |
+| 9.0 | 4.27e-08 | 8.445e-02 | 5.05e-07 | 2.13e-06 |
+| 50.0 | 4.08e-08 | 8.468e-02 | 4.82e-07 | 4.11e-06 |
+
+The defensible headline is therefore: **CKKS aggregation error is 4.1e-07 to
+5.2e-07 of the magnitude of the update being aggregated -- about seven orders of
+magnitude below the signal -- at every epsilon tested.** The verifier measured
+5.6e-07..7.6e-07 on the pre-fix lr=1e-3 data; the shift is the smaller update
+scale at lr=1e-4, and the stability is the point.
+
+## D5 -- the sensitivity experiment was underpowered and its estimator unstable
+
+**(a) `SENS_REPEATS` 3 -> 64.** The whole Part-1 sweep costs ~40 s because the
+DP scores for a given (epsilon, draw) do not depend on p and the clean scores
+depend on nothing, so both are now computed once and reused across fractions --
+bit-identical to recomputing them. Every cell is reported as mean +- s.d. with a
+standard error, never a point estimate.
+
+**The "below random" finding is refuted, reproducibly.** At eps=0.5, p=0.25:
+
+| | shipped (3 draws) | now (64 draws) | analytic baseline p/(2-p) |
+|---|---|---|---|
+| Jaccard | 0.044 | **0.371 +- 0.041 (s.e.)** | 0.1429 |
+
+0.371 sits **5.5 standard errors ABOVE** the baseline. The old 0.044 was three
+draws of a statistic whose per-draw s.d. is 0.33. `run_sensitivity.py`'s printed
+conclusion now says explicitly that no anti-correlation exists.
+
+**(b) New primary metric: P(the DP mask selects the same TENSORS as the clean
+mask).** Jaccard over scalars mostly measures `np.argpartition`: every scalar
+inherits its tensor's single score, so the boundary tensor contributes a block of
+exactly-equal scores, and at p=0.25, 655 of 784 selected scalars (84%) are picked
+arbitrarily from inside `net.2.weight`. Added
+`sensitivity.tensor_selection()` and `sensitivity.tensor_selection_agreement()`,
+which rank tensors by score, fill greedily, and compare the resulting tensor
+sets -- a pure function of the ranking, invariant to any tie-break. Recorded as
+`same_tensor_selection` on every record and reported first.
+
+Mean +- s.d. over 64 draws (primary):
+
+| eps | P(same tensors) | s.e. | Jaccard over scalars (secondary, p=0.25) | s.e. |
+|---|---|---|---|---|
+| 0.5 | **0.094** | 0.036 | 0.371 | 0.041 |
+| 2.0 | **0.266** | 0.055 | 0.508 | 0.046 |
+| 9.0 | **0.422** | 0.062 | 0.705 | 0.037 |
+| 50.0 | **0.734** | 0.055 | 0.891 | 0.023 |
+
+Monotone in epsilon and close to the verifier's independent 0.02 / 0.20 / 0.42 /
+0.73. The claim the trial can now make is clean and tie-break free: **at eps=0.5
+the DP-scored mask picks the same set of tensors as the clean mask only 9% of the
+time; at eps=50, 73%.**
+
+One property worth stating so nobody reads it as a bug: `same_tensor_selection`
+is **identical across p=0.1, 0.25 and 0.5** on this model. `net.2.weight` holds
+2048 of 3137 parameters, so the greedy fill reaches k inside that same tensor at
+all three fractions and the selected tensor set does not depend on p. That is a
+true statement about a 6-tensor model, not a copy-paste error; on a deeper model
+the columns would separate.
+
+**(c) Analytic random baseline recorded.** `random_jaccard_analytic = p/(2-p)` is
+now a field on every record (0.0526 / 0.1429 / 0.3333 for p = 0.1 / 0.25 / 0.5)
+alongside the measured random control, so the baseline is checkable without
+recomputation.
+
+**Bonus correction the verifier flagged.** The clean per-tensor score span was
+written up as "8.2e-04 to 2.0e-02, a 24x range". The actual span at the seed-42
+init on client 0's 256-row batch is **5.13e-04 to 2.67e-02, a 52x range**;
+`run_sensitivity.py` now prints the full score table and the span it measured, so
+the number cannot drift from the configuration again. The qualitative point --
+clean scores span decades, DP scores collapse onto the `E|N(0, sigma*C/B)|` floor
+-- is strengthened. The driver's printed conclusion also now records the
+mechanism the write-up missed: the per-tensor sampling s.d. of `mean|noise|`
+falls as `1/sqrt(numel)`, so saturation systematically promotes SMALL tensors --
+a bias, not a coin flip.
+
+## Regenerated, and unchanged
+
+`results/lossless.json` and `results/sensitivity.json` were re-run sequentially
+(nice'd, single-threaded, ~40 s and ~4 min) so both reflect the fixes and the
+post-fix learning rate. `results/overhead.json` was NOT re-run -- `run_overhead.py`
+is one of the drivers held back while the campaign occupies the box, and its
+`payload_ratio` figures are unaffected by these changes in any case; it should be
+re-run afterwards to pick up `wire_payload_ratio`.
+
+Utility across mask modes is still exactly identical (accuracy 0.7262, recall
+0.6905, F1 0.7160, AUC 0.8050 for clean / dp / random alike), which is the SPE
+losslessness property and is unaffected by any of this. `run_smoke.py` passes
+7/7 with the two new regression assertions.

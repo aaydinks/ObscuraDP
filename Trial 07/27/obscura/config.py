@@ -166,6 +166,22 @@ SENS_REPEATS = 64                      # noise draws per (eps, p) for mask stabi
 OVERHEAD_FRACTIONS = SPE_FRACTIONS
 OVERHEAD_REPEATS = 3                   # timing repeats; medians are reported
 
+# Model width at which the crypto-vs-p sweep is measured. This MUST put the
+# model well above CKKS_SLOTS or the sweep measures nothing: a CKKS ciphertext
+# costs the same ~235 KB whether 1 or 4096 of its slots are used, so at the
+# deployed stroke width (3137 params, one chunk at every p >= 0.1) both the
+# payload ratio and the crypto time are flat in p by construction. Published
+# that way it reads as "SPE saves nothing", which is an artifact of the model
+# being smaller than a single ciphertext rather than a finding.
+#
+# width_scale 16 -> 541,697 params -> 133 chunks at p=1.0 and 14 at p=0.1, so
+# both cost axes move linearly with p. The whole 6-point sweep costs ~40 s.
+OVERHEAD_P_WIDTH_SCALE = 16
+# The deployed stroke model, swept at the same p grid and kept as an explicitly
+# labelled DEGENERATE control -- it is the clearest illustration of the padding
+# floor and of why the small-model payload ratios look inflated.
+OVERHEAD_P_CONTROL_WIDTH_SCALE = 1
+
 # --------------------------------------------------------------------------
 # Numerical tolerances (the exactness assertions in run_smoke.py)
 # --------------------------------------------------------------------------

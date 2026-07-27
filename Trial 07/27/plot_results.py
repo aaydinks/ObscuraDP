@@ -23,6 +23,7 @@ import matplotlib.ticker
 import numpy as np
 
 from obscura import config
+from obscura import metrics as metrics_mod
 
 RES = config.RESULTS_DIR
 
@@ -48,7 +49,7 @@ def plot_frontier():
     rows = d["frontier"]
     primary = config.LR.keys().__iter__().__next__()  # placeholder dataset
     if rows:
-        primary = config.primary_metric(rows[0].get("dataset", "stroke"))
+        primary = metrics_mod.primary_metric(rows[0].get("dataset", "stroke"))
 
     epsilons = sorted(set(r["epsilon"] for r in rows))
     fractions = sorted(set(r["spe_fraction"] for r in rows))
@@ -114,7 +115,7 @@ def plot_arms():
         axes = [axes]
 
     for ax, dataset in zip(axes, datasets):
-        primary = config.primary_metric(dataset)
+        primary = metrics_mod.primary_metric(dataset)
         dataset_rows = [r for r in rows if r["dataset"] == dataset]
 
         x = 0
@@ -169,24 +170,35 @@ def plot_lossless():
     if not rows:
         return
 
-    epsilons = sorted(set(r["epsilon"] for r in rows))
-    modes = sorted(set(r["mode"] for r in rows))
-
     fig, ax = plt.subplots(figsize=(10, 6))
 
+    # One series per (mode, p): after de-duplication there are 4 "he" records
+    # but 8 "spe" ones (two encryption ratios per epsilon), so grouping by mode
+    # alone mismatches the x and y lengths.
+    series = sorted(set((r["mode"], r.get("spe_fraction", 1.0)) for r in rows))
     colors = {"he": "#d7301f", "spe": "#31a354"}
-    for mode in modes:
-        mode_rows = [r for r in rows if r["mode"] == mode]
-        mode_rows_sorted = sorted(mode_rows, key=lambda r: r["epsilon"])
-        eps_sorted = sorted(set(r["epsilon"] for r in mode_rows))
-        devs = [r["max_abs_dev"] for r in mode_rows_sorted]
-        ax.loglog(eps_sorted, devs, "o-", color=colors.get(mode, "gray"),
-                  label=mode.upper(), linewidth=2, markersize=7)
+    marks = ["o-", "s--", "^:", "d-."]
+    for i, (mode, frac) in enumerate(series):
+        sel = sorted([r for r in rows
+                      if r["mode"] == mode and r.get("spe_fraction", 1.0) == frac],
+                     key=lambda r: r["epsilon"])
+        ax.loglog([r["epsilon"] for r in sel], [r["max_abs_dev"] for r in sel],
+                  marks[i % len(marks)], color=colors.get(mode, "gray"),
+                  label=f"{mode.upper()} p={frac:g}", linewidth=2, markersize=7,
+                  alpha=0.9)
 
-    for r in rows:
-        if r.get("noise_std", 0) > 0:
-            ax.axhline(r["noise_std"], color="gray", ls="--", alpha=0.3, linewidth=1)
-            break
+    # The DP noise standard deviation at each epsilon -- the whole point of the
+    # figure is the many-orders-of-magnitude gap between it and the curves above.
+    noise = sorted({(r["epsilon"], r["noise_std"]) for r in rows
+                    if r.get("noise_std", 0) > 0})
+    if noise:
+        ax.loglog([e for e, _ in noise], [n for _, n in noise], "v-",
+                  color="#404040", linewidth=2, markersize=7,
+                  label="DP noise std (floor)")
+
+    # The float32 quantisation floor a plaintext federation already pays.
+    ax.axhline(1.49e-08, color="#888888", ls=":", linewidth=1.5,
+               label="float32 storage floor")
 
     ax.set_xlabel("Privacy budget  ε  (log scale)", fontsize=11)
     ax.set_ylabel("Max abs deviation from plaintext (log scale)", fontsize=11)
@@ -202,7 +214,14 @@ def plot_lossless():
 
 
 def plot_sensitivity():
-    """Jaccard and Spearman rank correlation vs epsilon, one line per p."""
+    """Does the SPE mask survive DP noise? Mean +/- std over the repeat draws.
+
+    Left panel is the tie-break-free primary metric (probability the DP-chosen
+    mask lands on the same TENSORS as the clean one); right panel is the
+    scalar-level Jaccard, which is retained only as a secondary view because
+    every scalar inherits its tensor's single score, so most of the mask is
+    settled by argpartition tie-breaking rather than by sensitivity.
+    """
     d = _load("sensitivity.json")
     if not d:
         print("SKIPPED plot_sensitivity (no sensitivity.json)")
@@ -213,51 +232,62 @@ def plot_sensitivity():
         return
 
     fractions = sorted(set(r["fraction"] for r in rows if r.get("fraction")))
-    epsilons = sorted(set(r["epsilon"] for r in rows))
+    colors = plt.cm.viridis(np.linspace(0.1, 0.85, max(1, len(fractions))))
 
-    fig, (ax_j, ax_s) = plt.subplots(1, 2, figsize=(13, 5))
+    def agg(sel, key):
+        """Mean, and standard error, of `key` over the repeat draws."""
+        v = np.array([r.get(key, np.nan) for r in sel], dtype=float)
+        v = v[~np.isnan(v)]
+        if v.size == 0:
+            return np.nan, np.nan
+        return float(v.mean()), float(v.std(ddof=1) / np.sqrt(v.size)) if v.size > 1 else 0.0
 
-    colors = plt.cm.tab10(np.linspace(0, 1, len(fractions)))
+    fig, (ax_t, ax_j) = plt.subplots(1, 2, figsize=(13, 5))
 
     for frac, color in zip(fractions, colors):
-        frac_rows = [r for r in rows if r.get("fraction") == frac]
-        frac_rows_sorted = sorted(frac_rows, key=lambda r: r["epsilon"])
-        eps_sorted = sorted(set(r["epsilon"] for r in frac_rows))
+        eps_sorted = sorted(set(r["epsilon"] for r in rows if r.get("fraction") == frac))
+        t_mean, t_err, j_mean, j_err = [], [], [], []
+        for e in eps_sorted:
+            sel = [r for r in rows
+                   if r.get("fraction") == frac and r["epsilon"] == e]
+            m, se = agg(sel, "same_tensor_selection")
+            t_mean.append(m); t_err.append(se)
+            m, se = agg(sel, "jaccard")
+            j_mean.append(m); j_err.append(se)
+        ax_t.errorbar(eps_sorted, t_mean, yerr=t_err, fmt="o-", color=color,
+                      label=f"p={frac:.2f}", linewidth=2, markersize=6, capsize=3)
+        ax_j.errorbar(eps_sorted, j_mean, yerr=j_err, fmt="o-", color=color,
+                      label=f"p={frac:.2f}", linewidth=2, markersize=6, capsize=3)
+        # Analytic p/(2-p) baseline for a random top-p mask, per fraction.
+        base = [r.get("random_jaccard_analytic") for r in rows
+                if r.get("fraction") == frac and r.get("random_jaccard_analytic")]
+        if base:
+            ax_j.axhline(base[0], color=color, ls="--", linewidth=1.2, alpha=0.7)
 
-        jaccard = [r.get("jaccard", 0.0) for r in frac_rows_sorted]
-        spearman = [r.get("spearman", 0.0) for r in frac_rows_sorted]
-
-        ax_j.plot(eps_sorted, jaccard, "o-", color=color, label=f"p={frac:.2f}",
-                  linewidth=2, markersize=6)
-        ax_s.plot(eps_sorted, spearman, "o-", color=color, label=f"p={frac:.2f}",
-                  linewidth=2, markersize=6)
-
-    random_rows = [r for r in rows if "random_jaccard" in r]
-    if random_rows:
-        random_j = random_rows[0].get("random_jaccard", 0.0)
-        ax_j.axhline(random_j, color="gray", ls="--", linewidth=1.5,
-                     label=f"random baseline={random_j:.3f}")
+    ax_t.set_xscale("log")
+    ax_t.set_xlabel("Privacy budget  eps  (log scale)", fontsize=11)
+    ax_t.set_ylabel("P(DP mask selects the same tensors)", fontsize=11)
+    ax_t.set_title("Primary: tie-break-free tensor agreement", fontsize=12)
+    ax_t.set_ylim(-0.05, 1.05)
+    ax_t.grid(True, which="both", alpha=0.3)
+    ax_t.legend(fontsize=9)
 
     ax_j.set_xscale("log")
-    ax_j.set_xlabel("Privacy budget  ε  (log scale)", fontsize=11)
-    ax_j.set_ylabel("Mask Jaccard agreement", fontsize=11)
-    ax_j.set_title("Clean vs DP mask agreement", fontsize=12)
+    ax_j.set_xlabel("Privacy budget  eps  (log scale)", fontsize=11)
+    ax_j.set_ylabel("Scalar-level mask Jaccard", fontsize=11)
+    ax_j.set_title("Secondary: Jaccard (dashed = p/(2-p) random baseline)",
+                   fontsize=12)
+    ax_j.set_ylim(-0.05, 1.05)
     ax_j.grid(True, which="both", alpha=0.3)
     ax_j.legend(fontsize=9)
 
-    ax_s.set_xscale("log")
-    ax_s.set_xlabel("Privacy budget  ε  (log scale)", fontsize=11)
-    ax_s.set_ylabel("Spearman rank correlation", fontsize=11)
-    ax_s.set_title("Score rank correlation (clean vs DP)", fontsize=12)
-    ax_s.grid(True, which="both", alpha=0.3)
-    ax_s.legend(fontsize=9)
-
-    fig.suptitle("Sensitivity fidelity under DP noise", fontsize=13)
+    fig.suptitle("SPE mask fidelity degrades as the privacy budget tightens "
+                 "(mean +/- s.e. over repeat draws)", fontsize=12)
     fig.tight_layout()
-    p = os.path.join(RES, "sensitivity.png")
-    fig.savefig(p, dpi=150)
+    pth = os.path.join(RES, "sensitivity.png")
+    fig.savefig(pth, dpi=150)
     plt.close(fig)
-    print(f"wrote {p}")
+    print(f"wrote {pth}")
 
 
 def plot_overhead():
@@ -272,24 +302,32 @@ def plot_overhead():
 
     crypto_vs_p = d.get("crypto_vs_p", [])
     if crypto_vs_p:
-        fracs = sorted(set(r.get("fraction", 0.0) for r in crypto_vs_p))
-        for frac in fracs:
-            frac_rows = sorted([r for r in crypto_vs_p if r.get("fraction") == frac],
-                               key=lambda r: r.get("fraction"))
-            if frac_rows:
-                fracs_sorted = sorted(set(r.get("fraction") for r in frac_rows))
-                crypto_secs = [r.get("crypto_sec", 0.0) for r in frac_rows]
-                payload = [r.get("payload_ratio", 0.0) for r in frac_rows]
-                ax = axes[0]
-                ax.plot(fracs_sorted, crypto_secs, "o-", label=f"crypto_sec", linewidth=2)
-                ax2 = ax.twinx()
-                ax2.plot(fracs_sorted, payload, "s--", label=f"payload_ratio", linewidth=2)
-                ax.set_xlabel("Encryption ratio  p", fontsize=10)
-                ax.set_ylabel("Crypto time (s)", fontsize=10)
-                ax2.set_ylabel("Payload ratio", fontsize=10)
-                ax.set_title("(a) Overhead vs encryption ratio", fontsize=11)
-                ax.grid(alpha=0.3)
-                break
+        ax = axes[0]
+        ax2 = ax.twinx()
+        # Records may span several model sizes: a sweep at n_params < CKKS_SLOTS
+        # is degenerate (every p costs exactly one ciphertext), so each size is
+        # drawn as its own series rather than pooled.
+        widths = sorted(set(r.get("width_scale", 1) for r in crypto_vs_p))
+        for w in widths:
+            sel = sorted([r for r in crypto_vs_p if r.get("width_scale", 1) == w],
+                         key=lambda r: r.get("fraction", 0.0))
+            if not sel:
+                continue
+            n_par = sel[0].get("n_params", 0)
+            degenerate = n_par <= config.CKKS_SLOTS
+            lbl = f"{n_par:,} params" + (" (degenerate: 1 chunk)" if degenerate else "")
+            style = ":" if degenerate else "-"
+            ax.plot([r["fraction"] for r in sel], [r["crypto_sec"] for r in sel],
+                    "o" + style, linewidth=2, label=lbl)
+            ax2.plot([r["fraction"] for r in sel],
+                     [r.get("payload_ratio", 0.0) for r in sel], "s--",
+                     linewidth=1.2, alpha=0.6)
+        ax.set_xlabel("Encryption ratio  p", fontsize=10)
+        ax.set_ylabel("Crypto time (s)  [solid]", fontsize=10)
+        ax2.set_ylabel("Payload ratio  [dashed]", fontsize=10)
+        ax.set_title("(a) Overhead vs encryption ratio", fontsize=11)
+        ax.grid(alpha=0.3)
+        ax.legend(fontsize=7)
 
     crypto_vs_size = d.get("crypto_vs_size", [])
     if crypto_vs_size:

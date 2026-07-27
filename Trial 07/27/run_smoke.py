@@ -267,7 +267,19 @@ def check_orchestrator_plain():
     assert result["crypto"].get("n_encrypted", 0) == 0, \
         f"plain should have no encrypted params, got {result['crypto'].get('n_encrypted')}"
 
-    print(f"  PASS: plain stack run complete (no lossless error, no encryption)")
+    # The plaintext arm encrypts nothing, so its ciphertext payload_ratio is 0 --
+    # but it still puts the entire model on the wire as float32, so its WIRE
+    # ratio is exactly 1.0. Asserting both keeps the two payload metrics from
+    # being conflated, and pins the plaintext end of the p axis the SPE rows are
+    # measured against.
+    assert result["crypto"].get("payload_ratio", None) == 0.0, \
+        f"plain payload_ratio should be 0.0, got {result['crypto'].get('payload_ratio')}"
+    assert result["crypto"].get("wire_payload_ratio", None) == 1.0, \
+        (f"plain wire_payload_ratio should be 1.0, got "
+         f"{result['crypto'].get('wire_payload_ratio')}")
+
+    print(f"  PASS: plain stack run complete (no lossless error, no encryption, "
+          f"wire_payload_ratio {result['crypto']['wire_payload_ratio']:.1f})")
     return True
 
 

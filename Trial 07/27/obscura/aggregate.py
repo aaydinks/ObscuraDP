@@ -54,9 +54,13 @@ def aggregate_states(states, counts, mode="plaintext", mask=None, ctx=None, weig
     Returns:
         (agg_state dict, stats dict) where stats includes all he.fedavg_he_timed
         keys ("encrypt_sec", "aggregate_sec", "decrypt_sec", "crypto_sec",
-        "ciphertext_bytes", "plaintext_bytes", "payload_ratio", "n_chunks",
-        "n_encrypted", "encrypted_fraction", "n_params") plus "agg_sec"
-        (wall-clock duration of the entire aggregate_states call).
+        "ciphertext_bytes", "plaintext_bytes", "payload_ratio",
+        "wire_payload_ratio", "n_chunks", "n_encrypted", "encrypted_fraction",
+        "n_params") plus "agg_sec" (wall-clock duration of the entire
+        aggregate_states call). The "he" and "spe" paths get those keys straight
+        from he.fedavg_he_timed; the plaintext paths build them here, and they
+        must stay in step with it -- see he.py for what the two payload ratios
+        mean and why the plaintext ones are 0.0 and 1.0 respectively.
     """
     t_start = time.perf_counter()
 
@@ -79,6 +83,11 @@ def aggregate_states(states, counts, mode="plaintext", mask=None, ctx=None, weig
             "ciphertext_bytes": 0,
             "plaintext_bytes": len(agg_flat) * 4,
             "payload_ratio": 0.0,
+            # No ciphertext, so the client puts the whole model on the wire as
+            # float32: exactly 1.0x the plaintext baseline. Same convention as
+            # he.fedavg_he_timed uses when nothing is encrypted -- 0.0 would read
+            # as "this arm sends nothing", which is the opposite of the truth.
+            "wire_payload_ratio": 1.0,
             "n_chunks": 0,
             "n_encrypted": 0,
             "encrypted_fraction": 0.0,
@@ -104,6 +113,7 @@ def aggregate_states(states, counts, mode="plaintext", mask=None, ctx=None, weig
                 "ciphertext_bytes": 0,
                 "plaintext_bytes": n_params * 4,
                 "payload_ratio": 0.0,
+                "wire_payload_ratio": 1.0,
                 "n_chunks": 0,
                 "n_encrypted": 0,
                 "encrypted_fraction": 0.0,

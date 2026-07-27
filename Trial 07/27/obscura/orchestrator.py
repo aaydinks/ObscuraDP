@@ -355,6 +355,7 @@ def run_stack(dataset="stroke", stack="dp_spe", algo="fedprox", epsilon=None,
         crypto_stats_keys = [
             "encrypt_sec", "aggregate_sec", "decrypt_sec", "crypto_sec",
             "ciphertext_bytes", "plaintext_bytes", "payload_ratio",
+            "wire_payload_ratio",
             "n_chunks", "n_encrypted", "encrypted_fraction"
         ]
         crypto_block = {}
@@ -365,7 +366,8 @@ def run_stack(dataset="stroke", stack="dp_spe", algo="fedprox", epsilon=None,
         crypto_block = {
             "encrypt_sec": 0.0, "aggregate_sec": 0.0, "decrypt_sec": 0.0,
             "crypto_sec": 0.0, "ciphertext_bytes": 0.0, "plaintext_bytes": 0.0,
-            "payload_ratio": 0.0, "n_chunks": 0, "n_encrypted": 0,
+            "payload_ratio": 0.0, "wire_payload_ratio": 1.0,
+            "n_chunks": 0, "n_encrypted": 0,
             "encrypted_fraction": 0.0
         }
 
