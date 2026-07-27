@@ -67,7 +67,12 @@ FedAvg because Dirichlet clients differ wildly in size. Running the non-IID task
 encryption* therefore required applying weights without ever decrypting an individual
 client vector. Each client's ciphertext is multiplied by its plaintext scalar weight
 before summing — still multiplicative depth 1, so the `[60,40,60]` chain suffices
-(verified: it admits exactly one scalar multiply, with **zero headroom**).
+(verified independently: one scalar multiply on a fresh ciphertext works, a second raises
+`ValueError: scale out of bounds`). So it fits with **zero headroom**, and that is a
+standing constraint, not a footnote: any *further* homomorphic operation — a second
+scalar, a ciphertext-ciphertext product, masking inside the encrypted domain — needs
+`[60,40,40,60]`, which moves the asymptotic payload from ~14.4× to ~20×. "Weighted HE is
+free" is true at exactly this depth and no deeper.
 
 ---
 
@@ -211,8 +216,8 @@ Experiment 2 never varied both, and Experiment 3 had no ε axis.
 > **What this panel does *not* show.** The cost table above is flat between p=0.25 and
 > p=1.00 — 0.0358 s averaged down the p=0.25 column against 0.0351 s down p=1.00, with
 > every row's difference inside its own ± s.d. That is **not** evidence that SPE fails
-> to save anything — it is the single-ciphertext floor again. The stroke model's 3,137 parameters fit
-> inside one 4096-slot ciphertext, so every p ≥ 1/4096 costs exactly one chunk. This
+> to save anything — it is the single-ciphertext floor again. The stroke model's 3,137
+> parameters fit in one 4096-slot ciphertext, so every p ≥ 1/4096 costs exactly one chunk. This
 > frontier therefore demonstrates *cost is independent of ε* but says nothing about
 > *cost vs p*. The linear-in-p result needs a model spanning many chunks and is in §7.
 
@@ -284,16 +289,40 @@ Two calibrations make that number interpretable rather than merely small:
   every `dp` arm exactly on that floor (ratio 1.000), and every encrypted arm a small
   multiple above it: on stroke **uniformly 4.400×** (6.56e-08 against 1.49e-08, the same
   value for `he`, `dp_he` and `dp_spe`, under both FedAvg and FedProx), and on loan
-  **3.600× to 5.200×** (2.15e-07…3.10e-07 against a 5.96e-08 floor). Quoting one range
-  spanning both datasets would be misleading — loan's floor is its own, and its 929
-  parameters fill only 23% of a single ciphertext against stroke's 77%, a much more
-  heavily padded regime (§7). The claim that survives either way: CKKS costs a small
-  constant multiple of the rounding a plaintext federation already pays just to hold its
-  weights, and the multiple stays under 6× on both datasets.
+  **3.600× to 5.200×** (2.15e-07…3.10e-07 against a 5.96e-08 floor). The calibration
+  itself is sound — independent verification confirms the recorded floor is the float32
+  half-ULP at the largest weight, to the last bit, and that the plaintext arms' 1.000 is a
+  structural identity rather than a coincidence (§9, claim 6a). So CKKS costs a small
+  single-digit multiple of the rounding a plaintext federation already pays just to hold
+  its weights.
+
+  **But that multiple is only meaningful to within a factor of ~2, by construction.** The
+  numerator (CKKS error) is *continuous* in `max|w|`; the denominator (a float32 half-ULP)
+  is a *power-of-two staircase* in `max|w|` — constant within an octave, doubling at each
+  boundary. Their ratio is therefore a **sawtooth with a period of one octave**. Measured
+  with nothing changed but weight magnitude, it drifts 3.43 → 4.93 across the `[0.25,0.5)`
+  binade and **resets to 3.43 on crossing** — a 1.4× swing from magnitude alone. This is
+  exactly why "3.5–3.9×" went stale the moment `LR["stroke"]` moved 1e-3 → 1e-4, and why
+  stroke and loan cannot share a denominator: stroke's `max|w| ≈ 0.26` against loan's
+  `∈ [1,2)`, two octaves apart. Re-derive it whenever the learning rate, the round count or
+  the dataset changes the weight magnitudes; never quote it as a tight number. (A smaller
+  point in the same direction: `dev_over_float32_floor` divides a max-over-rounds by a
+  max-over-rounds, and the two maxima need not come from the same round, so it is not
+  exactly any single round's ratio.)
 - **Normalise by the right thing.** The `rel_to_noise_floor` column above divides a
   *weight-space* deviation by a *gradient-space* per-step noise std. It is retained for
   continuity but it drifts 11.5× across ε while its numerator is flat — a units
-  mismatch, not a finding. `rel_to_update_scale` is scale-free and duly invariant.
+  mismatch, not a finding.
+
+  **`rel_to_update_scale` is the portable quantity, and that is now measured rather than
+  asserted.** Sweeping the encrypted magnitude over ~1000× with everything else fixed, the
+  absolute deviation moves ~1000× while `dev / update_scale` moves **1.08×**. A fixed
+  absolute error would have dragged the ratio the full 1000×; it did not. The honest limit:
+  the invariance holds **over the operating range**, not asymptotically — below
+  `mean|ref| ≈ 0.01` an additive CKKS floor of ~1.9e-08 dominates and the ratio degrades to
+  3.5e-05. This trial runs at `update_scale = 0.084`, comfortably inside. Quote
+  `rel_to_update_scale` for a scale-free statement; the float32-floor ratio is
+  octave-accurate at best.
 
 ---
 
@@ -307,27 +336,66 @@ Mean ± standard error over **64 draws** per cell.
 
 *Left, the primary metric: P(the DP-scored mask picks the same tensors as the clean one)
 rises monotonically with ε, 0.09 → 0.73. **The three p-curves are exactly superimposed**
-— that is the six-tensor degeneracy described in the second caveat below, not three
-measurements that happen to agree. Right, the secondary scalar-level Jaccard, with the
+— that is the six-tensor degeneracy explained in the note under the first table below, not
+three measurements that happen to agree. Right, the secondary scalar-level Jaccard, with the
 analytic p/(2-p) random baselines dashed in matching colours. Every measured curve sits
 **above** its baseline at every ε, including the leftmost ε=0.5 point — which is the
 retracted claim, refuted in the figure.*
 
-| ε | P(same tensors) | Jaccard @ p=0.25 | random baseline | Spearman |
-|---:|---:|---:|---:|---:|
-| 0.5 | **0.094 ± 0.037** | 0.371 ± 0.041 | 0.1429 | 0.533 |
-| 2.0 | **0.266 ± 0.056** | 0.508 ± 0.046 | 0.1429 | 0.874 |
-| 9.0 | **0.422 ± 0.062** | 0.705 ± 0.037 | 0.1429 | 0.927 |
-| 50.0 | **0.734 ± 0.056** | 0.891 ± 0.023 | 0.1429 | 0.983 |
+**Primary metric — tie-break-free tensor selection.** There is deliberately **no p column
+here**, because there is nothing for one to show:
+
+| ε | P(DP mask selects the same tensors as the clean mask) | Spearman (tensor ranking) |
+|---:|---:|---:|
+| 0.5 | **0.094 ± 0.037** | 0.533 |
+| 2.0 | **0.266 ± 0.056** | 0.874 |
+| 9.0 | **0.422 ± 0.062** | 0.927 |
+| 50.0 | **0.734 ± 0.056** | 0.983 |
+
+> *p was varied — the metric cannot see it.* At p = 0.1, 0.25 and 0.5 the top-*k* fill
+> takes k = 314, 784 and 1568 scalars, and all three land inside the same boundary tensor
+> (`net.2.weight`, 2,048 of the model's 3,137 parameters), so the selected tensor *set* is
+> bit-identical at all three fractions. Presenting those as three columns would invite the
+> reader to conclude "p was swept and made no difference", which is not what happened. It
+> is a limitation of a six-tensor model, not a property of SPE.
+
+**Secondary metric — scalar-level Jaccard, where p genuinely does vary** (analytic random
+baseline p/(2−p) in each header):
+
+| ε | p=0.10 · base 0.0526 | p=0.25 · base 0.1429 | p=0.50 · base 0.3333 |
+|---:|---:|---:|---:|
+| 0.5 | 0.334 ± 0.031 | 0.371 ± 0.041 | 0.486 ± 0.046 |
+| 2.0 | 0.491 ± 0.039 | 0.508 ± 0.046 | 0.596 ± 0.048 |
+| 9.0 | 0.648 ± 0.039 | 0.705 ± 0.037 | 0.806 ± 0.034 |
+| 50.0 | 0.850 ± 0.031 | 0.891 ± 0.023 | 0.946 ± 0.011 |
+
+Every cell is above its baseline, at every ε and every p. Independent re-implementation
+reproduces all 12 cells of both tables from `results/sensitivity.json` **bit for bit**
+(§9, claim 5a).
 
 **The finding: SPE's privacy targeting degrades monotonically as the budget tightens.**
 At ε=50 the DP-chosen mask agrees with the clean one 73% of the time; at ε=0.5, 9%. The
 mechanism is saturation — the DP scores collapse onto the noise floor
 `E|N(0, σC/B)| = 0.0117`, compressing a clean score range that spans 52×
-(5.13e-04 … 2.67e-02) into one spanning ≈1.26× on a typical draw. There is simply no
-ranking signal left. (The clean span and the noise floor are re-measured independently in
-[`VERIFICATION.md`](VERIFICATION.md); they are properties of the scorer and the σ grid,
-not fields of `results/sensitivity.json`.)
+(5.13e-04 … 2.67e-02) into a far narrower one. **How much narrower depends on which
+tensors you count, and the honest answer is both numbers:**
+
+| tensor set | median DP span over 64 draws | range |
+|---|---:|---:|
+| the 5 **multi-element** tensors | **1.23×** | 1.06× … 1.70× |
+| **all 6** tensors — what the mask actually ranks | **2.52×** | 1.13× … 6.40× |
+
+The often-quoted "≈1.26×" is the five-tensor figure. It is not the one the saturation
+argument should rest on: the sixth tensor, the 1-element `net.4.bias`, is the
+**top-ranked clean tensor**, so the mask genuinely does rank it, and its score is a single
+`|N(0,s)|` sample rather than a mean over many. Its per-tensor sampling s.d. is 8.8e-03
+against 2.0e-04 for the 2,048-element matrix, because that s.d. falls as `1/√numel` — so
+under saturation the DP ranking does not merely lose signal, it **systematically promotes
+small tensors**. A bias, not a coin flip. Taking all six, the typical span is 2.5× and can
+reach 6.4×; against a 52× clean span the collapse is still decisive, but it is a 20×
+compression rather than the 40× the five-tensor number implies. (The clean span, the noise
+floor and both DP spans are re-measured in [`VERIFICATION.md`](VERIFICATION.md); they are
+properties of the scorer and the σ grid, not fields of `results/sensitivity.json`.)
 
 **Utility is identical across mask modes** — clean, dp and random all give recall
 0.6905 / acc 0.7262 / AUC 0.8050. That is expected and important: SPE is lossless
@@ -341,24 +409,39 @@ An earlier version of this experiment reported that at ε=0.5 the DP mask fell *
 the random baseline (Jaccard 0.044 vs 0.143), implying anti-correlation. **That does not
 replicate and is withdrawn.** It rested on 3 repeats; over 64 draws the same estimator
 gives 0.371 ± 0.041 — **5.6 standard errors** *above* baseline — with a per-draw standard
-deviation of 0.33 and a **strictly bimodal** distribution: 30 of the 64 draws fall at or
-below 0.0896, the other 34 at or above 0.4216, and not one lands in between. Three
-repeats could never have supported the claim. The pre-fix 0.044 is not preserved in any
-results file: `results/sensitivity.json` was regenerated at `SENS_REPEATS = 64`, so the
-3-repeat estimate now survives only as the retracted number quoted here and in the note
-in `obscura/config.py`.
+deviation of ~0.33 and a **bimodal** distribution: the 64 draws split into a low cluster
+and a high one with an empty gap between 0.0896 and 0.4216, 30 draws below it and 34
+above. A mean is a poor summary of a distribution shaped like that, which is precisely
+what made three of them fatal.
+
+**The retracted number is now fully accounted for, not merely disowned.** The first three
+draws of the current 64 — seeds 42–44, the same three the pre-fix run used — reproduce
+**0.0442 exactly**. Enumerating all C(64,3) = 41,664 triples of those same 64 draws,
+4.1% of them land at or below 0.0442, and 9.7% fall below the baseline outright. The
+published figure was a routine ~1-in-24 sample from the low mode, not evidence of
+anti-correlation. Resolving the true gap to the baseline needs about 18 draws; 64 gives a
+3.5× margin, and the count should not drop below ~32.
+
+The claim also fails against a *stricter* null than the one it was tested on. Because
+`build_mask` gives every scalar its tensor's score, the DP mask is a union of whole
+tensors plus one partial tensor, so the structurally correct null is "the DP ranking
+orders the 6 tensors at random" — all 720 permutations enumerated, giving **0.1233** at
+p=0.25 rather than p/(2−p) = 0.1429. The 64-draw measurement exceeds even that, at every
+ε.
 
 Two methodological caveats, both real:
 
-- **Jaccard-over-scalars is tie-break sensitive.** Every scalar inherits its tensor's
-  single score, so **84% of the p=0.25 mask is decided by `np.argpartition` tie-breaking**
-  rather than by sensitivity. Swapping the tie-break convention moves the ε=0.5 statistic
-  between 0.15 and 0.47. The tie-break-free per-tensor selection probability is therefore
-  the primary metric; Jaccard is kept as a secondary column.
-- **The p-columns are degenerate here.** P(same tensors) is identical at p=0.1, 0.25 and
-  0.5 because one weight matrix holds 2,048 of 3,137 parameters, so the greedy top-*p*
-  fill lands in the same tensor at all three fractions. That is a limitation of a
-  six-tensor model, not a property of SPE.
+- **Jaccard-over-scalars is mostly measuring `np.argpartition`.** Every scalar inherits
+  its tensor's single score, so the top-*k* fill always takes the same four whole tensors
+  (129 scalars) and then an *arbitrary* subset of `net.2.weight` to make up the rest:
+  **59% of the mask at p=0.1, 84% at p=0.25, 92% at p=0.5** is decided by tie-breaking
+  rather than by sensitivity. At ε=0.5, p=0.25 the statistic reads 0.371 under the shipped
+  `argpartition`, 0.470 under a random tie-break sharing a key, and 0.149 under
+  independent keys — a **3.2× swing on convention alone**. That is why the tie-break-free
+  tensor-selection probability is the primary metric and the Jaccard grid is secondary.
+- **The primary metric is p-invariant on this model**, for the reason set out under the
+  first table — a six-tensor limitation, not a property of SPE. The fix is a model with
+  more tensors, not a different statistic; both are stated rather than papered over.
 
 ---
 
@@ -490,20 +573,45 @@ to the SMOTETomek recipe, not to DP.**
 
 The crypto claims were re-derived against raw TenSEAL/Opacus, deliberately **not**
 through this package's own `he.py`/`aggregate.py`, since those were the code under test.
-See [`VERIFICATION.md`](VERIFICATION.md); reproduce with `python verify_claims.py` (~17 s).
+See [`VERIFICATION.md`](VERIFICATION.md); reproduce with `python verify_claims.py` (~14 s,
+exit 0). The harness pins the four `results/*.json` files by sha256 and re-parses
+`VERIFICATION.md`'s verdict table on every run, so a write-up that drifts from the data
+fails loudly rather than quietly.
 
-The figures in this table are the auditor's own re-measurements, not fields of
-`results/*.json` — **[`VERIFICATION.md`](VERIFICATION.md) is authoritative for them** and
-the row below is a summary of it.
+The harness reports two orthogonal things, and the distinction matters for reading the
+table below:
 
-| claim | verdict | key evidence |
-|---|---|---|
-| CKKS + SPE lossless on DP-noised updates | **CONFIRMED** | independently measured 4.91e-08…6.65e-08 against the trial's 4.90e-08…6.90e-08; an off-by-one scatter positive control yields 3.10e+00, so the test has ~7 orders of discriminating power |
-| Weighted homomorphic aggregation | **CONFIRMED** | rel. error flat at ~1.3e-07 for \|v\| ≥ 0.1 (it rises to 6.3e-06 at \|v\|=1e-3, where absolute error meets the CKKS scale floor); `[60,40,60]` admits exactly one scalar multiply, with zero headroom |
-| Payload ratio is padding, not a chain difference | **CONFIRMED** | asymptote 14.365×, matching Experiment 3 |
-| `dp_noise_std = σ·C/B` | **CONFIRMED, one correction** | measured grad std 1.5516 vs predicted 1.5625. `B` should be Opacus's `expected_batch_size` (29–32), so the floor is understated by ≤10% |
-| Mask degradation under DP | **CONFIRMED** | saturation onto `E|N(0,σC/B)| = 0.0117`; clipping verified as the standard *joint* `min(1, C/‖g‖)` |
-| Mask falls *below* random at ε=0.5 | **REFUTED** | see §6, "A claim this trial retracted" |
+- **STATUS** — did the check *execute* and reach a confident conclusion? (`OK` / `ERROR`)
+- **VERDICT** — is the *claim* true? (`CONFIRMED` / `CONFIRMED-WITH-CORRECTION` /
+  `REFUTED`)
+
+A `REFUTED` claim at `STATUS = OK` is a **success**: the instrument worked and the claim
+was false. Both refutations below are recorded, expected ones — 5b is the claim this trial
+had already retracted, and 6b is a stale README number this round caught and priced.
+
+Every figure below is the auditor's own re-measurement, not a field of `results/*.json` —
+**[`VERIFICATION.md`](VERIFICATION.md) is authoritative** and this table summarises it.
+CKKS encryption uses SEAL's RNG, so re-runs move the last digit of the measured bands.
+
+| # | claim | status | verdict | key evidence |
+|---|---|---|---|---|
+| 0 | Harness config cross-check | OK | **CONFIRMED** | all 18 `config.py` constants and the four results-file digests match what this document was validated against |
+| 1 | CKKS + SPE lossless on DP-noised updates | OK | **CONFIRMED** | independent reference built on the *actual* encrypted object (seed-42 init, `mean\|w\|=0.084163` against the file's `update_scale` 0.084417, −0.30%), and it lands in the same band as the file's 3.48e-08…4.37e-08 at every ε — `VERIFICATION.md` records 3.89e-08…4.25e-08 for its run. An off-by-one scatter control yields 3.10e+00 — ~7 orders of detection power — and a mask-polarity probe separates the plaintext half (4.4e-16) from the encrypted half (2.5e-07) |
+| 2 | Weighted homomorphic aggregation | OK | **CONFIRMED** | rel. error flat at ~1.3e-07 for \|v\| ≥ 0.1 (rising to 7.6e-06 at \|v\|=1e-3, where the additive CKKS floor takes over); the weighted answer differs from the unweighted mean by 7 orders of magnitude more than the HE error, so the test can tell them apart; `[60,40,60]` takes exactly one scalar multiply and raises `scale out of bounds` on a second |
+| 3 | Payload ratio is padding, not a chain difference | OK | **CONFIRMED** | ciphertext ≈235,360 B at 1, 512, 3,137 and 4,096 filled slots; the analytic model matches all six reported ratios to ≤3e-04; asymptote 14.365×, reached both by direct measurement and from the modulus chain (16.0 raw × 0.898 ZSTD) |
+| 4 | `dp_noise_std = σ·C/B` | OK | **CONFIRMED-WITH-CORRECTION** | re-run at the discriminating size: **the previous test ran at n_data=1024, where Opacus's `expected_batch_size` equals `BATCH_SIZE` exactly and the two candidate denominators are numerically identical — it could not distinguish them at all.** At client-0's real n_data=484 (`expected_batch_size`=30) the measured gradient std is 1.6661 against σC/30 = 1.6667 (ratio 1.000) and σC/32 = 1.5625 (1.066), with "no 1/B" excluded by 30×. `B` is Opacus's `expected_batch_size` (29–32 here), so `dp_noise_std` understates the floor by ≤10%, mean ≈5% |
+| 5a | DP-aware sensitivity numbers reproduce | OK | **CONFIRMED-WITH-CORRECTION** | all 12 (ε, p) cells rebuilt from scratch reproduce `results/sensitivity.json` **bit for bit** on all three statistics; saturation floor `E\|N(0,σC/B)\| = 0.0117` and the 52× clean span both confirmed; clipping is the standard *joint* `min(1, C/‖g‖)`, distinguishable from a per-tensor clip by 7.5e-04. Correction: the compressed-DP-span figure needs a tensor-set qualifier (§6) |
+| 5b | Mask falls *below* random at ε=0.5 | OK | **REFUTED** | the retraction re-measured and upheld — see §6, "A claim this trial retracted" |
+| 6a | The float32 floor is a correct calibration | OK | **CONFIRMED** | the seed-42 stroke init's `max\|w\| = 0.258098` has a float32 half-ULP of 1.4901161193847656e-08, matching the recorded `float32_floor` **to the last bit**; the identity `dev_over_float32_floor == max_abs_dev / float32_floor` holds on 20/20 arms, and the 8 non-HE arms sit structurally at exactly 1.000 |
+| 6b | HE arms sit at "3.5–3.9×" that floor | OK | **REFUTED** | only 1 of 12 HE-bearing arms falls in [3.5, 3.9]; the real range is 3.600×…5.200× (§5). The figure predates `LR["stroke"]` 1e-3 → 1e-4, and the quantity is octave-accurate at best |
+
+Two further corrections this round adopted into the text. First, `rel_to_update_scale` is
+scale-free **over the operating range**, not unconditionally (§5). Second, `get_sigma`
+solves σ at `sample_rate = batch_size / n_local` (0.0661 for client 0) while Opacus's own
+accountant hook uses `1 / len(loader)` (0.0625) — so σ is calibrated to a slightly
+*larger* sampling rate than the one actually used, and the true ε spent is marginally
+**below** the labelled target. That direction is conservative, but it is a real mismatch
+and is stated here rather than left for a reader to discover.
 
 ---
 
