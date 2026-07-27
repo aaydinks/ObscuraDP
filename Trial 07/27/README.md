@@ -52,8 +52,8 @@ change:
 | Test set | **class-balanced**, 84 rows (42 positive) | natural, 854 rows |
 | Model | FFNN 15→64→32→1, **3,137 params** | MLP 11→32→16→1, **929 params** |
 | Headline metric | recall | accuracy |
-| Aggregation | **unweighted** (see §6) | sample-weighted |
-| lr | 1e-4 (see §6) | 5e-3 |
+| Aggregation | **unweighted** (see §8) | sample-weighted |
+| lr | 1e-4 (see §8) | 5e-3 |
 
 Shared: 5 clients · **20 rounds** · 3 local epochs · Adam · batch 32 · FedProx μ=0.01.
 DP: Opacus DP-SGD, Gaussian + RDP accounting, C=1.0, δ=1e-5, ε a **per-round** budget
@@ -107,11 +107,63 @@ learned; that equality is the *result*, not a coincidence.
 
 Loan shows a **normal privacy cost** (0.9614 → 0.9403). Stroke does not — DP *beats*
 the non-private arm there. That is a real property of the SMOTETomek recipe, discussed
-honestly in §6 rather than smoothed over.
+honestly in §8 rather than smoothed over.
 
 ---
 
-## 4. Losslessness under DP noise
+## 4. The joint ε × p frontier — the separability claim
+
+`python run_frontier.py` → `results/frontier.json`, `results/frontier.png`
+
+Every cell is a full 20-round run of the complete stack: DP-SGD locally, FedProx,
+non-IID Dirichlet clients with per-client SMOTETomek, and CKKS aggregation of the
+resulting noisy updates at encryption ratio *p*.
+
+**Utility (recall) — should be flat along each row if utility is independent of *p*:**
+
+| ε | p=0.00 | p=0.25 | p=1.00 | AUC | cumulative ε |
+|---:|---:|---:|---:|---:|---:|
+| 0.5 | 0.7857 | 0.7857 | 0.7857 | 0.7959 | 2.46 |
+| 1.0 | 0.7381 | 0.7381 | 0.7381 | 0.7999 | 4.78 |
+| 2.0 | 0.7143 | 0.7143 | 0.7143 | 0.8016 | 9.18 |
+| 5.0 | 0.6905 | 0.6905 | 0.6905 | 0.8027 | 21.62 |
+| 9.0 | 0.6905 | 0.6905 | 0.6905 | 0.8050 | 39.17 |
+| 15.0 | 0.6667 | 0.6667 | 0.6667 | 0.8050 | 68.51 |
+| 50.0 | 0.6667 | 0.6667 | 0.6667 | 0.8005 | 292.25 |
+
+**Crypto cost (s/round) — should be flat down each column if cost is independent of ε:**
+
+| ε | p=0.00 | p=0.25 | p=1.00 |
+|---:|---:|---:|---:|
+| 0.5 | 0.0000 | 0.0280 | 0.0291 |
+| 1.0 | 0.0000 | 0.0280 | 0.0288 |
+| 2.0 | 0.0000 | 0.0282 | 0.0297 |
+| 5.0 | 0.0000 | 0.0299 | 0.0293 |
+| 9.0 | 0.0000 | 0.0282 | 0.0294 |
+| 15.0 | 0.0000 | 0.0297 | 0.0294 |
+| 50.0 | 0.0000 | 0.0282 | 0.0298 |
+
+**Separability holds.** Recall is *identical to four decimals* across the encryption
+ratio at every budget — not merely close, bit-identical, because encryption happens at
+aggregation time and is lossless (§5). Crypto cost varies by under 7% down each column,
+which is timing jitter on a shared machine, not an ε effect.
+
+**So the two frontiers are orthogonal axes.** An operator picks ε from the utility
+column and *p* from the cost row, and neither choice constrains the other. That is the
+practical payoff of composing DP with SPE-HE, and it is not something any of the three
+prior trials could have established: Experiment 1 had no *p* axis, Experiment 2 never
+varied both, and Experiment 3 had no ε axis.
+
+**A wrinkle worth stating.** Recall *falls* as ε loosens (0.786 → 0.667) while AUC
+*rises* (0.7959 → 0.8050). These are not in conflict, and Experiment 1 documented the
+same effect: because every client trains on SMOTE-balanced data, discrimination is
+nearly constant, so ε mainly moves the **operating point**. More noise predicts more
+positives — higher recall, lower precision — and less noise is more conservative. The
+threshold-free metric is the one that improves monotonically with the privacy budget, in
+the textbook direction; recall at a fixed 0.5 threshold moves the other way. Reporting
+only one of them would misrepresent the trade-off.
+
+## 5. Losslessness under DP noise
 
 `python run_losslessness.py` → `results/lossless.json`, `results/lossless.png`
 
@@ -147,7 +199,7 @@ Two calibrations make that number interpretable rather than merely small:
 
 ---
 
-## 5. Does the SPE mask survive DP noise?
+## 6. Does the SPE mask survive DP noise?
 
 `python run_sensitivity.py` → `results/sensitivity.json`, `results/sensitivity.png`
 
@@ -195,7 +247,7 @@ Two methodological caveats, both real:
 
 ---
 
-## 6. Overhead composition
+## 7. Overhead composition
 
 `python run_overhead.py` → `results/overhead.json`, `results/overhead.png`
 
@@ -250,7 +302,7 @@ illustration of the floor, and must not be read as "SPE saves nothing".
 
 ---
 
-## 7. What broke, and what it revealed
+## 8. What broke, and what it revealed
 
 Two defects made the first version of the stroke results worthless. Both are documented
 with measurements in [`DIAGNOSIS.md`](DIAGNOSIS.md); the pre-fix matrix is preserved at
@@ -291,7 +343,7 @@ to the SMOTETomek recipe, not to DP.**
 
 ---
 
-## 8. Independent verification
+## 9. Independent verification
 
 The crypto claims were re-derived against raw TenSEAL/Opacus, deliberately **not**
 through this package's own `he.py`/`aggregate.py`, since those were the code under test.
@@ -308,7 +360,7 @@ See [`VERIFICATION.md`](VERIFICATION.md); reproduce with `python verify_claims.p
 
 ---
 
-## 9. Reproduce
+## 10. Reproduce
 
 ```bash
 python3.11 -m venv ../../obscura_env && source ../../obscura_env/bin/activate
