@@ -133,8 +133,46 @@ def check_ckks_exactness():
     assert spe_err < config.CKKS_TOLERANCE, \
         f"SPE error {spe_err} >= tolerance"
 
+    # Regression: fedavg_he_timed used to ignore its own `slots` argument --
+    # encrypt_vector chunked at config.CKKS_SLOTS while the aggregation loop
+    # chunked at `slots`, so any non-default slot count walked off the end of
+    # the ciphertext list. fedavg_he and fedavg_he_timed are documented as the
+    # same computation, so assert they agree at a slot count that forces
+    # multiple chunks on this 3137-parameter model.
+    small_slots = 1024
+    he_small = he.fedavg_he(perturbed, mask_full, ctx, weights=None, slots=small_slots)
+    he_small_timed, small_stats = he.fedavg_he_timed(
+        perturbed, mask_full, ctx, weights=None, slots=small_slots)
+    slots_err = float(np.max(np.abs(he_small_timed - plain_agg)))
+    pair_err = float(np.max(np.abs(he_small_timed - he_small)))
+    expected_chunks = -(-len(base_flat) // small_slots)
+    assert slots_err < config.CKKS_TOLERANCE, \
+        f"HE error at slots={small_slots} is {slots_err} >= tolerance"
+    assert pair_err < config.CKKS_TOLERANCE, \
+        f"fedavg_he vs fedavg_he_timed disagree at slots={small_slots}: {pair_err}"
+    assert small_stats["n_chunks"] == expected_chunks, \
+        f"n_chunks {small_stats['n_chunks']} != expected {expected_chunks}"
+
+    # Regression: wire_payload_ratio must count the unencrypted remainder the
+    # client still transmits, so at p < 1 it exceeds payload_ratio, and at p = 1
+    # the two coincide because there is no remainder.
+    n_enc = int(mask_spe.sum())
+    _, spe_stats = he.fedavg_he_timed(perturbed, mask_spe, ctx, weights=None)
+    expected_wire = ((spe_stats["ciphertext_bytes"] + 4 * (len(base_flat) - n_enc))
+                     / float(4 * len(base_flat)))
+    assert abs(spe_stats["wire_payload_ratio"] - expected_wire) < 1e-9, \
+        f"wire_payload_ratio {spe_stats['wire_payload_ratio']} != {expected_wire}"
+    assert spe_stats["wire_payload_ratio"] > spe_stats["payload_ratio"], \
+        "wire_payload_ratio must exceed payload_ratio at p < 1"
+    _, full_stats = he.fedavg_he_timed(perturbed, mask_full, ctx, weights=None)
+    assert abs(full_stats["wire_payload_ratio"] - full_stats["payload_ratio"]) < 1e-9, \
+        "wire_payload_ratio must equal payload_ratio at p = 1"
+
     print(f"  PASS: full-HE vs plaintext {he_full_err:.2e}, "
-          f"SPE vs plaintext {spe_err:.2e}")
+          f"SPE vs plaintext {spe_err:.2e}, "
+          f"slots={small_slots} ({expected_chunks} chunks) {slots_err:.2e}, "
+          f"wire ratio {spe_stats['wire_payload_ratio']:.3f} > "
+          f"payload ratio {spe_stats['payload_ratio']:.3f}")
     return True
 
 

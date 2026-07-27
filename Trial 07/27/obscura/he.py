@@ -12,6 +12,25 @@ plain 1/N scale factor), so the [60,40,60] modulus chain in config still
 suffices. The sum is then the encrypted weighted sum; decryption yields the
 plaintext-equivalent result. This is essential when the data is non-IID
 (Dirichlet partition) and clients must be weighted by their sample counts.
+Independent audit note: [60,40,60] leaves exactly ZERO multiplicative depth after
+that weight multiply -- two scalar multiplies on a fresh ciphertext raise
+"scale out of bounds". The chain suffices for this aggregation and nothing more;
+a second homomorphic operation would need [60,40,40,60] and ~20x payload.
+
+TWO PAYLOAD RATIOS, and they answer different questions:
+
+  payload_ratio      = ciphertext_bytes / (4 * n_params)
+      Ciphertext cost measured against a full-plaintext float32 baseline. This is
+      the number Experiments 2 and 3 report, and it is what you want when asking
+      "how expensive is a CKKS ciphertext relative to the model it covers".
+  wire_payload_ratio = (ciphertext_bytes + 4 * n_plaintext_params) / (4 * n_params)
+      What the client ACTUALLY puts on the wire. Under SPE at p < 1 the client
+      still has to send the unencrypted parameters in the clear, and
+      payload_ratio omits them. At n_params = 3137 the two read 18.758 vs 19.658
+      at p = 0.1, and coincide at p = 1.0 where there is no plaintext remainder.
+
+Both are reported; wire_payload_ratio is the honest total-bandwidth figure and
+payload_ratio is kept unchanged so earlier results stay comparable.
 """
 import time
 
@@ -50,12 +69,19 @@ def serialized_size(enc):
     return len(enc.serialize())
 
 
-def encrypt_vector(ctx, vec):
+def encrypt_vector(ctx, vec, slots=None):
     """Encrypt a flat parameter vector and return ciphertexts + timing.
+
+    `slots` must be threaded through: callers that aggregate the returned
+    ciphertexts chunk-by-chunk index them with chunk_bounds(n, slots), so if this
+    function chunked at config.CKKS_SLOTS regardless, the two would disagree for
+    any non-default slot count and the aggregation would run off the end of the
+    list. Defaults to config.CKKS_SLOTS, so existing callers are unaffected.
 
     Args:
         ctx: CKKS context.
         vec: Flat 1-D parameter vector (float64).
+        slots: CKKS slot count per ciphertext; defaults to config.CKKS_SLOTS.
 
     Returns:
         (list of CKKSVector chunks, seconds elapsed, total serialized bytes).
@@ -64,7 +90,7 @@ def encrypt_vector(ctx, vec):
     t0 = time.perf_counter()
     ciphertexts = []
     total_bytes = 0
-    for s, e in chunk_bounds(len(vec)):
+    for s, e in chunk_bounds(len(vec), slots):
         enc = encrypt_chunk(ctx, vec[s:e])
         ciphertexts.append(enc)
         total_bytes += serialized_size(enc)
@@ -177,7 +203,9 @@ def fedavg_he_timed(client_vecs, mask, ctx, weights=None, slots=None):
         (aggregated float64 vector, stats dict with keys: encrypt_sec,
          aggregate_sec, decrypt_sec, crypto_sec, ciphertext_bytes (per client),
          plaintext_bytes (per client, float32 wire format), payload_ratio,
-         n_chunks, n_encrypted, encrypted_fraction, n_params).
+         wire_payload_ratio, n_chunks, n_encrypted, encrypted_fraction,
+         n_params). See the module docstring for the difference between the two
+         payload ratios.
     """
     slots = slots or config.CKKS_SLOTS
     n_params = len(mask)
@@ -201,6 +229,9 @@ def fedavg_he_timed(client_vecs, mask, ctx, weights=None, slots=None):
             "ciphertext_bytes": 0,
             "plaintext_bytes": int(plaintext_bytes),
             "payload_ratio": 0.0,
+            # Nothing is encrypted, so the client sends the whole model in the
+            # clear: exactly 1.0x the plaintext baseline, not 0.0x.
+            "wire_payload_ratio": 1.0,
             "n_chunks": 0,
             "n_encrypted": 0,
             "encrypted_fraction": 0.0,
@@ -219,7 +250,7 @@ def fedavg_he_timed(client_vecs, mask, ctx, weights=None, slots=None):
     total_ciphertext_bytes = 0
 
     for vec_idx, vec in enumerate(enc_vecs):
-        cts, _, total_bytes = encrypt_vector(ctx, vec)
+        cts, _, total_bytes = encrypt_vector(ctx, vec, slots=slots)
         ctx_ciphertexts.append(cts)
         total_ciphertext_bytes += total_bytes
 
@@ -279,6 +310,17 @@ def fedavg_he_timed(client_vecs, mask, ctx, weights=None, slots=None):
         if plaintext_bytes > 0
         else 0.0
     )
+    # The p*n encrypted params ride as ciphertext; the (1-p)*n unencrypted ones
+    # still have to be transmitted, as float32. payload_ratio omits the second
+    # term, which is why it looks flat in p on a model small enough to need one
+    # chunk at any p -- the wire ratio does not.
+    plaintext_remainder_bytes = int(n_params - n_encrypted) * 4
+    wire_payload_ratio = (
+        (float(ciphertext_bytes_per_client) + float(plaintext_remainder_bytes))
+        / float(plaintext_bytes)
+        if plaintext_bytes > 0
+        else 0.0
+    )
 
     stats = {
         "encrypt_sec": float(encrypt_sec),
@@ -288,6 +330,7 @@ def fedavg_he_timed(client_vecs, mask, ctx, weights=None, slots=None):
         "ciphertext_bytes": int(ciphertext_bytes_per_client),
         "plaintext_bytes": int(plaintext_bytes),
         "payload_ratio": float(payload_ratio),
+        "wire_payload_ratio": float(wire_payload_ratio),
         "n_chunks": int(n_chunks),
         "n_encrypted": int(n_encrypted),
         "encrypted_fraction": float(encrypted_fraction),

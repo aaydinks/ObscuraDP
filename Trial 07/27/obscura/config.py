@@ -154,7 +154,13 @@ LOSSLESS_FRACTIONS = [0.25, 1.0]
 # D -- DP-aware sensitivity: mask agreement + utility under each mask mode.
 SENS_EPSILONS = [0.5, 2.0, 9.0, 50.0]
 SENS_FRACTIONS = [0.1, 0.25, 0.5]
-SENS_REPEATS = 3                       # noise draws per (eps, p) for mask stability
+# Noise draws per (eps, p). This was 3, which is far too few: the per-draw
+# clean-vs-DP Jaccard is near-bimodal with s.d. ~0.34, so 3 draws cannot resolve
+# it. The published "mask agreement falls BELOW the random baseline at eps=0.5"
+# (0.044 against a 0.143 baseline) was a three-sample fluke -- the same estimator
+# over 64 draws gives 0.371 +- 0.041, comfortably ABOVE the baseline. 64 draws
+# costs ~40 s for the whole sweep, so there is no reason to economise.
+SENS_REPEATS = 64                      # noise draws per (eps, p) for mask stability
 
 # E -- overhead composition: crypto vs p and vs model size, plus DP's compute tax.
 OVERHEAD_FRACTIONS = SPE_FRACTIONS
