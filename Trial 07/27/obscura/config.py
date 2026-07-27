@@ -35,16 +35,47 @@ SEEDS = [42, 43, 44, 45, 46]          # multi-seed campaign (Experiment F)
 # Federated learning (shared by every arm -- only the privacy stack varies)
 # --------------------------------------------------------------------------
 NUM_CLIENTS = 5
-ROUNDS = 10                            # halved vs Exp 1's 20 -- 2 datasets x 5 stacks
+ROUNDS = 20                            # Exp 1's round count; see the note below
 LOCAL_EPOCHS = 3
 BATCH_SIZE = 32
 MU = 0.01                              # FedProx proximal coefficient (mu=0 -> FedAvg)
 
-# Per-dataset learning rates. Exp 1 used 1e-3 on stroke; Exp 2 needed 5e-3 on
-# loan so DP-SGD could escape the 62% majority-class basin. Both are applied
-# identically across every arm of their dataset, so the privacy mechanism
-# remains the single controlled variable.
-LR = {"stroke": 1e-3, "loan": 5e-3}
+# ROUNDS was briefly halved to 10 to pay for the second dataset and the five
+# stacks. That was a false economy: epsilon acts on utility only through how far
+# the noisy trajectory gets, so at 10 rounds every epsilon in EPSILON_GRID landed
+# on the same operating point (recall 0.5238 at eps = 0.5, 1.0 and 9.0 alike) and
+# the frontier had no utility axis at all. Restoring Exp 1's 20 rounds restores a
+# monotone recall-vs-epsilon curve. LOCAL_EPOCHS stays at 3 rather than Exp 1's 5
+# because per-round sigma is solved for LOCAL_EPOCHS: more local epochs buy the
+# same epsilon at a higher sigma and measurably COMPRESS the epsilon spread
+# (0.119 recall spread at 3 local epochs vs 0.071 at 5), besides costing time.
+
+# Per-dataset learning rates, applied identically across every arm of their
+# dataset so the privacy mechanism remains the single controlled variable.
+# Exp 2 needed 5e-3 on loan so DP-SGD could escape the 62% majority-class basin.
+#
+# Stroke deviates from Exp 1's 1e-3 down to 1e-4, and this is the one deviation
+# that matters. Exp 1 had no non-private arm: every one of its runs went through
+# Opacus, whose per-sample clipping bounded the local update. This trial's
+# `plain` and `he` arms do not, and per-client SMOTETomek leaves each client a
+# LOCALLY SEPARABLE problem (the largest client interpolates 2460 positives from
+# just 22 real ones), so plain BCE has no finite minimiser there and Adam simply
+# inflates the logit scale for ever. At 1e-3 that produced |logit| growing 3.3 ->
+# 12.9 over 10 rounds, BCE 7.76 and a 4.8% predicted-positive rate on a balanced
+# test set. 1e-4 keeps every arm inside the calibrated regime (plain BCE 0.81)
+# without changing the optimiser, the schedule or anything else.
+LR = {"stroke": 1e-4, "loan": 5e-3}
+
+# FedAvg aggregation weights. Standard FedAvg weights client c by n_c because
+# n_c counts that client's independent samples. After per-client SMOTETomek that
+# is no longer true: n_c counts how aggressively the client had to duplicate its
+# minority class, so the MOST imbalanced client wins the most weight. On the
+# stroke partition client 3 holds 22 of the 167 real stroke cases (13%) yet its
+# 4920 resampled rows carry 66% of the aggregate, while client 1 -- which holds
+# 93 real cases, 56% of all of them -- carries 3%. Weighting the resampled
+# datasets uniformly gives every client's real evidence a voice and is what makes
+# the non-private arm sane. Loan is not resampled, so it keeps sample weighting.
+AGG_WEIGHTED = {"stroke": False, "loan": True}
 
 # --------------------------------------------------------------------------
 # Models

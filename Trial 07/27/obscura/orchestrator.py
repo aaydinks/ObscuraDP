@@ -11,12 +11,16 @@ This structure isolates each leg by a single controlled change, enabling the
 separability claim: utility depends on epsilon only, crypto cost depends on p only,
 and the two compose without unexpected interaction.
 
-Two critical design decisions enforced throughout:
+Three critical design decisions enforced throughout:
 1. Per-client sigma: under non-IID Dirichlet partitioning clients differ in size,
    so each gets its own sigma when DP is on. We record the mean for reporting.
 2. Losslessness check every round: CKKS aggregation of DP-noised updates is checked
    against plaintext aggregation via aggregate.plaintext_reference(), producing the
    per-round max_abs_dev. This is the single most important number in the trial.
+3. One aggregation weighting per dataset, read from config.AGG_WEIGHTED and passed
+   to the real aggregation AND to the plaintext reference from a single variable.
+   The two must never disagree: max_abs_dev is only a measure of CKKS rounding if
+   the reference averages the same client vectors with the same weights.
 """
 
 import time
@@ -160,6 +164,10 @@ def run_stack(dataset="stroke", stack="dp_spe", algo="fedprox", epsilon=None,
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    # One weighting for the whole run: sample-weighted FedAvg where client sizes
+    # are real, uniform where per-client resampling has made them synthetic.
+    weighted = config.AGG_WEIGHTED.get(dataset, True)
+
     # Load or build data
     if prepared is not None:
         X_tr = prepared["X_tr"]
@@ -282,7 +290,7 @@ def run_stack(dataset="stroke", stack="dp_spe", algo="fedprox", epsilon=None,
             mode=agg_mode,
             mask=mask,
             ctx=ctx,
-            weighted=True
+            weighted=weighted
         )
         t_agg_end = time.perf_counter()
         agg_time_this_round = t_agg_end - t_agg_start
@@ -291,7 +299,7 @@ def run_stack(dataset="stroke", stack="dp_spe", algo="fedprox", epsilon=None,
         global_state = agg_state
 
         # Compute plaintext reference and losslessness deviation
-        ref_agg_flat = aggregate.plaintext_reference(states, counts, weighted=True)
+        ref_agg_flat = aggregate.plaintext_reference(states, counts, weighted=weighted)
         used_agg_flat = models.flatten_state(agg_state)
         max_abs_dev = float(np.max(np.abs(used_agg_flat - ref_agg_flat)))
         # The aggregate is stored back into a float32 state_dict, so even the
