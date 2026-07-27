@@ -1,0 +1,14 @@
+# Trial 07/27 -- unified DP + FL + HE stack. Python 3.11.
+# Union of the three prior trials' dependency sets: Opacus (DP-SGD) from
+# Experiments 1-2, TenSEAL (CKKS) from Experiments 2-3, imbalanced-learn
+# (SMOTETomek) from Experiment 1. No torchvision -- this trial uses the two
+# tabular datasets that ship in data/, so no download is ever required.
+imbalanced-learn==0.14.2
+matplotlib==3.11.1
+numpy==2.4.6
+opacus==1.6.0
+pandas==3.0.5
+scikit-learn==1.9.0
+scipy==1.17.1
+tenseal==0.3.16
+torch==2.13.0

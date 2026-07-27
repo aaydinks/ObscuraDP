@@ -1,0 +1,214 @@
+{
+  "meta": {
+    "trial": "07/27",
+    "seed": 42,
+    "rounds": 10,
+    "local_epochs": 3,
+    "num_clients": 5,
+    "generated_by": "run_losslessness.py",
+    "epsilons": [
+      0.5,
+      2.0,
+      9.0,
+      50.0
+    ],
+    "fractions": [
+      0.25,
+      1.0
+    ]
+  },
+  "lossless": [
+    {
+      "epsilon": 0.5,
+      "sigma": 3.22265625,
+      "noise_std": 0.1007080078125,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 5.5537221044232865e-08,
+      "mean_abs_dev": 1.19599229267361e-08,
+      "rel_to_noise_floor": 5.514677755083099e-07,
+      "update_scale": 0.08681689542074654,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 0.5,
+      "sigma": 3.22265625,
+      "noise_std": 0.1007080078125,
+      "spe_fraction": 0.25,
+      "mode": "spe",
+      "max_abs_dev": 5.488535476105838e-08,
+      "mean_abs_dev": 2.430447483257552e-09,
+      "rel_to_noise_floor": 5.449949408516245e-07,
+      "update_scale": 0.08681689542074654,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 0.5,
+      "sigma": 3.22265625,
+      "noise_std": 0.1007080078125,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 5.3438772684710756e-08,
+      "mean_abs_dev": 1.180137812509185e-08,
+      "rel_to_noise_floor": 5.306308191916976e-07,
+      "update_scale": 0.08681689542074654,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 0.5,
+      "sigma": 3.22265625,
+      "noise_std": 0.1007080078125,
+      "spe_fraction": 1.0,
+      "mode": "spe",
+      "max_abs_dev": 4.9032515436753243e-08,
+      "mean_abs_dev": 1.1831647285913599e-08,
+      "rel_to_noise_floor": 4.868780199489485e-07,
+      "update_scale": 0.08681689542074654,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 2.0,
+      "sigma": 1.27587890625,
+      "noise_std": 0.0398712158203125,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 4.9380520061870214e-08,
+      "mean_abs_dev": 1.1991705797314076e-08,
+      "rel_to_noise_floor": 1.2385004832662557e-06,
+      "update_scale": 0.08831705075155599,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 2.0,
+      "sigma": 1.27587890625,
+      "noise_std": 0.0398712158203125,
+      "spe_fraction": 0.25,
+      "mode": "spe",
+      "max_abs_dev": 5.4828873552459356e-08,
+      "mean_abs_dev": 2.551724625855704e-09,
+      "rel_to_noise_floor": 1.3751492755966232e-06,
+      "update_scale": 0.08831705075155599,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 2.0,
+      "sigma": 1.27587890625,
+      "noise_std": 0.0398712158203125,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 5.60599189292077e-08,
+      "mean_abs_dev": 1.2115026482719009e-08,
+      "rel_to_noise_floor": 1.406024817047285e-06,
+      "update_scale": 0.08831705075155599,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 2.0,
+      "sigma": 1.27587890625,
+      "noise_std": 0.0398712158203125,
+      "spe_fraction": 1.0,
+      "mode": "spe",
+      "max_abs_dev": 5.6164406792014177e-08,
+      "mean_abs_dev": 1.2110463573511774e-08,
+      "rel_to_noise_floor": 1.4086454510223654e-06,
+      "update_scale": 0.08831705075155599,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 9.0,
+      "sigma": 0.6417236328125,
+      "noise_std": 0.020053863525390625,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 6.235970329004914e-08,
+      "mean_abs_dev": 1.2191202161661442e-08,
+      "rel_to_noise_floor": 3.109610435470162e-06,
+      "update_scale": 0.08945914983907736,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 9.0,
+      "sigma": 0.6417236328125,
+      "noise_std": 0.020053863525390625,
+      "spe_fraction": 0.25,
+      "mode": "spe",
+      "max_abs_dev": 5.191932805903576e-08,
+      "mean_abs_dev": 2.6063754879574584e-09,
+      "rel_to_noise_floor": 2.588993786324495e-06,
+      "update_scale": 0.08945914983907736,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 9.0,
+      "sigma": 0.6417236328125,
+      "noise_std": 0.020053863525390625,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 5.62339355636432e-08,
+      "mean_abs_dev": 1.2222071114992652e-08,
+      "rel_to_noise_floor": 2.8041447221601072e-06,
+      "update_scale": 0.08945914983907736,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 9.0,
+      "sigma": 0.6417236328125,
+      "noise_std": 0.020053863525390625,
+      "spe_fraction": 1.0,
+      "mode": "spe",
+      "max_abs_dev": 5.836735861297626e-08,
+      "mean_abs_dev": 1.2228950802280276e-08,
+      "rel_to_noise_floor": 2.910529362039195e-06,
+      "update_scale": 0.08945914983907736,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 50.0,
+      "sigma": 0.3180389404296875,
+      "noise_std": 0.009938716888427734,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 6.243201949862609e-08,
+      "mean_abs_dev": 1.2333987424814024e-08,
+      "rel_to_noise_floor": 6.281698150726033e-06,
+      "update_scale": 0.0907368229714664,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 50.0,
+      "sigma": 0.3180389404296875,
+      "noise_std": 0.009938716888427734,
+      "spe_fraction": 0.25,
+      "mode": "spe",
+      "max_abs_dev": 5.4243194269609774e-08,
+      "mean_abs_dev": 2.6963469826826806e-09,
+      "rel_to_noise_floor": 5.457766317176063e-06,
+      "update_scale": 0.0907368229714664,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 50.0,
+      "sigma": 0.3180389404296875,
+      "noise_std": 0.009938716888427734,
+      "spe_fraction": 1.0,
+      "mode": "he",
+      "max_abs_dev": 5.99796010636311e-08,
+      "mean_abs_dev": 1.247200025294416e-08,
+      "rel_to_noise_floor": 6.034944121757716e-06,
+      "update_scale": 0.0907368229714664,
+      "n_params": 3137
+    },
+    {
+      "epsilon": 50.0,
+      "sigma": 0.3180389404296875,
+      "noise_std": 0.009938716888427734,
+      "spe_fraction": 1.0,
+      "mode": "spe",
+      "max_abs_dev": 6.897896620561283e-08,
+      "mean_abs_dev": 1.2382851365868931e-08,
+      "rel_to_noise_floor": 6.940429733533243e-06,
+      "update_scale": 0.0907368229714664,
+      "n_params": 3137
+    }
+  ]
+}
