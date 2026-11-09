@@ -1,0 +1,35 @@
+---
+// KaTeX rendered at build time. No client JavaScript.
+import katex from 'katex';
+import 'katex/dist/katex-swap.min.css';
+interface Props {
+  tex: string;
+  display?: boolean;
+  class?: string;
+}
+const { tex, display = false, class: cls } = Astro.props;
+const html = katex.renderToString(tex, { displayMode: display, throwOnError: true, output: 'html' });
+---
+
+{display ? <div class:list={['math-display', cls]} set:html={html} /> : <span class:list={['math-inline', cls]} set:html={html} />}
+
+<style>
+  .math-display {
+    overflow-x: auto;
+    padding: var(--s-3) var(--s-2);
+    color: var(--ink);
+    font-size: 1.15rem;
+  }
+  .math-display :global(.katex-display) {
+    margin: 0;
+  }
+  .math-inline {
+    color: var(--ink);
+  }
+  @media (max-width: 480px) {
+    .math-display {
+      font-size: 0.95rem;
+      padding-inline: 0;
+    }
+  }
+</style>

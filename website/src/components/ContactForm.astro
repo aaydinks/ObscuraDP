@@ -1,0 +1,255 @@
+---
+import { PUBLIC_TURNSTILE_SITE_KEY } from 'astro:env/client';
+import { SITE } from '../lib/site';
+const siteKey = PUBLIC_TURNSTILE_SITE_KEY ?? '';
+const mail = SITE.contactEmail;
+const interests = ['Using the framework', 'Contributing', 'Partnering or piloting', 'Press or other'];
+---
+
+<form class="contact-form" method="post" action="/api/contact" novalidate data-contact-form data-mail={mail}>
+  <div class="field">
+    <label for="cf-name">Name</label>
+    <input id="cf-name" name="name" type="text" autocomplete="name" required maxlength="120" aria-describedby="cf-name-err" />
+    <p class="error" id="cf-name-err" hidden></p>
+  </div>
+  <div class="field">
+    <label for="cf-email">Email</label>
+    <input id="cf-email" name="email" type="email" autocomplete="email" required maxlength="200" aria-describedby="cf-email-err" />
+    <p class="error" id="cf-email-err" hidden></p>
+  </div>
+  <div class="field">
+    <label for="cf-org">Organization <span class="optional">(optional)</span></label>
+    <input id="cf-org" name="organization" type="text" autocomplete="organization" maxlength="160" />
+  </div>
+  <div class="field">
+    <label for="cf-interest">I'm interested in</label>
+    <select id="cf-interest" name="interest" required aria-describedby="cf-interest-err">
+      <option value="">Choose one</option>
+      {interests.map((i) => <option value={i}>{i}</option>)}
+    </select>
+    <p class="error" id="cf-interest-err" hidden></p>
+  </div>
+  <div class="field">
+    <label for="cf-message">Message</label>
+    <textarea id="cf-message" name="message" rows="5" required maxlength="4000" aria-describedby="cf-message-err"></textarea>
+    <p class="error" id="cf-message-err" hidden></p>
+  </div>
+  <!-- Honeypot: hidden from people, filled by bots. -->
+  <div class="hp" aria-hidden="true">
+    <label for="cf-website">Website</label>
+    <input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+  </div>
+  {
+    siteKey && (
+      <div class="turnstile">
+        <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light" data-size="flexible" />
+      </div>
+    )
+  }
+  <div class="actions">
+    <button type="submit" class="btn btn-primary" data-submit>
+      <span data-label>Send message</span>
+    </button>
+    <p class="caption">Your message is emailed to us and not stored anywhere else.</p>
+  </div>
+  <p class="form-status" role="status" aria-live="polite" data-status></p>
+</form>
+{siteKey && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer is:inline></script>}
+
+<style>
+  .contact-form {
+    display: grid;
+    gap: var(--s-3);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--s-3);
+  }
+  .field {
+    display: grid;
+    gap: 0.375rem;
+  }
+  label {
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .optional {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  input,
+  select,
+  textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    padding: 0.625rem 0.75rem;
+    background: var(--bg);
+    font-size: var(--fs-small);
+    min-height: 44px;
+    transition: border-color var(--t-hover) var(--ease);
+  }
+  textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: var(--muted);
+  }
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 0;
+    border-color: var(--blue);
+  }
+  input[aria-invalid='true'],
+  select[aria-invalid='true'],
+  textarea[aria-invalid='true'] {
+    border-color: var(--error);
+  }
+  .error {
+    color: var(--error);
+    font-size: var(--fs-caption);
+  }
+  .hp {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .actions {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .form-status {
+    font-size: var(--fs-small);
+    color: var(--ink);
+  }
+  .form-status:empty {
+    display: none;
+  }
+  .form-status.is-error {
+    color: var(--error);
+  }
+  @media (min-width: 640px) {
+    .contact-form {
+      padding: var(--s-4);
+    }
+    .actions {
+      grid-template-columns: auto 1fr;
+      align-items: center;
+    }
+  }
+</style>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-contact-form]');
+  if (form) {
+    const status = form.querySelector<HTMLElement>('[data-status]')!;
+    const submit = form.querySelector<HTMLButtonElement>('[data-submit]')!;
+    const label = submit.querySelector<HTMLElement>('[data-label]')!;
+    const mail = form.dataset.mail ?? '';
+    const hasMail = mail.length > 0 && !mail.startsWith('[');
+
+    const rules: Record<string, (v: string) => string | null> = {
+      name: (v) => (v.trim().length < 2 ? 'Please enter your name.' : null),
+      email: (v) => (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? 'Please enter a valid email address.' : null),
+      interest: (v) => (!v ? 'Please choose one option.' : null),
+      message: (v) => (v.trim().length < 10 ? 'Please write a few more words (at least 10 characters).' : null),
+    };
+
+    const setError = (name: string, msg: string | null) => {
+      const field = form.elements.namedItem(name) as HTMLInputElement | null;
+      const err = document.getElementById(`cf-${name}-err`);
+      if (!field || !err) return;
+      if (msg) {
+        field.setAttribute('aria-invalid', 'true');
+        err.textContent = msg;
+        err.hidden = false;
+      } else {
+        field.removeAttribute('aria-invalid');
+        err.textContent = '';
+        err.hidden = true;
+      }
+    };
+
+    const validate = (): boolean => {
+      let ok = true;
+      let first: HTMLElement | null = null;
+      for (const [name, rule] of Object.entries(rules)) {
+        const field = form.elements.namedItem(name) as HTMLInputElement;
+        const msg = rule(field.value);
+        setError(name, msg);
+        if (msg) {
+          ok = false;
+          first ??= field;
+        }
+      }
+      first?.focus();
+      return ok;
+    };
+
+    Object.keys(rules).forEach((name) => {
+      const field = form.elements.namedItem(name) as HTMLInputElement;
+      field.addEventListener('blur', () => setError(name, rules[name](field.value)));
+      field.addEventListener('input', () => {
+        if (field.getAttribute('aria-invalid') === 'true') setError(name, rules[name](field.value));
+      });
+    });
+
+    const fail = (reason?: string) => {
+      status.classList.add('is-error');
+      status.innerHTML = '';
+      const text = document.createTextNode(
+        `${reason ?? 'Something went wrong and the message was not sent.'} `,
+      );
+      status.appendChild(text);
+      if (hasMail) {
+        const a = document.createElement('a');
+        a.href = `mailto:${mail}`;
+        a.textContent = `Email us directly at ${mail}`;
+        status.appendChild(a);
+        status.appendChild(document.createTextNode('.'));
+      } else {
+        status.appendChild(document.createTextNode('Please try again later, or reach us through GitHub.'));
+      }
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.classList.remove('is-error');
+      status.textContent = '';
+      if (!validate()) return;
+      submit.disabled = true;
+      submit.setAttribute('aria-disabled', 'true');
+      label.textContent = 'Sending…';
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { Accept: 'application/json' },
+          body: new FormData(form),
+        });
+        const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; fields?: Record<string, string> };
+        if (res.ok && data.ok) {
+          form.reset();
+          status.textContent = "Thanks. We'll reply within a few days.";
+          (window as unknown as { turnstile?: { reset: () => void } }).turnstile?.reset?.();
+        } else {
+          if (data.fields) Object.entries(data.fields).forEach(([k, v]) => setError(k, v));
+          fail(data.error);
+        }
+      } catch {
+        fail();
+      } finally {
+        submit.disabled = false;
+        submit.removeAttribute('aria-disabled');
+        label.textContent = 'Send message';
+      }
+    });
+  }
+</script>

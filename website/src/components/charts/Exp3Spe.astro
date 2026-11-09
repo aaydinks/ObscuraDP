@@ -1,0 +1,97 @@
+---
+// Experiment 3: selective parameter encryption. Cost against the encrypted share.
+import Figure from '../Figure.astro';
+import { frame, scaleLinear, r2, linePath, dataTable } from '../../lib/chart';
+import data from '../../data/exp3-spe.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+type Sweep = { p: number; he_ms: number; payload_bytes: number };
+type Model = { n_params: number; sweep: Sweep[] };
+const models = data.models as unknown as Record<string, Model>;
+const names = Object.keys(models);
+const fractions = data.fractions as number[];
+
+const pw = 300;
+const H = 300;
+const f = frame(pw, H, { top: 24, right: 64, bottom: 44, left: 56 });
+const x = scaleLinear().domain([0, 1]).range([0, f.innerW]);
+const maxTime = Math.max(...names.map((n) => models[n].sweep.at(-1)!.he_ms)) / 1000;
+const maxBytes = Math.max(...names.map((n) => models[n].sweep.at(-1)!.payload_bytes)) / 1e6;
+const yT = scaleLinear().domain([0, Math.ceil(maxTime / 5) * 5]).range([f.innerH, 0]);
+const yB = scaleLinear().domain([0, Math.ceil(maxBytes / 500) * 500]).range([f.innerH, 0]);
+const tTicks = yT.ticks(4);
+const bTicks = yB.ticks(4);
+const styles: Record<string, string> = { LSTM: 'muted', 'ResNet-18': 'blue', 'ResNet-50': 'ink' };
+
+const table = dataTable({
+  caption: 'Selective encryption cost by encrypted share',
+  columns: ['Model', ...fractions.map((p) => `p = ${p}`)],
+  rows: [
+    ...names.map((n) => [`${n}, time (s)`, ...models[n].sweep.map((s) => (s.he_ms / 1000).toFixed(2))]),
+    ...names.map((n) => [`${n}, upload (MB)`, ...models[n].sweep.map((s) => (s.payload_bytes / 1e6).toFixed(0))]),
+  ],
+});
+const r18 = models['ResNet-18'].sweep;
+---
+
+<Figure
+  id="fig-exp3-spe"
+  title="Encrypting only the most sensitive share of parameters"
+  caption={`Left: encrypt plus aggregate time per round. Right: per-client upload. Both fall with the encrypted share. For ResNet-18 at 25%: ${(r18[4].he_ms / 1000).toFixed(2)} s to ${(r18[1].he_ms / 1000).toFixed(2)} s and ${(r18[4].payload_bytes / 1e6).toFixed(0)} MB to ${(r18[1].payload_bytes / 1e6).toFixed(0)} MB. Upload falls less than time because the unencrypted 75% still ships.`}
+  source={`Source: Experiment 3, <code>results/spe.json</code>. <a href="${EXPERIMENT_FOLDERS.exp3}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${pw * 2 + 24} ${H}`}
+    role="img"
+    tabindex="0"
+    aria-label="Two line charts against the encrypted share of parameters, from 10 to 100 percent, for LSTM, ResNet-18 and ResNet-50. Both time per round and upload size rise in straight lines with the share. At 25 percent, ResNet-18 takes 2.03 seconds and 194 megabytes versus 8.38 seconds and 642 megabytes at 100 percent."
+    data-animate
+  >
+    {
+      [
+        { title: 'Crypto time per round (s)', y: yT, ticks: tTicks, pick: (s: Sweep) => s.he_ms / 1000, fmt: (v: number) => `${v.toFixed(2)} s` },
+        { title: 'Upload per client (MB)', y: yB, ticks: bTicks, pick: (s: Sweep) => s.payload_bytes / 1e6, fmt: (v: number) => `${v.toFixed(0)} MB` },
+      ].map((panel, pi) => (
+        <g transform={`translate(${pi * (pw + 24) + f.margin.left},${f.margin.top})`}>
+          <text class="series-label fill-ink" x={-f.margin.left + 4} y="-10">
+            {panel.title}
+          </text>
+          {panel.ticks.map((t) => (
+            <g>
+              <line class="grid-line" x1="0" x2={f.innerW} y1={r2(panel.y(t))} y2={r2(panel.y(t))} />
+              <text class="tick" x="-8" y={r2(panel.y(t))} dy="0.32em" text-anchor="end">
+                {t}
+              </text>
+            </g>
+          ))}
+          {fractions.map((p) => (
+            <text class="tick" x={r2(x(p))} y={f.innerH + 18} text-anchor="middle">
+              {Math.round(p * 100)}%
+            </text>
+          ))}
+          <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+          {names.map((n) => {
+            const pts = models[n].sweep.map((s) => [x(s.p), panel.y(panel.pick(s))] as [number, number]);
+            const last = pts[pts.length - 1];
+            return (
+              <g>
+                <path class={`draw-line stroke-${styles[n]}`} d={linePath(pts)} fill="none" stroke-width={n === 'ResNet-18' ? 2 : 1.5} />
+                {models[n].sweep.map((s, i) => (
+                  <circle class={`draw-fade fill-${styles[n]}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="3.5" stroke="#fff" stroke-width="1.5" data-tip={`${n}, ${Math.round(s.p * 100)}% encrypted: ${panel.fmt(panel.pick(s))}`} />
+                ))}
+                <text class={`tick fill-${styles[n]}`} x={r2(last[0]) + 8} y={r2(last[1])} dy="0.32em">
+                  {n}
+                </text>
+              </g>
+            );
+          })}
+          <text class="axis-title" x={f.innerW / 2} y={f.innerH + 36} text-anchor="middle">
+            Share of parameters encrypted
+          </text>
+        </g>
+      ))
+    }
+  </svg>
+</Figure>

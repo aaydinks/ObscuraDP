@@ -1,0 +1,194 @@
+---
+import Section from '../components/Section.astro';
+import Tabs from '../components/Tabs.astro';
+import Exp2AccuracyDots from '../components/charts/Exp2AccuracyDots.astro';
+import Exp3OverheadScaling from '../components/charts/Exp3OverheadScaling.astro';
+import Exp1RecallCurve from '../components/charts/Exp1RecallCurve.astro';
+import { EXPERIMENT_FOLDERS, PAPERS, SITE } from '../lib/site';
+import exp2 from '../data/exp2-results_multiseed.json';
+
+type Agg = { accuracy: { mean: number; std: number } };
+const agg = exp2.aggregate as unknown as Record<string, Agg>;
+const acc = (k: string) => `${(agg[k].accuracy.mean * 100).toFixed(2)}% ± ${(agg[k].accuracy.std * 100).toFixed(2)}`;
+const accRows = [
+  ['Standard federated learning', acc('Standard FL')],
+  ['DP, ε = 14.13', acc('DP-FL (eps=14.13)')],
+  ['DP, ε = 8.65', acc('DP-FL (eps=8.65)')],
+  ['DP, ε = 5.74', acc('DP-FL (eps=5.74)')],
+  ['HE (encrypted)', acc('HE-FL')],
+];
+---
+
+<Section id="research" tone="bg" labelledBy="research-title">
+  <h2 id="research-title">Reproducible from day one.</h2>
+  <p class="lede intro">
+    Before building anything new, we replicated three published studies end to end, with code, data, five-seed
+    results and replication guides. Our research design is pre-registered.
+    {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Read the pre-registration</a> : <span class="muted">(Pre-registration link to be added.)</span>}
+  </p>
+
+  <div class="tabs-block">
+    <Tabs
+      id="research-tabs"
+      tabs={[
+        { label: 'What privacy costs in accuracy', meta: 'Experiment 2 · credit risk, 5 clients' },
+        { label: 'What encryption costs', meta: 'Experiment 3 · six models, 0.28M to 86M parameters' },
+        { label: 'Catching rare cases in clinical data', meta: 'Experiment 1 · stroke prediction, 5 clients' },
+      ]}
+    >
+      <div slot="tab-0" class="panel">
+        <div class="panel-chart"><Exp2AccuracyDots /></div>
+        <div class="panel-copy">
+          <p class="setup"><strong>Setup:</strong> credit-risk prediction across 5 clients, 5 rounds, mean ± std over 5 seeds.</p>
+          <table class="mini">
+            <caption class="visually-hidden">Accuracy by configuration</caption>
+            <thead><tr><th scope="col">Configuration</th><th scope="col" class="num">Accuracy</th></tr></thead>
+            <tbody>{accRows.map((r) => <tr><th scope="row">{r[0]}</th><td class="num">{r[1]}</td></tr>)}</tbody>
+          </table>
+          <ul class="findings">
+            <li><strong>Encryption costs no accuracy:</strong> it matches standard training to the digit, at every seed.</li>
+            <li><strong>Differential privacy costs a few points,</strong> more as ε tightens.</li>
+            <li>
+              <strong>Encryption's cost is overhead:</strong> aggregation was about 345× slower (0.066 ms to 22.7 ms per
+              round) and each client's upload about 90× larger (3.7 KB to 334 KB).
+            </li>
+          </ul>
+          <p class="refs">
+            Replication of: <a href={PAPERS.exp2.href} rel="noopener">{PAPERS.exp2.label}</a>.
+            <a href={EXPERIMENT_FOLDERS.exp2} rel="noopener">Experiment 2 on GitHub</a>.
+          </p>
+        </div>
+      </div>
+
+      <div slot="tab-1" class="panel">
+        <div class="panel-chart"><Exp3OverheadScaling measure="time" id="fig-exp3-scaling-home" /></div>
+        <div class="panel-copy">
+          <p class="setup"><strong>Setup:</strong> CKKS encryption with TenSEAL, 5 clients, six models from SmallCNN to ViT-B/16.</p>
+          <ul class="findings">
+            <li>
+              <strong>Cost grows in a straight line with model size,</strong> about 0.55–0.60 µs of encryption time per
+              parameter, from 0.28M to 86M parameters.
+            </li>
+            <li><strong>Encrypted messages are 14.4× the size</strong> of unencrypted ones.</li>
+            <li>
+              <strong>Encrypting only the most sensitive 25% of parameters</strong> cuts encryption time to about a
+              quarter and upload size to about 30%. For ResNet-18: 8.38 s to 2.03 s, and 642 MB to 194 MB.
+            </li>
+            <li>
+              <strong>Encrypted aggregation matches the unencrypted result</strong> to within 1.4 × 10<sup>-7</sup>.
+            </li>
+          </ul>
+          <p class="refs">
+            Replication of: <a href={PAPERS.exp3.href} rel="noopener">{PAPERS.exp3.label}</a>.
+            <a href={EXPERIMENT_FOLDERS.exp3} rel="noopener">Experiment 3 on GitHub</a>.
+          </p>
+        </div>
+      </div>
+
+      <div slot="tab-2" class="panel">
+        <div class="panel-chart"><Exp1RecallCurve /></div>
+        <div class="panel-copy">
+          <p class="setup">
+            <strong>Setup:</strong> stroke prediction on uneven, hospital-style data split across 5 clients. Recall is
+            the share of real stroke cases the model catches.
+          </p>
+          <ul class="findings">
+            <li>
+              <strong>With rebalancing (SMOTETomek), FedProx caught slightly more true stroke cases than FedAvg</strong>
+              on average at every ε tested, and never fewer in any paired run.
+            </li>
+            <li><strong>Without rebalancing, the model caught none</strong> (recall 0.0 at ε = 9, all five seeds).</li>
+            <li>
+              <strong>An honest note:</strong> in this setup, recall falls as ε rises because the model flags fewer
+              patients as positive. Precision stays roughly flat. <a href="/research#experiment-1">See the full results</a>.
+            </li>
+          </ul>
+          <p class="refs">
+            Replication of: <a href={PAPERS.exp1.href} rel="noopener">{PAPERS.exp1.label}</a>.
+            <a href={EXPERIMENT_FOLDERS.exp1} rel="noopener">Experiment 1 on GitHub</a>.
+          </p>
+        </div>
+      </div>
+    </Tabs>
+  </div>
+
+  <div class="next">
+    <p class="label">Next step</p>
+    <p>
+      Non-IID means each device's data looks different, like in real life. Next: benchmarking privacy against accuracy
+      on FEMNIST, Shakespeare and synthetic health data under non-IID conditions, producing the first ε-versus-accuracy
+      curve for the full DP + FL + HE stack.
+    </p>
+    <a href="/research" class="arrow-link">Full results and methods</a>
+  </div>
+</Section>
+
+<style>
+  h2 {
+    max-width: 20ch;
+  }
+  .intro {
+    margin-top: var(--s-3);
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .tabs-block {
+    margin-top: var(--s-6);
+  }
+  .panel {
+    display: grid;
+    gap: var(--s-5);
+  }
+  .panel > * {
+    min-width: 0;
+  }
+  .panel-copy {
+    display: grid;
+    gap: var(--s-3);
+    align-content: start;
+  }
+  .setup {
+    font-size: var(--fs-small);
+  }
+  .mini {
+    font-size: var(--fs-caption);
+  }
+  .findings {
+    list-style: none;
+    display: grid;
+    gap: var(--s-2);
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-2);
+  }
+  .findings li {
+    font-size: var(--fs-small);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--line);
+  }
+  .refs {
+    font-size: var(--fs-caption);
+    color: var(--muted);
+  }
+  .refs a {
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+  .next {
+    margin-top: var(--s-10, var(--s-9));
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-5);
+    display: grid;
+    gap: var(--s-2);
+  }
+  .next .label {
+    margin: 0;
+  }
+  @media (min-width: 900px) {
+    .panel {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--s-8);
+      align-items: start;
+    }
+  }
+</style>

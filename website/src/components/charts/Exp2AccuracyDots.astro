@@ -1,0 +1,91 @@
+---
+// Experiment 2: test accuracy per configuration, mean ± std over 5 seeds.
+import Figure from '../Figure.astro';
+import { frame, scaleLinear, scalePoint, r2, dataTable } from '../../lib/chart';
+import data from '../../data/exp2-results_multiseed.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+type Agg = { accuracy: { mean: number; std: number } };
+const agg = data.aggregate as unknown as Record<string, Agg>;
+const configs: { key: string; label: string; short: string; kind: 'base' | 'dp' | 'he' }[] = [
+  { key: 'Standard FL', label: 'Standard federated learning', short: 'Standard FL', kind: 'base' },
+  { key: 'DP-FL (eps=14.13)', label: 'DP, ε = 14.13', short: 'DP ε=14.13', kind: 'dp' },
+  { key: 'DP-FL (eps=8.65)', label: 'DP, ε = 8.65', short: 'DP ε=8.65', kind: 'dp' },
+  { key: 'DP-FL (eps=5.74)', label: 'DP, ε = 5.74', short: 'DP ε=5.74', kind: 'dp' },
+  { key: 'HE-FL', label: 'HE (encrypted)', short: 'HE', kind: 'he' },
+];
+const pts = configs.map((c) => ({
+  ...c,
+  mean: agg[c.key].accuracy.mean * 100,
+  std: agg[c.key].accuracy.std * 100,
+}));
+
+const f = frame(600, 300, { top: 16, right: 64, bottom: 44, left: 52 });
+const x = scalePoint<string>().domain(pts.map((p) => p.short)).range([0, f.innerW]).padding(0.6);
+const y = scaleLinear().domain([80, 96]).range([f.innerH, 0]);
+const yTicks = [80, 84, 88, 92, 96];
+const base = pts[0].mean;
+
+const table = dataTable({
+  caption: 'Test accuracy by configuration, mean ± std over 5 seeds',
+  columns: ['Configuration', 'Accuracy (%)', 'Std (pp)'],
+  rows: pts.map((p) => [p.label, p.mean.toFixed(2), p.std.toFixed(2)]),
+});
+---
+
+<Figure
+  id="fig-exp2-accuracy"
+  title="Test accuracy by configuration (mean ± std over 5 seeds)"
+  caption="Axis starts at 80%. Error bars show one standard deviation across seeds 42 to 46."
+  source={`Source: Experiment 2, <code>results/results_multiseed.json</code>. <a href="${EXPERIMENT_FOLDERS.exp2}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${f.width} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label={`Dot plot with error bars. Standard federated learning ${pts[0].mean.toFixed(2)} percent, differential privacy at epsilon 14.13 ${pts[1].mean.toFixed(2)}, at 8.65 ${pts[2].mean.toFixed(2)}, at 5.74 ${pts[3].mean.toFixed(2)}, and homomorphic encryption ${pts[4].mean.toFixed(2)}, identical to standard training.`}
+    data-animate
+  >
+    <g transform={`translate(${f.margin.left},${f.margin.top})`}>
+      {
+        yTicks.map((t) => (
+          <g>
+            <line class="grid-line" x1="0" x2={f.innerW} y1={r2(y(t))} y2={r2(y(t))} />
+            <text class="tick" x="-10" y={r2(y(t))} dy="0.32em" text-anchor="end">
+              {t}%
+            </text>
+          </g>
+        ))
+      }
+      <line class="stroke-ink" x1="0" x2={f.innerW} y1={r2(y(base))} y2={r2(y(base))} stroke-dasharray="3 4" stroke-width="1" />
+      <text class="value-label fill-muted" x={f.innerW} y={r2(y(base)) + 16} text-anchor="end">Standard FL mean</text>
+      {
+        pts.map((p) => {
+          const cx = r2(x(p.short) ?? 0);
+          const cy = r2(y(p.mean));
+          const top = r2(y(p.mean + p.std));
+          const bottom = r2(y(p.mean - p.std));
+          const cls = p.kind === 'dp' ? 'blue' : 'ink';
+          return (
+            <g class="draw-fade" data-tip={`${p.label}: ${p.mean.toFixed(2)}% ± ${p.std.toFixed(2)}`}>
+              <line class={`stroke-${cls}`} x1={cx} x2={cx} y1={top} y2={bottom} stroke-width="1.5" />
+              <line class={`stroke-${cls}`} x1={cx - 6} x2={cx + 6} y1={top} y2={top} stroke-width="1.5" />
+              <line class={`stroke-${cls}`} x1={cx - 6} x2={cx + 6} y1={bottom} y2={bottom} stroke-width="1.5" />
+              <circle class={`fill-${cls}`} cx={cx} cy={cy} r="6" stroke="#fff" stroke-width="2" />
+              <text class="value-label fill-ink" x={cx} y={top - 8} text-anchor="middle">
+                {p.mean.toFixed(2)}%
+              </text>
+              <text class="tick" x={cx} y={f.innerH + 20} text-anchor="middle">
+                {p.short}
+              </text>
+            </g>
+          );
+        })
+      }
+      <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+      <text class="axis-title" transform={`translate(-40,${f.innerH / 2}) rotate(-90)`} text-anchor="middle">Test accuracy</text>
+    </g>
+  </svg>
+</Figure>

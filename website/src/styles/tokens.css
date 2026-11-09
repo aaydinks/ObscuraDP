@@ -1,0 +1,71 @@
+/* Design tokens. Every color, type size and spacing step on the site comes from here. */
+:root {
+  /* Color */
+  --bg: #ffffff;
+  --surface: #f6f8fb;
+  --ink: #101828;
+  --text: #344054;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --blue: #1a5cf4;
+  --blue-deep: #0b3fd6;
+  --blue-soft: #8fc0f8;
+  --blue-tint: #eef4ff;
+  --error: #b42318;
+  /* Neutral grays for text on the one dark section (muted on ink fails AA) */
+  --ink-text: #f6f8fb;
+  --ink-muted: #98a2b3;
+
+  /* Type */
+  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-body: 1.0625rem; /* 17px */
+  --fs-small: 0.9375rem; /* 15px */
+  --fs-caption: 0.8125rem; /* 13px */
+  --fs-label: 0.75rem; /* 12px */
+  --fs-h3: 1.25rem;
+  --fs-h2: clamp(1.9rem, 3.2vw, 2.75rem);
+  --fs-h1: clamp(2.5rem, 5vw, 4rem);
+  --lh-body: 1.6;
+  --lh-heading: 1.1;
+  --measure: 68ch;
+
+  /* Spacing, 8px scale */
+  --s-1: 0.5rem;
+  --s-2: 1rem;
+  --s-3: 1.5rem;
+  --s-4: 2rem;
+  --s-5: 2.5rem;
+  --s-6: 3rem;
+  --s-8: 4rem;
+  --s-9: 4.5rem;
+  --s-12: 6rem;
+  --s-14: 7rem;
+  --s-16: 8rem;
+  --section-y: var(--s-9);
+  --gutter: 1.5rem;
+  --side: 1.5rem;
+  --max-width: 1200px;
+
+  /* Shape and motion */
+  --r-panel: 8px;
+  --r-control: 6px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --t-hover: 160ms;
+  --header-h: 64px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --fs-body: 1.125rem; /* 18px */
+    --side: 2.5rem;
+    --section-y: var(--s-14);
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --section-y: var(--s-16);
+  }
+}

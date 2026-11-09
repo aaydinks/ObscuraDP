@@ -1,0 +1,83 @@
+---
+// Experiment 3: three-way accuracy over six rounds, ResNet-18 on CIFAR-10.
+import Figure from '../Figure.astro';
+import { frame, scaleLinear, r2, linePath, dataTable } from '../../lib/chart';
+import data from '../../data/exp3-accuracy.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+const curves = data.curves as Record<string, number[]>;
+const series = [
+  { key: 'plaintext', label: 'Plaintext', cls: 'ink', dash: '' },
+  { key: 'full HE', label: 'Full encryption', cls: 'blue', dash: '' },
+  { key: 'SPE (p=0.25)', label: 'Selective (25%)', cls: 'soft', dash: '' },
+];
+const rounds = curves['plaintext'].length;
+const f = frame(600, 300, { top: 16, right: 120, bottom: 44, left: 52 });
+const x = scaleLinear().domain([1, rounds]).range([0, f.innerW]);
+const y = scaleLinear().domain([15, 45]).range([f.innerH, 0]);
+const yTicks = [15, 20, 25, 30, 35, 40, 45];
+const agreement = (data.agreement as { he_vs_plain_max_abs: number }).he_vs_plain_max_abs;
+
+const table = dataTable({
+  caption: 'Test accuracy by round, ResNet-18 on CIFAR-10',
+  columns: ['Round', ...series.map((s) => s.label)],
+  rows: Array.from({ length: rounds }, (_, i) => [String(i + 1), ...series.map((s) => (curves[s.key][i] * 100).toFixed(2))]),
+});
+---
+
+<Figure
+  id="fig-exp3-accuracy"
+  title="Accuracy is unchanged by encryption (ResNet-18, CIFAR-10, 6 rounds)"
+  caption={`Axis starts at 15%. The three curves end within 1.4 points of each other, and the encrypted aggregate matches the plaintext one to within ${agreement.toExponential(1)}. The remaining spread comes from floating-point nondeterminism in training, not from encryption. Shortened run: 6 rounds on a 5,000-image training subset.`}
+  source={`Source: Experiment 3, <code>results/accuracy.json</code>. <a href="${EXPERIMENT_FOLDERS.exp3}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${f.width} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label={`Line chart of test accuracy over six rounds for plaintext, fully encrypted and selectively encrypted training. All three start at 19.95 percent and end between ${(Math.min(...series.map((s) => curves[s.key][rounds - 1])) * 100).toFixed(1)} and ${(Math.max(...series.map((s) => curves[s.key][rounds - 1])) * 100).toFixed(1)} percent.`}
+    data-animate
+  >
+    <g transform={`translate(${f.margin.left},${f.margin.top})`}>
+      {
+        yTicks.map((t) => (
+          <g>
+            <line class="grid-line" x1="0" x2={f.innerW} y1={r2(y(t))} y2={r2(y(t))} />
+            <text class="tick" x="-10" y={r2(y(t))} dy="0.32em" text-anchor="end">
+              {t}%
+            </text>
+          </g>
+        ))
+      }
+      {
+        Array.from({ length: rounds }, (_, i) => (
+          <text class="tick" x={r2(x(i + 1))} y={f.innerH + 20} text-anchor="middle">
+            {i + 1}
+          </text>
+        ))
+      }
+      <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+      {
+        series.map((s, si) => {
+          const pts = curves[s.key].map((v, i) => [x(i + 1), y(v * 100)] as [number, number]);
+          const last = pts[pts.length - 1];
+          const dy = si === 0 ? -8 : si === 1 ? 4 : 16;
+          return (
+            <g>
+              <path class={`draw-line stroke-${s.cls}`} d={linePath(pts)} fill="none" stroke-width={s.cls === 'blue' ? 2 : 1.5} />
+              {curves[s.key].map((v, i) => (
+                <circle class={`draw-fade fill-${s.cls}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="3.5" stroke="#fff" stroke-width="1.5" data-tip={`${s.label}, round ${i + 1}: ${(v * 100).toFixed(2)}%`} />
+              ))}
+              <text class={`series-label fill-${s.cls === 'soft' ? 'muted' : s.cls}`} x={r2(last[0]) + 10} y={r2(last[1]) + dy} dy="0.32em">
+                {s.label} {(curves[s.key][rounds - 1] * 100).toFixed(1)}%
+              </text>
+            </g>
+          );
+        })
+      }
+      <text class="axis-title" x={f.innerW / 2} y={f.innerH + 38} text-anchor="middle">Federated round</text>
+    </g>
+  </svg>
+</Figure>

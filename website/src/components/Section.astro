@@ -1,0 +1,50 @@
+---
+interface Props {
+  id?: string;
+  tone?: 'bg' | 'surface' | 'ink';
+  class?: string;
+  labelledBy?: string;
+}
+const { id, tone = 'bg', class: cls, labelledBy } = Astro.props;
+---
+
+<section id={id} class:list={['section', `tone-${tone}`, cls]} aria-labelledby={labelledBy}>
+  <div class="wrap">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .section {
+    padding-block: var(--section-y);
+    scroll-margin-top: var(--header-h);
+  }
+  .tone-surface {
+    background: var(--surface);
+  }
+  .tone-ink {
+    background: var(--ink);
+    color: var(--ink-text);
+  }
+  .tone-ink :global(h2),
+  .tone-ink :global(h3),
+  .tone-ink :global(strong) {
+    color: #fff;
+  }
+  .tone-ink :global(p) {
+    color: var(--ink-text);
+  }
+  .tone-ink :global(.caption),
+  .tone-ink :global(.label),
+  .tone-ink :global(.eyebrow),
+  .tone-ink :global(.source) {
+    color: var(--ink-muted);
+  }
+  .tone-ink :global(a) {
+    color: var(--blue-soft);
+  }
+  .tone-ink :global(.rows),
+  .tone-ink :global(.rows > li) {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+</style>

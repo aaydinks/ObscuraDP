@@ -1,0 +1,41 @@
+{
+  "name": "obscuradp-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "sync-data": "node scripts/sync-data.mjs",
+    "og": "node scripts/og/render.mjs",
+    "lint:copy": "node scripts/lint-copy.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/cloudflare": "^14.4.6",
+    "@astrojs/sitemap": "^3.7.4",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.2.0",
+    "@types/katex": "^0.16.8",
+    "@types/topojson-client": "^3.1.5",
+    "astro": "^7.4.7",
+    "d3-geo": "^3.1.2",
+    "d3-scale": "^4.0.3",
+    "d3-shape": "^3.2.1",
+    "katex": "^0.19.1",
+    "sharp": "^0.35.5",
+    "topojson-client": "^3.1.0",
+    "typescript": "~5.9.3",
+    "world-atlas": "^2.0.2",
+    "wrangler": "^4.158.0"
+  }
+}

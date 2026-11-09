@@ -1,0 +1,105 @@
+---
+// Experiment 1: recall against the privacy budget, FedProx vs FedAvg with
+// rebalancing, ±1 std bands over five seeds, and the no-rebalancing baseline.
+import Figure from '../Figure.astro';
+import { frame, scaleLog, scaleLinear, r2, linePath, bandPath, dataTable } from '../../lib/chart';
+import data from '../../data/exp1-results_multiseed.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+type Stat = { mean: number; std: number };
+type Cell = { recall: Stat; precision: Stat; f1: Stat; auc: Stat };
+const sweep = data.sweep as unknown as Record<'FedProx' | 'FedAvg', Record<string, Cell>>;
+const eps = (data.config.epsilon_grid as number[]).slice();
+const baseline = (data.baseline_no_smote as unknown as { recall: Stat }).recall.mean;
+
+const f = frame(600, 320, { top: 16, right: 150, bottom: 48, left: 52 });
+const x = scaleLog().domain([0.4, 60]).range([0, f.innerW]);
+const y = scaleLinear().domain([0, 1]).range([f.innerH, 0]);
+const xTicks = [0.5, 1, 2, 5, 9, 15, 50];
+const yTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+const methods = [
+  { key: 'FedProx' as const, label: 'FedProx + rebalancing', cls: 'blue' },
+  { key: 'FedAvg' as const, label: 'FedAvg + rebalancing', cls: 'ink' },
+];
+const get = (m: 'FedProx' | 'FedAvg', e: number) => sweep[m][e.toFixed(1)].recall;
+
+const table = dataTable({
+  caption: 'Recall by privacy budget, mean ± std over 5 seeds',
+  columns: ['ε', 'FedProx recall', 'FedAvg recall'],
+  rows: eps.map((e) => [
+    String(e),
+    `${get('FedProx', e).mean.toFixed(3)} ± ${get('FedProx', e).std.toFixed(3)}`,
+    `${get('FedAvg', e).mean.toFixed(3)} ± ${get('FedAvg', e).std.toFixed(3)}`,
+  ]),
+});
+---
+
+<Figure
+  id="fig-exp1-recall"
+  title="Share of true stroke cases caught, by privacy budget"
+  caption="Recall (the share of real stroke cases the model catches) at a fixed 0.5 threshold, mean over five seeds with ±1 standard deviation bands. Log-scale ε. Without rebalancing the model caught no stroke cases at all (recall 0.0, ε = 9, all five seeds)."
+  source={`Source: Experiment 1, <code>results/results_multiseed.json</code>. <a href="${EXPERIMENT_FOLDERS.exp1}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${f.width} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label={`Line chart of recall against privacy budget epsilon from 0.5 to 50 on a log scale. FedProx with rebalancing falls from ${get('FedProx', 0.5).mean.toFixed(2)} to ${get('FedProx', 50).mean.toFixed(2)}; FedAvg with rebalancing from ${get('FedAvg', 0.5).mean.toFixed(2)} to ${get('FedAvg', 50).mean.toFixed(2)}. FedProx is slightly higher at every epsilon. Without rebalancing recall is zero.`}
+    data-animate
+  >
+    <g transform={`translate(${f.margin.left},${f.margin.top})`}>
+      {
+        yTicks.map((t) => (
+          <g>
+            <line class="grid-line" x1="0" x2={f.innerW} y1={r2(y(t))} y2={r2(y(t))} />
+            <text class="tick" x="-10" y={r2(y(t))} dy="0.32em" text-anchor="end">
+              {t.toFixed(1)}
+            </text>
+          </g>
+        ))
+      }
+      {
+        xTicks.map((t) => (
+          <text class="tick" x={r2(x(t))} y={f.innerH + 20} text-anchor="middle">
+            {t}
+          </text>
+        ))
+      }
+      {
+        methods.map((m) => {
+          const band = eps.map((e) => ({
+            x: x(e),
+            y0: y(Math.max(0, get(m.key, e).mean - get(m.key, e).std)),
+            y1: y(Math.min(1, get(m.key, e).mean + get(m.key, e).std)),
+          }));
+          return <path class={`draw-fade fill-${m.cls === 'blue' ? 'soft' : 'muted'}`} d={bandPath(band)} opacity={m.cls === 'blue' ? 0.35 : 0.18} />;
+        })
+      }
+      <line class="stroke-muted" x1="0" x2={f.innerW} y1={r2(y(baseline))} y2={r2(y(baseline))} stroke-dasharray="2 4" stroke-width="1.5" />
+      <text class="tick" x={f.innerW + 10} y={r2(y(baseline))} dy="0.32em">No rebalancing: 0.00</text>
+      {
+        methods.map((m, mi) => {
+          const pts = eps.map((e) => [x(e), y(get(m.key, e).mean)] as [number, number]);
+          const last = pts[pts.length - 1];
+          return (
+            <g>
+              <path class={`draw-line stroke-${m.cls}`} d={linePath(pts)} fill="none" stroke-width={m.cls === 'blue' ? 2.25 : 1.5} />
+              {eps.map((e, i) => (
+                <circle class={`draw-fade fill-${m.cls}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="4" stroke="#fff" stroke-width="1.5" data-tip={`${m.label}, ε = ${e}: recall ${get(m.key, e).mean.toFixed(3)} ± ${get(m.key, e).std.toFixed(3)}`} />
+              ))}
+              <text class={`series-label fill-${m.cls}`} x={r2(last[0]) + 10} y={r2(last[1]) + (mi === 0 ? -8 : 10)} dy="0.32em">
+                {m.label}
+              </text>
+            </g>
+          );
+        })
+      }
+      <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+      <text class="axis-title" x={f.innerW / 2} y={f.innerH + 40} text-anchor="middle">Privacy budget ε (log scale, per round)</text>
+      <text class="axis-title" transform={`translate(-38,${f.innerH / 2}) rotate(-90)`} text-anchor="middle">Recall</text>
+    </g>
+  </svg>
+</Figure>

@@ -1,0 +1,197 @@
+{
+  "fractions": [
+    0.1,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "models": {
+    "LSTM": {
+      "n_params": 4653200,
+      "plain_ms": 25.476875016465783,
+      "plain_payload_bytes": 18612800,
+      "sweep": [
+        {
+          "p": 0.1,
+          "n_encrypt": 465320,
+          "he_ms": 339.2504183575511,
+          "payload_bytes": 43581795,
+          "ciphertext_bytes": 26830275,
+          "time_ratio_vs_plain": 13.31601376300243,
+          "payload_ratio_vs_plain": 2.341495906043153,
+          "he_ms_vs_naive": 0.10238985516073576,
+          "payload_vs_naive": 0.16285947319021213
+        },
+        {
+          "p": 0.25,
+          "n_encrypt": 1163300,
+          "he_ms": 826.906950911507,
+          "payload_bytes": 81038942,
+          "ciphertext_bytes": 67079342,
+          "time_ratio_vs_plain": 32.45715773135734,
+          "payload_ratio_vs_plain": 4.353936108484484,
+          "he_ms_vs_naive": 0.24957045991318616,
+          "payload_vs_naive": 0.30283193709694967
+        },
+        {
+          "p": 0.5,
+          "n_encrypt": 2326600,
+          "he_ms": 1642.7022225689143,
+          "payload_bytes": 143226343,
+          "ciphertext_bytes": 133919943,
+          "time_ratio_vs_plain": 64.47816780932634,
+          "payload_ratio_vs_plain": 7.695045506318233,
+          "he_ms_vs_naive": 0.4957872814287308,
+          "payload_vs_naive": 0.535218128760888
+        },
+        {
+          "p": 0.75,
+          "n_encrypt": 3489900,
+          "he_ms": 2561.970875831321,
+          "payload_bytes": 205415194,
+          "ciphertext_bytes": 200761994,
+          "time_ratio_vs_plain": 100.56064074481314,
+          "payload_ratio_vs_plain": 11.036232807530302,
+          "he_ms_vs_naive": 0.7732336136013892,
+          "payload_vs_naive": 0.7676097388853586
+        },
+        {
+          "p": 1.0,
+          "n_encrypt": 4653200,
+          "he_ms": 3313.3206197526306,
+          "payload_bytes": 267603684,
+          "ciphertext_bytes": 267603684,
+          "time_ratio_vs_plain": 130.0520812545189,
+          "payload_ratio_vs_plain": 14.377400713487493,
+          "he_ms_vs_naive": 1.0,
+          "payload_vs_naive": 1.0
+        }
+      ]
+    },
+    "ResNet-18": {
+      "n_params": 11173962,
+      "plain_ms": 65.08795893751085,
+      "plain_payload_bytes": 44695848,
+      "sweep": [
+        {
+          "p": 0.1,
+          "n_encrypt": 1117396,
+          "he_ms": 923.5951690934598,
+          "payload_bytes": 104480039,
+          "ciphertext_bytes": 64253775,
+          "time_ratio_vs_plain": 14.189954396636988,
+          "payload_ratio_vs_plain": 2.3375781795212833,
+          "he_ms_vs_naive": 0.11023937409468483,
+          "payload_vs_naive": 0.16266664886800247
+        },
+        {
+          "p": 0.25,
+          "n_encrypt": 2793490,
+          "he_ms": 2025.680803693831,
+          "payload_bytes": 194272396,
+          "ciphertext_bytes": 160750508,
+          "time_ratio_vs_plain": 31.122205040084776,
+          "payload_ratio_vs_plain": 4.346542345499295,
+          "he_ms_vs_naive": 0.24178318746947564,
+          "payload_vs_naive": 0.3024658099991476
+        },
+        {
+          "p": 0.5,
+          "n_encrypt": 5586981,
+          "he_ms": 4172.592592891306,
+          "payload_bytes": 343614899,
+          "ciphertext_bytes": 321266975,
+          "time_ratio_vs_plain": 64.10698170605252,
+          "payload_ratio_vs_plain": 7.687848298571268,
+          "he_ms_vs_naive": 0.4980363812902417,
+          "payload_vs_naive": 0.5349795487867987
+        },
+        {
+          "p": 0.75,
+          "n_encrypt": 8380472,
+          "he_ms": 6206.041894620284,
+          "payload_bytes": 492956101,
+          "ciphertext_bytes": 481782141,
+          "time_ratio_vs_plain": 95.3485405891823,
+          "payload_ratio_vs_plain": 11.029125143794117,
+          "he_ms_vs_naive": 0.7407468087342303,
+          "payload_vs_naive": 0.7674912620266782
+        },
+        {
+          "p": 1.0,
+          "n_encrypt": 11173962,
+          "he_ms": 8378.087926190346,
+          "payload_bytes": 642295392,
+          "ciphertext_bytes": 642295392,
+          "time_ratio_vs_plain": 128.71947535232925,
+          "payload_ratio_vs_plain": 14.370359233367717,
+          "he_ms_vs_naive": 1.0,
+          "payload_vs_naive": 1.0
+        }
+      ]
+    },
+    "ResNet-50": {
+      "n_params": 23520842,
+      "plain_ms": 96.68816602788866,
+      "plain_payload_bytes": 94083368,
+      "sweep": [
+        {
+          "p": 0.1,
+          "n_encrypt": 2352084,
+          "he_ms": 1833.24263128452,
+          "payload_bytes": 220005212,
+          "ciphertext_bytes": 135330180,
+          "time_ratio_vs_plain": 18.960362023577332,
+          "payload_ratio_vs_plain": 2.338407060427514,
+          "he_ms_vs_naive": 0.10690536757238953,
+          "payload_vs_naive": 0.16276563705716848
+        },
+        {
+          "p": 0.25,
+          "n_encrypt": 5880210,
+          "he_ms": 4418.909214204177,
+          "payload_bytes": 408541417,
+          "ciphertext_bytes": 337978889,
+          "time_ratio_vs_plain": 45.70268933355909,
+          "payload_ratio_vs_plain": 4.342334098838808,
+          "he_ms_vs_naive": 0.2576882654548083,
+          "payload_vs_naive": 0.30224967580424106
+        },
+        {
+          "p": 0.5,
+          "n_encrypt": 11760421,
+          "he_ms": 8819.6856607683,
+          "payload_bytes": 722995715,
+          "ciphertext_bytes": 675954031,
+          "time_ratio_vs_plain": 91.21784002216319,
+          "payload_ratio_vs_plain": 7.684628328781767,
+          "he_ms_vs_naive": 0.5143191203101769,
+          "payload_vs_naive": 0.5348912285840666
+        },
+        {
+          "p": 0.75,
+          "n_encrypt": 17640632,
+          "he_ms": 13285.566651262343,
+          "payload_bytes": 1037215714,
+          "ciphertext_bytes": 1013694874,
+          "time_ratio_vs_plain": 137.4063362359181,
+          "payload_ratio_vs_plain": 11.024432224832767,
+          "he_ms_vs_naive": 0.7747465403777478,
+          "payload_vs_naive": 0.7673594408068654
+        },
+        {
+          "p": 1.0,
+          "n_encrypt": 23520842,
+          "he_ms": 17148.274898761883,
+          "payload_bytes": 1351668669,
+          "ciphertext_bytes": 1351668669,
+          "time_ratio_vs_plain": 177.3565018682395,
+          "payload_ratio_vs_plain": 14.366712180201713,
+          "he_ms_vs_naive": 1.0,
+          "payload_vs_naive": 1.0
+        }
+      ]
+    }
+  }
+}

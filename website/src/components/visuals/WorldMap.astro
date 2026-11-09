@@ -1,0 +1,39 @@
+---
+// Decorative dotted world map, generated at build time from Natural Earth data
+// (world-atlas, public domain). No countries are highlighted.
+import { geoEqualEarth, geoContains } from 'd3-geo';
+import { feature } from 'topojson-client';
+import land110 from 'world-atlas/land-110m.json';
+import type { Topology, GeometryCollection } from 'topojson-specification';
+
+const topo = land110 as unknown as Topology<{ land: GeometryCollection }>;
+const land = feature(topo, topo.objects.land);
+
+const W = 960;
+const H = 470;
+const projection = geoEqualEarth().fitSize([W, H], land as never);
+const step = 11; // px between dots
+const dots: string[] = [];
+for (let y = step / 2; y < H; y += step) {
+  for (let x = step / 2; x < W; x += step) {
+    const ll = projection.invert?.([x, y]);
+    if (!ll) continue;
+    if (geoContains(land as never, ll)) dots.push(`${Math.round(x)},${Math.round(y)}`);
+  }
+}
+const path = dots.map((d) => `M${d}h0`).join('');
+---
+
+<svg class="world-map" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
+  <path d={path} stroke="var(--blue-soft)" stroke-width="3.2" stroke-linecap="round" fill="none" />
+</svg>
+
+<style>
+  .world-map {
+    width: 100%;
+    height: auto;
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+  }
+</style>

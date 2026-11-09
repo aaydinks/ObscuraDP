@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.dev.vars
+worker-configuration.d.ts
+screenshots/
+lighthouse/
+*.log
+scripts/og/.rendered.html
+screenshots-preview/

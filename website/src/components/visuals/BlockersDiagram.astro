@@ -1,0 +1,93 @@
+---
+// Three sources converge into one box, then an arrow leads to the mark.
+import Logo from '../Logo.astro';
+const W = 560;
+const H = 300;
+const sources = [
+  { x: 70, label: 'Legal' },
+  { x: 280, label: 'Economic' },
+  { x: 490, label: 'Social' },
+];
+const boxY = 140;
+const boxW = 220;
+const boxH = 48;
+const boxX = (W - boxW) / 2;
+---
+
+<figure class="blockers" aria-labelledby="blockers-caption">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Legal, economic and social blockers converge into one outcome: no universal baseline. An arrow points from that box to Obscura DP.">
+    <defs>
+      <marker id="arrow-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="var(--blue)"></path>
+      </marker>
+    </defs>
+    {
+      sources.map((s, i) => (
+        <g>
+          <text x={s.x} y="28" text-anchor="middle" class="src-label">
+            {String(i + 1).padStart(2, '0')} {s.label}
+          </text>
+          <line x1={s.x} y1="42" x2={s.x} y2="72" class="ink-line" />
+          <path d={`M${s.x},72 C${s.x},105 ${W / 2},105 ${W / 2},${boxY}`} class="ink-line" fill="none" />
+        </g>
+      ))
+    }
+    <rect x={boxX} y={boxY} width={boxW} height={boxH} rx="6" class="box" />
+    <text x={W / 2} y={boxY + boxH / 2} dy="0.35em" text-anchor="middle" class="box-label">No universal baseline</text>
+    <line x1={W / 2} y1={boxY + boxH} x2={W / 2} y2={H - 56} class="blue-line" marker-end="url(#arrow-head)" />
+  </svg>
+  <div class="mark-slot">
+    <Logo variant="mark" height={36} />
+    <span class="mono">Obscura DP</span>
+  </div>
+  <figcaption id="blockers-caption" class="caption">Three blockers, one outcome, and the gap Obscura DP is built to fill.</figcaption>
+</figure>
+
+<style>
+  .blockers {
+    margin: 0;
+    max-width: 560px;
+  }
+  .blockers svg {
+    width: 100%;
+    height: auto;
+  }
+  .src-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    fill: var(--ink);
+  }
+  .ink-line {
+    stroke: var(--ink);
+    stroke-width: 1.25;
+  }
+  .blue-line {
+    stroke: var(--blue);
+    stroke-width: 1.5;
+  }
+  .box {
+    fill: var(--bg);
+    stroke: var(--ink);
+    stroke-width: 1.25;
+  }
+  .box-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 14px;
+    fill: var(--ink);
+  }
+  .mark-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: -40px;
+    color: var(--ink);
+    font-size: var(--fs-small);
+  }
+  .blockers figcaption {
+    margin-top: var(--s-2);
+    text-align: center;
+    margin-inline: auto;
+  }
+</style>

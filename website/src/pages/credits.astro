@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+import { CREDITS } from '../lib/credits';
+---
+
+<Base title="Photo credits · Obscura DP" description="Photographers and sources for the images on obscuradp.org." path="/credits">
+  <section class="credits">
+    <div class="wrap">
+      <p class="label">Credits</p>
+      <h1>Photo credits</h1>
+      <p class="lede">The site uses at most three photographs. Each is listed here with its photographer and license.</p>
+      <ul class="rows credit-rows">
+        {
+          CREDITS.map((c) => (
+            <li>
+              <strong>{c.where}</strong>
+              <p>{c.description}</p>
+              <p class="caption">
+                {c.photographer ? (
+                  <>
+                    Photo by <a href={c.photographerUrl} rel="noopener">{c.photographer}</a> on{' '}
+                    <a href={c.sourceUrl} rel="noopener">Unsplash</a>, {c.license}.
+                  </>
+                ) : (
+                  'Not yet added.'
+                )}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="caption note">
+        Natural Earth map data (world-atlas) is in the public domain. Fonts: Source Serif 4, IBM Plex Sans and IBM Plex Mono,
+        SIL Open Font License, self-hosted.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .credits {
+    padding-block: var(--s-9) var(--s-16);
+  }
+  h1 {
+    margin: var(--s-2) 0 var(--s-3);
+  }
+  .credit-rows {
+    margin-top: var(--s-6);
+    max-width: 68ch;
+  }
+  .credit-rows strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  .note {
+    margin-top: var(--s-6);
+  }
+</style>

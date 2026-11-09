@@ -1,0 +1,261 @@
+---
+// "With you / Without you": 60 people, one is you; toggling your presence
+// changes a noised histogram by less than the noise does.
+import { mulberry32 } from '../../lib/rng';
+import { laplace } from '../../lib/laplace';
+
+const COLS = 12;
+const ROWS = 5;
+const N = COLS * ROWS;
+const YOU = 29; // index of the highlighted dot
+const BINS = ['18–29', '30–39', '40–49', '50–59', '60–69', '70–79', '80–89', '90+'];
+// True ages for 60 people, deterministic.
+const rng = mulberry32(7);
+const ages = Array.from({ length: N }, () => Math.min(95, Math.max(18, Math.round(18 + 70 * Math.pow(rng(), 0.9)))));
+ages[YOU] = 63;
+const binOf = (a: number) => Math.min(BINS.length - 1, Math.max(0, Math.floor((a - 18) / 10) + (a >= 30 ? 0 : 0)));
+// bins: 18-29 is index 0 (12 years), then 30-39 ... 80-89, 90+.
+function bin(a: number): number {
+  if (a < 30) return 0;
+  if (a >= 90) return 7;
+  return Math.floor((a - 30) / 10) + 1;
+}
+void binOf;
+const counts = Array(BINS.length).fill(0) as number[];
+for (const a of ages) counts[bin(a)] += 1;
+const EPS = 1;
+const noiseRng = mulberry32(11);
+const initial = counts.map((c) => Math.max(0, Math.round(c + laplace(noiseRng, 1 / EPS))));
+
+// Panel geometry
+const W = 480;
+const H = 420;
+const dotR = 6;
+const gridX = 40;
+const gridY = 56;
+const gapX = (W - gridX * 2) / (COLS - 1);
+const gapY = 22;
+const youCol = YOU % COLS;
+const youRow = Math.floor(YOU / COLS);
+const youX = gridX + youCol * gapX;
+const youY = gridY + youRow * gapY;
+
+const chartTop = 232;
+const chartH = 120;
+const chartX = 40;
+const chartW = W - chartX * 2;
+const barW = chartW / BINS.length;
+const maxCount = Math.max(...counts) + 4;
+const barH = (c: number) => (c / maxCount) * chartH;
+---
+
+<div class="hero-demo" data-hero-demo data-ages={JSON.stringify(ages)} data-you={YOU} data-eps={EPS} data-max={maxCount}>
+  <div class="demo-head">
+    <span class="label">Illustration</span>
+    <span class="caption">A dataset of {N} people</span>
+  </div>
+  <svg class="demo-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Sixty dots represent people in a dataset; one is labeled You. Below, a histogram of what the model reveals barely changes whether You are included or not.">
+    <g class="people">
+      {
+        ages.map((_, i) => {
+          const cx = gridX + (i % COLS) * gapX;
+          const cy = gridY + Math.floor(i / COLS) * gapY;
+          const isYou = i === YOU;
+          return <circle cx={cx} cy={cy} r={dotR} class:list={['person', { you: isYou }]} data-i={i} />;
+        })
+      }
+      <line class="leader" x1={youX + dotR + 3} y1={youY - dotR - 3} x2={youX + 46} y2={youY - 30} />
+      <text class="you-label" x={youX + 50} y={youY - 32}>You</text>
+    </g>
+
+    <g class="reveal" transform={`translate(${chartX}, ${chartTop})`}>
+      <text class="reveal-title" x="0" y="-12">What the model reveals</text>
+      <text class="reveal-sub" x={chartW} y="-12" text-anchor="end">Ages, with privacy noise</text>
+      <line class="axis" x1="0" x2={chartW} y1={chartH} y2={chartH} />
+      {
+        initial.map((c, i) => (
+          <g>
+            <rect
+              class="bar"
+              data-bin={i}
+              x={i * barW + 6}
+              width={barW - 12}
+              y={chartH - barH(c)}
+              height={barH(c)}
+              rx="2"
+            />
+            <text class="bin-label" x={i * barW + barW / 2} y={chartH + 16} text-anchor="middle">
+              {BINS[i]}
+            </text>
+          </g>
+        ))
+      }
+    </g>
+  </svg>
+
+  <div class="toggle" role="group" aria-label="Include you in the dataset">
+    <button type="button" class="toggle-btn" data-mode="with" aria-pressed="true">With you</button>
+    <button type="button" class="toggle-btn" data-mode="without" aria-pressed="false">Without you</button>
+  </div>
+  <p class="caption demo-caption">Same answer either way, so the output can't reveal whether you were included.</p>
+</div>
+
+<style>
+  .hero-demo {
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--s-2) var(--s-3) var(--s-3);
+    background: var(--bg);
+    max-width: 520px;
+    width: 100%;
+  }
+  .demo-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--s-1);
+  }
+  .demo-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .person {
+    fill: var(--line);
+    stroke: none;
+    transition: fill 300ms var(--ease), stroke 300ms var(--ease);
+  }
+  .person.you {
+    fill: var(--blue);
+  }
+  .hero-demo.is-without .person.you {
+    fill: transparent;
+    stroke: var(--blue);
+    stroke-width: 1.5;
+  }
+  .leader {
+    stroke: var(--ink);
+    stroke-width: 1;
+  }
+  .you-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    fill: var(--ink);
+  }
+  .reveal-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 13px;
+    fill: var(--ink);
+  }
+  .reveal-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: var(--muted);
+  }
+  .axis {
+    stroke: var(--line);
+    stroke-width: 1;
+  }
+  .bar {
+    fill: var(--blue);
+    transition: y 320ms var(--ease), height 320ms var(--ease);
+  }
+  .bin-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--muted);
+  }
+  .toggle {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    padding: 3px;
+    gap: 3px;
+    margin-top: var(--s-2);
+  }
+  .toggle-btn {
+    height: 36px;
+    padding: 0 1rem;
+    border: 0;
+    background: transparent;
+    border-radius: 4px;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color var(--t-hover) var(--ease), color var(--t-hover) var(--ease);
+  }
+  .toggle-btn[aria-pressed='true'] {
+    background: var(--ink);
+    color: #fff;
+  }
+  .demo-caption {
+    margin-top: var(--s-2);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar,
+    .person {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { mulberry32 } from '../../lib/rng';
+  import { laplace } from '../../lib/laplace';
+
+  const root = document.querySelector<HTMLElement>('[data-hero-demo]');
+  if (root) {
+    const ages: number[] = JSON.parse(root.dataset.ages ?? '[]');
+    const you = Number(root.dataset.you);
+    const eps = Number(root.dataset.eps);
+    const maxCount = Number(root.dataset.max);
+    const bars = Array.from(root.querySelectorAll<SVGRectElement>('.bar'));
+    const chartH = 120;
+    const bin = (a: number) => (a < 30 ? 0 : a >= 90 ? 7 : Math.floor((a - 30) / 10) + 1);
+    let seed = 12;
+    let mode: 'with' | 'without' = 'with';
+    let touched = false;
+
+    function render() {
+      const counts = new Array(bars.length).fill(0);
+      ages.forEach((a, i) => {
+        if (mode === 'without' && i === you) return;
+        counts[bin(a)] += 1;
+      });
+      const rng = mulberry32(seed++);
+      counts.forEach((c, i) => {
+        const released = Math.max(0, Math.round(c + laplace(rng, 1 / eps)));
+        const h = (released / maxCount) * chartH;
+        bars[i].setAttribute('y', String(chartH - h));
+        bars[i].setAttribute('height', String(h));
+      });
+      root!.classList.toggle('is-without', mode === 'without');
+      root!.querySelectorAll<HTMLButtonElement>('.toggle-btn').forEach((b) => {
+        b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+      });
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('.toggle-btn').forEach((b) => {
+      b.addEventListener('click', () => {
+        touched = true;
+        mode = b.dataset.mode as 'with' | 'without';
+        render();
+      });
+    });
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduced) {
+      const timer = window.setInterval(() => {
+        if (touched || document.hidden) return;
+        mode = mode === 'with' ? 'without' : 'with';
+        render();
+      }, 3500);
+      root.addEventListener('pointerdown', () => {
+        touched = true;
+        window.clearInterval(timer);
+      }, { once: true });
+    }
+  }
+</script>
