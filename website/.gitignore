@@ -8,3 +8,4 @@ screenshots/
 lighthouse/
 *.log
 scripts/og/.rendered.html
+screenshots-preview/
