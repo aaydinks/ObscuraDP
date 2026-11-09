@@ -1,0 +1,409 @@
+{
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "per_seed": {
+    "42": {
+      "Standard FL": {
+        "accuracy": 0.9344262295081968,
+        "loss": 0.17260493338108063,
+        "sec_per_round": 0.17900089155882598,
+        "train_sec_per_round": 0.1789274333510548,
+        "agg_ms_per_round": 0.07345820777118206,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716
+      },
+      "DP-FL (eps=14.13)": {
+        "accuracy": 0.9156908665105387,
+        "loss": 0.2116086781024933,
+        "sec_per_round": 0.28058609142899515,
+        "train_sec_per_round": 0.28052838346920905,
+        "agg_ms_per_round": 0.05770795978605747,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 14.13,
+        "epsilon_actual": 14.12353901337212,
+        "sigma": 0.91522216796875
+      },
+      "DP-FL (eps=8.65)": {
+        "accuracy": 0.9180327868852459,
+        "loss": 0.21227896213531494,
+        "sec_per_round": 0.26177448318339885,
+        "train_sec_per_round": 0.2617163079790771,
+        "agg_ms_per_round": 0.05817520432174206,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 8.65,
+        "epsilon_actual": 8.646054835860008,
+        "sigma": 1.19384765625
+      },
+      "DP-FL (eps=5.74)": {
+        "accuracy": 0.8992974238875878,
+        "loss": 0.2348930984735489,
+        "sec_per_round": 0.25236352514475585,
+        "train_sec_per_round": 0.2523043749853969,
+        "agg_ms_per_round": 0.05915015935897827,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 5.74,
+        "epsilon_actual": 5.736312322833337,
+        "sigma": 1.544189453125
+      },
+      "HE-FL": {
+        "accuracy": 0.9344262295081968,
+        "loss": 0.17260491847991943,
+        "sec_per_round": 0.13184610824100673,
+        "train_sec_per_round": 0.1084583168849349,
+        "agg_ms_per_round": 23.38779135607183,
+        "ciphertext_mb": 0.33429716,
+        "plaintext_payload_mb": 0.003716,
+        "enc_ms_per_client": 2.5778849329799414,
+        "n_params": 929
+      }
+    },
+    "43": {
+      "Standard FL": {
+        "accuracy": 0.9238875878220141,
+        "loss": 0.1994427740573883,
+        "sec_per_round": 0.10699484162032605,
+        "train_sec_per_round": 0.10693211681209505,
+        "agg_ms_per_round": 0.06272480823099613,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716
+      },
+      "DP-FL (eps=14.13)": {
+        "accuracy": 0.9086651053864169,
+        "loss": 0.26000407338142395,
+        "sec_per_round": 0.2624573667999357,
+        "train_sec_per_round": 0.26239775847643615,
+        "agg_ms_per_round": 0.059608323499560356,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 14.13,
+        "epsilon_actual": 14.12353901337212,
+        "sigma": 0.91522216796875
+      },
+      "DP-FL (eps=8.65)": {
+        "accuracy": 0.9074941451990632,
+        "loss": 0.25037264823913574,
+        "sec_per_round": 0.2610922833438963,
+        "train_sec_per_round": 0.26103065856732427,
+        "agg_ms_per_round": 0.061624776571989066,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 8.65,
+        "epsilon_actual": 8.646054835860008,
+        "sigma": 1.19384765625
+      },
+      "DP-FL (eps=5.74)": {
+        "accuracy": 0.9039812646370023,
+        "loss": 0.24407517910003662,
+        "sec_per_round": 0.25394546673633156,
+        "train_sec_per_round": 0.2538901335094124,
+        "agg_ms_per_round": 0.055333226919174194,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 5.74,
+        "epsilon_actual": 5.736312322833337,
+        "sigma": 1.544189453125
+      },
+      "HE-FL": {
+        "accuracy": 0.9238875878220141,
+        "loss": 0.19944272935390472,
+        "sec_per_round": 0.12905238340608777,
+        "train_sec_per_round": 0.10671640802174806,
+        "agg_ms_per_round": 22.33597538433969,
+        "ciphertext_mb": 0.33436356,
+        "plaintext_payload_mb": 0.003716,
+        "enc_ms_per_client": 2.5066567584872246,
+        "n_params": 929
+      }
+    },
+    "44": {
+      "Standard FL": {
+        "accuracy": 0.9355971896955504,
+        "loss": 0.1985403597354889,
+        "sec_per_round": 0.10617419192567468,
+        "train_sec_per_round": 0.10610715858638287,
+        "agg_ms_per_round": 0.06703333929181099,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716
+      },
+      "DP-FL (eps=14.13)": {
+        "accuracy": 0.8840749414519906,
+        "loss": 0.2760169804096222,
+        "sec_per_round": 0.24850433319807053,
+        "train_sec_per_round": 0.2484487582463771,
+        "agg_ms_per_round": 0.05557495169341564,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 14.13,
+        "epsilon_actual": 14.12353901337212,
+        "sigma": 0.91522216796875
+      },
+      "DP-FL (eps=8.65)": {
+        "accuracy": 0.8372365339578455,
+        "loss": 0.34664681553840637,
+        "sec_per_round": 0.27324801636859775,
+        "train_sec_per_round": 0.2731849249452353,
+        "agg_ms_per_round": 0.06309142336249352,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 8.65,
+        "epsilon_actual": 8.646054835860008,
+        "sigma": 1.19384765625
+      },
+      "DP-FL (eps=5.74)": {
+        "accuracy": 0.7646370023419203,
+        "loss": 0.4249671995639801,
+        "sec_per_round": 0.256315241381526,
+        "train_sec_per_round": 0.2562603497877717,
+        "agg_ms_per_round": 0.054891593754291534,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 5.74,
+        "epsilon_actual": 5.736312322833337,
+        "sigma": 1.544189453125
+      },
+      "HE-FL": {
+        "accuracy": 0.9355971896955504,
+        "loss": 0.1985403299331665,
+        "sec_per_round": 0.13575168345123528,
+        "train_sec_per_round": 0.11184975835494697,
+        "agg_ms_per_round": 23.901925096288323,
+        "ciphertext_mb": 0.33428632,
+        "plaintext_payload_mb": 0.003716,
+        "enc_ms_per_client": 2.6739551033824682,
+        "n_params": 929
+      }
+    },
+    "45": {
+      "Standard FL": {
+        "accuracy": 0.9262295081967213,
+        "loss": 0.19055989384651184,
+        "sec_per_round": 0.10755974985659122,
+        "train_sec_per_round": 0.10750017459504306,
+        "agg_ms_per_round": 0.05957526154816151,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716
+      },
+      "DP-FL (eps=14.13)": {
+        "accuracy": 0.9180327868852459,
+        "loss": 0.23381751775741577,
+        "sec_per_round": 0.2623276334255934,
+        "train_sec_per_round": 0.26226872503757476,
+        "agg_ms_per_round": 0.05890838801860809,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 14.13,
+        "epsilon_actual": 14.12353901337212,
+        "sigma": 0.91522216796875
+      },
+      "DP-FL (eps=8.65)": {
+        "accuracy": 0.914519906323185,
+        "loss": 0.22998720407485962,
+        "sec_per_round": 0.2610037832055241,
+        "train_sec_per_round": 0.2609410000033677,
+        "agg_ms_per_round": 0.06278320215642452,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 8.65,
+        "epsilon_actual": 8.646054835860008,
+        "sigma": 1.19384765625
+      },
+      "DP-FL (eps=5.74)": {
+        "accuracy": 0.9004683840749415,
+        "loss": 0.2520841658115387,
+        "sec_per_round": 0.2611679918132722,
+        "train_sec_per_round": 0.261109516909346,
+        "agg_ms_per_round": 0.05847490392625332,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 5.74,
+        "epsilon_actual": 5.736312322833337,
+        "sigma": 1.544189453125
+      },
+      "HE-FL": {
+        "accuracy": 0.9262295081967213,
+        "loss": 0.19055984914302826,
+        "sec_per_round": 0.13482302520424128,
+        "train_sec_per_round": 0.11189174177125097,
+        "agg_ms_per_round": 22.931283432990313,
+        "ciphertext_mb": 0.33428052,
+        "plaintext_payload_mb": 0.003716,
+        "enc_ms_per_client": 2.6818266417831182,
+        "n_params": 929
+      }
+    },
+    "46": {
+      "Standard FL": {
+        "accuracy": 0.9309133489461359,
+        "loss": 0.19932223856449127,
+        "sec_per_round": 0.13080284977331758,
+        "train_sec_per_round": 0.13073676666244866,
+        "agg_ms_per_round": 0.06608311086893082,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716
+      },
+      "DP-FL (eps=14.13)": {
+        "accuracy": 0.9215456674473068,
+        "loss": 0.23728296160697937,
+        "sec_per_round": 0.27346790828742085,
+        "train_sec_per_round": 0.27340525821782646,
+        "agg_ms_per_round": 0.06265006959438324,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 14.13,
+        "epsilon_actual": 14.12353901337212,
+        "sigma": 0.91522216796875
+      },
+      "DP-FL (eps=8.65)": {
+        "accuracy": 0.9168618266978923,
+        "loss": 0.2297229915857315,
+        "sec_per_round": 0.2651228664442897,
+        "train_sec_per_round": 0.2650609914213419,
+        "agg_ms_per_round": 0.06187502294778824,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 8.65,
+        "epsilon_actual": 8.646054835860008,
+        "sigma": 1.19384765625
+      },
+      "DP-FL (eps=5.74)": {
+        "accuracy": 0.9192037470725996,
+        "loss": 0.23008482158184052,
+        "sec_per_round": 0.24960373314097523,
+        "train_sec_per_round": 0.24954546662047505,
+        "agg_ms_per_round": 0.058266520500183105,
+        "ciphertext_mb": null,
+        "plaintext_payload_mb": 0.003716,
+        "epsilon_target": 5.74,
+        "epsilon_actual": 5.736312322833337,
+        "sigma": 1.544189453125
+      },
+      "HE-FL": {
+        "accuracy": 0.9309133489461359,
+        "loss": 0.19929857552051544,
+        "sec_per_round": 0.12691815826110542,
+        "train_sec_per_round": 0.10583822499029338,
+        "agg_ms_per_round": 21.079933270812035,
+        "ciphertext_mb": 0.33430308000000003,
+        "plaintext_payload_mb": 0.003716,
+        "enc_ms_per_client": 2.4619298987090588,
+        "n_params": 929
+      }
+    }
+  },
+  "aggregate": {
+    "Standard FL": {
+      "accuracy": {
+        "mean": 0.9302107728337237,
+        "std": 0.004541152091256519
+      },
+      "loss": {
+        "mean": 0.1920940399169922,
+        "std": 0.010295481203809324
+      },
+      "sec_per_round": {
+        "mean": 0.1261065049469471,
+        "std": 0.028022871700255234
+      },
+      "agg_ms_per_round": {
+        "mean": 0.0657749455422163,
+        "std": 0.004657262252012367
+      }
+    },
+    "DP-FL (eps=14.13)": {
+      "accuracy": {
+        "mean": 0.9096018735362998,
+        "std": 0.013441072461153872
+      },
+      "loss": {
+        "mean": 0.24374604225158691,
+        "std": 0.02226609175549222
+      },
+      "sec_per_round": {
+        "mean": 0.2654686666280031,
+        "std": 0.010947575299530951
+      },
+      "agg_ms_per_round": {
+        "mean": 0.05888993851840496,
+        "std": 0.00232556291883576
+      },
+      "epsilon_actual": {
+        "mean": 14.12353901337212,
+        "std": 0.0
+      }
+    },
+    "DP-FL (eps=8.65)": {
+      "accuracy": {
+        "mean": 0.8988290398126464,
+        "std": 0.03101254399484186
+      },
+      "loss": {
+        "mean": 0.2538017243146896,
+        "std": 0.047964624568869504
+      },
+      "sec_per_round": {
+        "mean": 0.2644482865091413,
+        "std": 0.004651169490930856
+      },
+      "agg_ms_per_round": {
+        "mean": 0.06150992587208748,
+        "std": 0.0017543785899689403
+      },
+      "epsilon_actual": {
+        "mean": 8.646054835860008,
+        "std": 0.0
+      }
+    },
+    "DP-FL (eps=5.74)": {
+      "accuracy": {
+        "mean": 0.8775175644028103,
+        "std": 0.05688794063709105
+      },
+      "loss": {
+        "mean": 0.27722089290618895,
+        "std": 0.07426023959723567
+      },
+      "sec_per_round": {
+        "mean": 0.2546791916433722,
+        "std": 0.003910041661470814
+      },
+      "agg_ms_per_round": {
+        "mean": 0.057223280891776085,
+        "std": 0.0017536726407633646
+      },
+      "epsilon_actual": {
+        "mean": 5.736312322833337,
+        "std": 0.0
+      }
+    },
+    "HE-FL": {
+      "accuracy": {
+        "mean": 0.9302107728337237,
+        "std": 0.004541152091256519
+      },
+      "loss": {
+        "mean": 0.19208928048610688,
+        "std": 0.010292159220826559
+      },
+      "sec_per_round": {
+        "mean": 0.1316782717127353,
+        "std": 0.0033485607739829563
+      },
+      "agg_ms_per_round": {
+        "mean": 22.727381708100438,
+        "std": 0.972065249979295
+      },
+      "ciphertext_mb": {
+        "mean": 0.33430612800000004,
+        "std": 2.9786830915685845e-05
+      }
+    }
+  }
+}

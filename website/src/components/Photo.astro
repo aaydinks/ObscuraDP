@@ -1,0 +1,70 @@
+---
+// A real photo when the file exists in src/assets/photos/, otherwise a plain
+// surface placeholder that describes what belongs there. Fixed 3:2 ratio.
+import { Picture } from 'astro:assets';
+interface Props {
+  name: 'photo-a' | 'photo-b';
+  alt: string;
+  description: string;
+  credit?: string; // e.g. "Photo: Name, Unsplash"
+  creditHref?: string;
+  widths?: number[];
+  sizes?: string;
+  class?: string;
+}
+const { name, alt, description, credit, creditHref, widths = [480, 720, 960], sizes = '(min-width: 900px) 480px, 100vw', class: cls } = Astro.props;
+const all = import.meta.glob<{ default: ImageMetadata }>('../assets/photos/*.{jpg,jpeg,png,webp,avif}', { eager: true });
+const match = Object.entries(all).find(([p]) => p.includes(`/${name}.`))?.[1]?.default;
+---
+
+<figure class:list={['photo', cls]}>
+  {
+    match ? (
+      <Picture src={match} alt={alt} widths={widths} sizes={sizes} formats={['avif', 'webp']} class="photo-img" loading="lazy" decoding="async" />
+    ) : (
+      <div class="photo-placeholder" role="img" aria-label={`Placeholder for a photo: ${description}`}>
+        <span class="label">Photo</span>
+        <p>{description}</p>
+      </div>
+    )
+  }
+  {
+    (credit || !match) && (
+      <figcaption class="caption">
+        {match && credit ? creditHref ? <a href={creditHref} rel="noopener">{credit}</a> : credit : 'Photo to be added. See CREDITS.md for the chosen image.'}
+      </figcaption>
+    )
+  }
+</figure>
+
+<style>
+  .photo {
+    margin: 0;
+  }
+  .photo-img,
+  .photo-placeholder {
+    aspect-ratio: 3 / 2;
+    width: 100%;
+    border-radius: var(--r-panel);
+    object-fit: cover;
+  }
+  .photo-img {
+    filter: saturate(0.9);
+  }
+  .photo-placeholder {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: var(--s-1);
+    padding: var(--s-3);
+  }
+  .photo-placeholder p {
+    color: var(--muted);
+    font-size: var(--fs-small);
+  }
+  figcaption {
+    margin-top: var(--s-1);
+  }
+</style>

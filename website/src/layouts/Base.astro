@@ -1,0 +1,80 @@
+---
+import '../styles/fonts.css';
+import '../styles/base.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { SITE } from '../lib/site';
+import serifUrl from '@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2?url';
+import sansUrl from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url';
+
+interface Props {
+  title?: string;
+  description?: string;
+  home?: boolean;
+  noindex?: boolean;
+  path?: string;
+}
+const {
+  title = SITE.title,
+  description = SITE.description,
+  home = false,
+  noindex = false,
+  path = Astro.url.pathname,
+} = Astro.props;
+const canonical = new URL(path === '/' ? '/' : path.replace(/\/$/, ''), SITE.url).toString();
+const ogImage = new URL('/og.png', SITE.url).toString();
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Obscura DP',
+  url: SITE.url,
+  logo: new URL('/apple-touch-icon.png', SITE.url).toString(),
+  description: SITE.description,
+  sameAs: [SITE.github],
+  founder: { '@type': 'Person', name: 'Aayush Dinker' },
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="preload" href={serifUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={sansUrl} as="font" type="font/woff2" crossorigin />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Obscura DP" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Obscura DP: Mathematically guaranteed privacy, free for every AI pipeline." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <slot name="head" />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <div id="top"></div>
+    <Header home={home} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

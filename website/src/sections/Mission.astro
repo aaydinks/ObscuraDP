@@ -1,0 +1,127 @@
+---
+import Section from '../components/Section.astro';
+---
+
+<Section id="mission" tone="bg" labelledBy="mission-title">
+  <h2 id="mission-title">Privacy for every innovator, not just big tech.</h2>
+
+  <div class="mv">
+    <div class="mv-col">
+      <p class="label">Mission</p>
+      <p class="mv-lead">Verifiable privacy for every innovator, not just big tech.</p>
+      <blockquote class="mv-text" data-copy-exempt>
+        At Obscura, we empower individuals and innovators with cutting-edge, mathematically verifiable privacy
+        solutions. Our approach integrates differential privacy, federated learning, and homomorphic encryption to
+        ensure personal data remains secure while enabling ethical AI innovation.
+      </blockquote>
+    </div>
+    <div class="mv-col">
+      <p class="label">Vision</p>
+      <p class="mv-lead">AI and privacy, no longer in tension.</p>
+      <blockquote class="mv-text" data-copy-exempt>
+        We envision a future where advanced AI and uncompromised privacy coexist harmoniously. Our goal is to create
+        a world where transparency, accountability, and ethical innovation form the bedrock of digital interactions,
+        fostering trust in technology.
+      </blockquote>
+    </div>
+  </div>
+
+  <dl class="principles">
+    <div>
+      <dt>Free</dt>
+      <dd>No license fees, so cost is never the reason to skip privacy.</dd>
+    </div>
+    <div>
+      <dt>Portable</dt>
+      <dd>Works in any training pipeline, in any country.</dd>
+    </div>
+    <div>
+      <dt>Verifiable</dt>
+      <dd>The guarantee is a mathematical bound you can check, not a promise.</dd>
+    </div>
+  </dl>
+
+  <div class="context">
+    <p>
+      Differential privacy already protects data at Google, Apple, Microsoft and the U.S. Census Bureau. What's
+      missing is a free, integrated version for everyone else.
+    </p>
+    <p>
+      The differential privacy market is projected to grow from $1.8B in 2025 to $6.27B in 2030, about 28.4% a year.
+      <span class="source">Source: The Business Research Company, March 2026.</span>
+    </p>
+  </div>
+</Section>
+
+<style>
+  h2 {
+    max-width: 22ch;
+  }
+  .mv {
+    margin-top: var(--s-6);
+    display: grid;
+    gap: var(--s-5);
+  }
+  .mv-col {
+    display: grid;
+    gap: var(--s-2);
+    align-content: start;
+  }
+  .mv-lead {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: calc(var(--fs-body) * 1.1);
+  }
+  .mv-text {
+    margin: 0;
+    color: var(--text);
+    border-left: 2px solid var(--blue);
+    padding-left: var(--s-2);
+  }
+  .principles {
+    margin: var(--s-8) 0 0;
+    display: grid;
+    gap: var(--s-3);
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-4);
+  }
+  .principles dt {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .principles dd {
+    margin: 0.375rem 0 0;
+    color: var(--text);
+    font-size: var(--fs-small);
+  }
+  .context {
+    margin-top: var(--s-8);
+    display: grid;
+    gap: var(--s-2);
+    color: var(--text);
+  }
+  .context .source {
+    display: block;
+    margin-top: 0.25rem;
+  }
+  @media (min-width: 768px) {
+    .mv {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-8);
+    }
+    .principles {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-6);
+    }
+    .context {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-6);
+    }
+    .context p {
+      max-width: none;
+    }
+  }
+</style>

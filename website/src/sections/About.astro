@@ -1,0 +1,200 @@
+---
+import Section from '../components/Section.astro';
+import Photo from '../components/Photo.astro';
+import { Image } from 'astro:assets';
+import { SITE } from '../lib/site';
+
+const founderFiles = import.meta.glob<{ default: ImageMetadata }>('../assets/brand/founder.{png,jpg,jpeg,webp}', { eager: true });
+const founder = Object.values(founderFiles)[0]?.default;
+const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', 'Embedded systems', 'Soldering'];
+---
+
+<Section id="about" tone="bg" labelledBy="about-title">
+  <h2 id="about-title" class="visually-hidden">About</h2>
+
+  <div class="gen">
+    <div class="gen-copy">
+      <h3 class="gen-title">Today's users. Tomorrow's builders.</h3>
+      <ul class="rows">
+        <li>
+          <strong>Right now, they're the data.</strong>
+          <p>
+            Young people are the heaviest users of AI tutors, wellness apps and study tools. That everyday use trains
+            the systems built around them, in the categories with the least mature data rules.
+          </p>
+        </li>
+        <li>
+          <strong>Next, they're the builders.</strong>
+          <p>
+            High schoolers and undergrads already build machine learning models. In a few years they'll ship what
+            comes next, and the habits they learn now become tomorrow's defaults.
+          </p>
+        </li>
+      </ul>
+      <blockquote class="pull">
+        <p>Today's defaults become tomorrow's standard.</p>
+      </blockquote>
+      <p class="under">Teach privacy now, or raise a generation that gives personal data away without thinking.</p>
+    </div>
+    <Photo
+      name="photo-b"
+      alt="A group of students working together around a laptop."
+      description="Students working together on a laptop."
+      credit="Photo via Unsplash"
+    />
+  </div>
+
+  <div class="founder">
+    <div class="portrait">
+      {
+        founder ? (
+          <Image src={founder} alt="Portrait of Aayush Dinker" width={220} height={Math.round((founder.height / founder.width) * 220)} densities={[1, 2]} class="portrait-img" loading="lazy" />
+        ) : (
+          <div class="portrait-placeholder" role="img" aria-label="Placeholder for a portrait of Aayush Dinker">
+            <span class="label">Portrait</span>
+          </div>
+        )
+      }
+    </div>
+    <div class="founder-copy">
+      <p class="label">Founder</p>
+      <h3>Aayush Dinker</h3>
+      <p>
+        Obscura DP is currently a single-author project. Aayush is passionate about deploying and adapting AI models
+        toward specific effects that can improve communities across the globe.
+      </p>
+      <ul class="rows founder-rows">
+        <li>
+          <strong>AWS internship</strong>
+          <p>Team lead for a team of six. Trained ML models on AWS GPUs and gained hands-on experience with scalable cloud infrastructure.</p>
+        </li>
+        <li>
+          <strong>Urban heat island ML research</strong>
+          <p>Built an ML model linking urban heat islands to poverty, with 98% prediction accuracy, the highest so far.</p>
+        </li>
+        <li>
+          <strong>Stanford Math Tournament 2026</strong>
+          <p>4th out of 800 in Stanford's annual national math tournament.</p>
+        </li>
+      </ul>
+      <p class="skills mono">{skills.join(' · ')}</p>
+      {
+        SITE.founderLinks.length > 0 ? (
+          <ul class="founder-links">
+            {SITE.founderLinks.map((l) => (
+              <li>
+                <a href={l.href} rel="noopener me">
+                  {l.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="caption">[FOUNDER LINKS]</p>
+        )
+      }
+    </div>
+  </div>
+</Section>
+
+<style>
+  .gen {
+    display: grid;
+    gap: var(--s-5);
+    align-items: center;
+  }
+  .gen-copy {
+    display: grid;
+    gap: var(--s-3);
+  }
+  .gen-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: var(--fs-h2);
+    line-height: var(--lh-heading);
+    letter-spacing: -0.01em;
+    max-width: 16ch;
+  }
+  .rows strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  .pull {
+    margin: var(--s-2) 0 0;
+    border-left: 2px solid var(--blue);
+    padding-left: var(--s-3);
+  }
+  .pull p {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .under {
+    color: var(--muted);
+    font-size: var(--fs-small);
+  }
+  .founder {
+    margin-top: var(--s-12);
+    display: grid;
+    gap: var(--s-5);
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-8);
+  }
+  .portrait {
+    max-width: 220px;
+  }
+  .portrait-img,
+  .portrait-placeholder {
+    border-radius: var(--r-panel);
+    width: 100%;
+  }
+  .portrait-placeholder {
+    aspect-ratio: 408 / 454;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: flex-end;
+    padding: var(--s-2);
+  }
+  .founder-copy {
+    display: grid;
+    gap: var(--s-3);
+  }
+  .founder-copy .label {
+    margin: 0;
+  }
+  .founder-copy h3 {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+    margin-top: -0.5rem;
+  }
+  .founder-rows li p {
+    font-size: var(--fs-small);
+  }
+  .skills {
+    font-size: var(--fs-caption);
+    color: var(--muted);
+  }
+  .founder-links {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-3);
+    font-size: var(--fs-small);
+  }
+  @media (min-width: 900px) {
+    .gen {
+      grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+      gap: var(--s-8);
+    }
+    .founder {
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: var(--s-8);
+      align-items: start;
+    }
+  }
+</style>

@@ -1,0 +1,253 @@
+---
+import Logo from './Logo.astro';
+import { NAV, SITE } from '../lib/site';
+
+interface Props {
+  home?: boolean; // on the home page links are #id, elsewhere /#id
+}
+const { home = true } = Astro.props;
+const prefix = home ? '' : '/';
+---
+
+<header class="site-header" id="site-header">
+  <div class="wrap header-inner">
+    <a href={home ? '#top' : '/'} class="brand" aria-label="Obscura DP home">
+      <Logo height={30} />
+    </a>
+
+    <nav class="primary-nav" aria-label="Primary">
+      <ul>
+        {
+          NAV.map((item) => (
+            <li>
+              <a href={`${prefix}#${item.id}`} data-nav={item.id}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+
+    <div class="header-actions">
+      <a href={SITE.github} class="gh-link" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+          ></path>
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <a href={`${prefix}#contact`} class="btn btn-primary header-cta">Get involved</a>
+      <button
+        class="menu-btn"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        aria-label="Open menu"
+      >
+        <span class="menu-icon" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav aria-label="Mobile">
+      <ul>
+        {
+          NAV.map((item) => (
+            <li>
+              <a href={`${prefix}#${item.id}`} data-nav={item.id}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+        <li>
+          <a href={SITE.github} rel="noopener">GitHub</a>
+        </li>
+      </ul>
+      <a href={`${prefix}#contact`} class="btn btn-primary">Get involved</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(8px);
+    border-bottom: 1px solid transparent;
+    transition:
+      box-shadow var(--t-hover) var(--ease),
+      border-color var(--t-hover) var(--ease);
+  }
+  .site-header.is-scrolled {
+    border-bottom-color: var(--line);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+  .header-inner {
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .brand:hover {
+    text-decoration: none;
+  }
+  .primary-nav {
+    display: none;
+    margin-left: auto;
+  }
+  .primary-nav ul {
+    display: flex;
+    gap: var(--s-3);
+    list-style: none;
+  }
+  .primary-nav a {
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 500;
+    padding: 0.5rem 0;
+    position: relative;
+  }
+  .primary-nav a:hover {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .primary-nav a::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--blue);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--t-hover) var(--ease);
+  }
+  .primary-nav a[aria-current='true'] {
+    color: var(--ink);
+  }
+  .primary-nav a[aria-current='true']::after {
+    transform: scaleX(1);
+  }
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+  .gh-link {
+    display: none;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text);
+    font-size: var(--fs-small);
+    font-weight: 500;
+  }
+  .gh-link:hover {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .header-cta {
+    display: none;
+  }
+  .menu-btn {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    cursor: pointer;
+  }
+  .menu-icon,
+  .menu-icon::before,
+  .menu-icon::after {
+    display: block;
+    width: 18px;
+    height: 2px;
+    background: var(--ink);
+    border-radius: 1px;
+    position: relative;
+    transition: transform var(--t-hover) var(--ease);
+  }
+  .menu-icon::before,
+  .menu-icon::after {
+    content: '';
+    position: absolute;
+    left: 0;
+  }
+  .menu-icon::before {
+    top: -6px;
+  }
+  .menu-icon::after {
+    top: 6px;
+  }
+  .menu-btn[aria-expanded='true'] .menu-icon {
+    background: transparent;
+  }
+  .menu-btn[aria-expanded='true'] .menu-icon::before {
+    transform: translateY(6px) rotate(45deg);
+  }
+  .menu-btn[aria-expanded='true'] .menu-icon::after {
+    transform: translateY(-6px) rotate(-45deg);
+  }
+  .mobile-menu {
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    padding: var(--s-2) var(--side) var(--s-4);
+  }
+  .mobile-menu ul {
+    list-style: none;
+    border-top: 1px solid var(--line);
+    margin-bottom: var(--s-3);
+  }
+  .mobile-menu li {
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-menu li a {
+    display: block;
+    padding: 0.875rem 0;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .mobile-menu .btn {
+    width: 100%;
+  }
+
+  @media (min-width: 1024px) {
+    .primary-nav {
+      display: block;
+    }
+    .header-actions {
+      margin-left: 0;
+    }
+    .gh-link {
+      display: inline-flex;
+    }
+    .header-cta {
+      display: inline-flex;
+    }
+    .menu-btn,
+    .mobile-menu {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  import { initNav } from '../lib/nav';
+  initNav();
+</script>

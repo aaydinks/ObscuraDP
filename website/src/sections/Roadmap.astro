@@ -1,0 +1,261 @@
+---
+import Section from '../components/Section.astro';
+
+const phases = [
+  {
+    when: '2025',
+    name: 'Foundation',
+    status: 'Done',
+    items: [
+      'Replicated three federated learning + differential privacy papers, with replication guides.',
+      'DP-SGD with Opacus and CKKS encryption with TenSEAL in all three.',
+      'Pre-registered research design.',
+      'Website launched.',
+    ],
+  },
+  {
+    when: '2026–27',
+    name: 'Integrate and audit',
+    status: 'In progress',
+    items: [
+      'DP-SGD integrated with federated learning, and encryption implemented alongside differential privacy.',
+      'Next: full security layer integration and privacy auditing.',
+      'Permissively licensed open-source release.',
+      'First partners: small health clinics or school systems operating without comprehensive data-protection law.',
+    ],
+  },
+  {
+    when: '2028+',
+    name: 'Access and scale',
+    status: 'Planned',
+    items: [
+      'Focus on the 29% of countries without a data-privacy law in force.',
+      'Documentation and low-bandwidth deployment options for those countries and the organizations in them.',
+      'Adoption as the default baseline where no law exists.',
+      'Hardware acceleration for large-scale use.',
+      'Exploring regional partnerships.',
+      'Growing from a single-author project into a student contributor pipeline.',
+    ],
+  },
+];
+
+const workstreams = [
+  {
+    name: 'Research and benchmarking',
+    what: 'Privacy versus accuracy on FEMNIST, Shakespeare and synthetic health data under non-IID conditions, giving the first ε-versus-accuracy curve for DP + FL + HE.',
+    status: 'Planned',
+  },
+  {
+    name: 'Core framework',
+    what: 'DP-SGD integration, federated learning setup, noise calibration, privacy accounting.',
+    status: 'In progress',
+  },
+  {
+    name: 'Security layer',
+    what: 'CKKS encryption with TenSEAL. Empirical privacy audits against three kinds of attack: membership inference (guessing whether a person\'s record was used), attribute inference (guessing a hidden detail about a person) and gradient inversion (rebuilding training data from model updates). Target: low attacker advantage at ε ≤ 1.',
+    status: 'In progress',
+  },
+  {
+    name: 'Release and deployment',
+    what: 'API packaging, documentation, open-source release, partner onboarding, and a pilot with a health or education organization in a country without comprehensive data law.',
+    status: 'Planned',
+  },
+];
+const statusClass = (s: string) => (s === 'Done' ? 'done' : s === 'In progress' ? 'progress' : 'planned');
+---
+
+<Section id="roadmap" tone="surface" labelledBy="roadmap-title">
+  <h2 id="roadmap-title">From a reproducible base to global reach.</h2>
+
+  <ol class="timeline">
+    {
+      phases.map((p) => (
+        <li class="phase">
+          <div class="phase-head">
+            <span class="mono when">{p.when}</span>
+            <span class:list={['status', statusClass(p.status)]}>
+              <i aria-hidden="true"></i>
+              {p.status}
+            </span>
+          </div>
+          <h3>{p.name}</h3>
+          <ul class="phase-items">
+            {p.items.map((it) => (
+              <li>{it}</li>
+            ))}
+          </ul>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="workstreams">
+    <h3>Workstreams</h3>
+    <div class="table-wrap">
+      <table>
+        <caption class="visually-hidden">Workstreams, what each delivers and its status</caption>
+        <thead>
+          <tr>
+            <th scope="col">Workstream</th>
+            <th scope="col">What it delivers</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            workstreams.map((w, i) => (
+              <tr>
+                <th scope="row">
+                  <span class="mono ws-num">{String(i + 1).padStart(2, '0')}</span> {w.name}
+                </th>
+                <td>{w.what}</td>
+                <td>
+                  <span class:list={['status', statusClass(w.status)]}>
+                    <i aria-hidden="true"></i>
+                    {w.status}
+                  </span>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Section>
+
+<style>
+  h2 {
+    max-width: 22ch;
+  }
+  .timeline {
+    list-style: none;
+    margin-top: var(--s-6);
+    display: grid;
+    gap: var(--s-5);
+    position: relative;
+  }
+  .phase {
+    position: relative;
+    padding-left: var(--s-4);
+    border-left: 1px solid var(--line);
+  }
+  .phase::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 0.35rem;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--blue);
+  }
+  .phase-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: var(--s-1);
+  }
+  .when {
+    color: var(--blue);
+    font-size: var(--fs-small);
+    font-weight: 500;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: var(--fs-label);
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .status i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--muted);
+  }
+  .status.done i {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+  .status.progress i {
+    background: var(--blue);
+    border-color: var(--blue);
+  }
+  .phase h3 {
+    margin-bottom: var(--s-2);
+  }
+  .phase-items {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    font-size: var(--fs-small);
+    color: var(--text);
+  }
+  .phase-items li {
+    padding-left: 1rem;
+    position: relative;
+  }
+  .phase-items li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.65em;
+    width: 6px;
+    height: 1px;
+    background: var(--muted);
+  }
+  .workstreams {
+    margin-top: var(--s-12);
+  }
+  .workstreams h3 {
+    margin-bottom: var(--s-3);
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    background: var(--bg);
+  }
+  table {
+    min-width: 640px;
+  }
+  th[scope='row'] {
+    white-space: nowrap;
+  }
+  .ws-num {
+    color: var(--blue);
+    font-size: var(--fs-label);
+    margin-right: 0.25rem;
+  }
+  td:nth-child(2) {
+    max-width: 56ch;
+  }
+  @media (min-width: 900px) {
+    .timeline {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s-6);
+    }
+    .phase {
+      border-left: 0;
+      border-top: 1px solid var(--line);
+      padding-left: 0;
+      padding-top: var(--s-3);
+    }
+    .phase::before {
+      left: 0;
+      top: -6px;
+    }
+    .phase:nth-child(1)::before {
+      background: var(--ink);
+      border-color: var(--ink);
+    }
+    .phase:nth-child(2)::before {
+      background: var(--blue);
+    }
+  }
+</style>

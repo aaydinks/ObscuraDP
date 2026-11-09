@@ -1,0 +1,130 @@
+---
+import Section from '../components/Section.astro';
+
+const targets = [
+  { value: '1M', text: 'records protected under mathematical privacy guarantees.' },
+  {
+    value: '≤ 5%',
+    text: 'attacker advantage at ε = 1.0.',
+    explain:
+      "An attacker trying to tell whether your record was used gets it right at most 52.5% of the time, versus 50% for a coin flip.",
+    note: 'Advantage = true-positive rate minus false-positive rate.',
+  },
+  { value: '25–50', text: 'organizations or institutions onboarded and running the framework.' },
+  { value: '≥ 50%', text: 'fewer bytes per training round compared with an uncompressed federated learning baseline.' },
+];
+const sdgs = [
+  ['9', 'Industry, Innovation and Infrastructure'],
+  ['10', 'Reduced Inequalities'],
+  ['16', 'Peace, Justice and Strong Institutions'],
+  ['17', 'Partnerships for the Goals'],
+];
+---
+
+<Section id="impact" tone="ink" labelledBy="impact-title">
+  <h2 id="impact-title">Measure impact. Then make it the baseline.</h2>
+  <p class="label targets-label">Targets, not results</p>
+
+  <dl class="targets">
+    {
+      targets.map((t) => (
+        <div class="target">
+          <dt class="stat target-value">{t.value}</dt>
+          <dd>
+            <p class="target-text">{t.text}</p>
+            {t.explain && <p class="target-explain">{t.explain}</p>}
+            {t.note && <p class="caption">{t.note}</p>}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+
+  <div class="lower">
+    <div>
+      <h3>Expected outcomes</h3>
+      <ul class="rows">
+        <li>The first reproducible benchmark of the full stack under non-IID conditions, a reference point the field doesn't have yet.</li>
+        <li>A working library any developer can install, free to use across borders.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>UN Sustainable Development Goals</h3>
+      <ul class="rows sdg">
+        {
+          sdgs.map(([n, name]) => (
+            <li>
+              <span class="mono sdg-num">{n}</span> {name}
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</Section>
+
+<style>
+  h2 {
+    max-width: 20ch;
+  }
+  .targets-label {
+    margin-top: var(--s-3);
+  }
+  .targets {
+    margin: var(--s-6) 0 0;
+    display: grid;
+    gap: var(--s-5);
+  }
+  .target {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    padding-top: var(--s-3);
+  }
+  .target-value {
+    color: var(--blue-soft);
+    font-size: clamp(2.75rem, 5vw, 4rem);
+    margin-bottom: var(--s-2);
+  }
+  .target dd {
+    margin: 0;
+    display: grid;
+    gap: var(--s-1);
+  }
+  .target-text {
+    color: #fff;
+    font-weight: 500;
+  }
+  .target-explain {
+    font-size: var(--fs-small);
+  }
+  .lower {
+    margin-top: var(--s-12);
+    display: grid;
+    gap: var(--s-6);
+  }
+  .lower h3 {
+    margin-bottom: var(--s-3);
+  }
+  .lower .rows li {
+    font-size: var(--fs-small);
+  }
+  .sdg-num {
+    color: var(--blue-soft);
+    display: inline-block;
+    width: 2rem;
+  }
+  @media (min-width: 768px) {
+    .targets {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s-6);
+    }
+    .lower {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--s-8);
+    }
+  }
+  @media (min-width: 1100px) {
+    .targets {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+</style>

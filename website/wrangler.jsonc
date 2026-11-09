@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "obscuradp",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Plain (non-secret) variables. Secrets (RESEND_API_KEY, TURNSTILE_SECRET_KEY)
+  // are set in the Cloudflare dashboard or with `wrangler secret put`.
+  "vars": {
+    "CONTACT_TO_EMAIL": "",
+    "PUBLIC_TURNSTILE_SITE_KEY": ""
+  }
+}

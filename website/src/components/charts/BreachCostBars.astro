@@ -1,0 +1,66 @@
+---
+// Average cost of a data breach, 2025 (USD millions). Numbers from the brief.
+import Figure from '../Figure.astro';
+import { frame, scaleLinear, r2, dataTable } from '../../lib/chart';
+
+const rows = [
+  { label: 'Global average', value: 4.44 },
+  { label: 'Healthcare', value: 7.42 },
+  { label: 'United States', value: 10.22 },
+];
+const f = frame(520, 150, { top: 8, right: 60, bottom: 28, left: 128 });
+const x = scaleLinear().domain([0, 12]).range([0, f.innerW]);
+const rowH = f.innerH / rows.length;
+const barH = Math.min(26, rowH * 0.6);
+const ticks = [0, 4, 8, 12];
+const table = dataTable({
+  caption: 'Average cost of a data breach, 2025, USD millions',
+  columns: ['Category', 'USD millions'],
+  rows: rows.map((r) => [r.label, r.value.toFixed(2)]),
+});
+---
+
+<Figure
+  id="fig-breach-cost"
+  title="Average cost of a data breach, 2025 (USD millions)"
+  source={`Source: IBM, <em>Cost of a Data Breach Report 2025</em>, as cited in Accountable, "Healthcare Data Breach Statistics 2025".`}
+  table={table}
+>
+  <svg
+    class="chart"
+    style="--chart-min: 320px"
+    viewBox={`0 0 ${f.width} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label="Horizontal bar chart. Global average breach cost 4.44 million dollars, healthcare 7.42 million, United States 10.22 million."
+    data-animate
+  >
+    <g transform={`translate(${f.margin.left},${f.margin.top})`}>
+      {ticks.map((t) => <line class="grid-line" x1={r2(x(t))} x2={r2(x(t))} y1="0" y2={f.innerH} />)}
+      {
+        rows.map((r, i) => {
+          const y = i * rowH + (rowH - barH) / 2;
+          return (
+            <g>
+              <text class="series-label fill-ink" x="-12" y={y + barH / 2} dy="0.35em" text-anchor="end">
+                {r.label}
+              </text>
+              <rect
+                class:list={['draw-bar', i === 0 ? 'fill-ink' : 'fill-blue']}
+                x="0"
+                y={r2(y)}
+                width={r2(x(r.value))}
+                height={barH}
+                data-tip={`${r.label}: $${r.value.toFixed(2)}M`}
+              />
+              <text class="value-label fill-ink" x={r2(x(r.value)) + 8} y={y + barH / 2} dy="0.35em">
+                ${r.value.toFixed(2)}M
+              </text>
+            </g>
+          );
+        })
+      }
+      {ticks.map((t) => <text class="tick" x={r2(x(t))} y={f.innerH + 18} text-anchor="middle">{t}</text>)}
+    </g>
+  </svg>
+</Figure>

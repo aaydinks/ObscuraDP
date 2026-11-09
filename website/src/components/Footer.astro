@@ -1,0 +1,81 @@
+---
+import Logo from './Logo.astro';
+import { SITE } from '../lib/site';
+const year = 2026;
+const mail = SITE.contactEmail;
+const mailHref = mail.startsWith('[') ? '#contact' : `mailto:${mail}`;
+---
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <Logo variant="mark" height={28} />
+      <p>Obscura DP. Mathematically guaranteed privacy for AI, free for everyone.</p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <ul>
+        <li><a href="/research">Research</a></li>
+        <li><a href={SITE.github} rel="noopener">GitHub</a></li>
+        <li><a href="/#contact">Contact</a></li>
+        <li><a href="/credits">Photo credits</a></li>
+      </ul>
+    </nav>
+    <div class="footer-meta">
+      <a href={mailHref} class="mono">{mail}</a>
+      <span class="mono">© {year} Obscura DP</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--line);
+    padding: var(--s-6) 0 var(--s-8);
+    font-size: var(--fs-small);
+  }
+  .footer-inner {
+    display: grid;
+    gap: var(--s-4);
+  }
+  .footer-brand {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    max-width: 36ch;
+  }
+  .footer-brand p {
+    color: var(--muted);
+    font-size: var(--fs-small);
+  }
+  .footer-links ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-3);
+  }
+  .footer-links a {
+    color: var(--text);
+  }
+  .footer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2) var(--s-3);
+    color: var(--muted);
+    font-size: var(--fs-caption);
+  }
+  .footer-meta a {
+    color: var(--muted);
+  }
+  @media (min-width: 768px) {
+    .footer-inner {
+      grid-template-columns: 1fr auto;
+      align-items: start;
+    }
+    .footer-meta {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      padding-top: var(--s-3);
+      justify-content: space-between;
+    }
+  }
+</style>

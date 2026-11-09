@@ -1,0 +1,111 @@
+---
+// Experiment 3: encryption overhead grows in a straight line with model size.
+// Log-log axes, six models from SmallCNN to ViT-B/16.
+import Figure from '../Figure.astro';
+import { frame, scaleLog, r2, linePath, logTicks, dataTable } from '../../lib/chart';
+import data from '../../data/exp3-overhead.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+import { compactNumber } from '../../lib/format';
+
+interface Props {
+  measure?: 'time' | 'bytes';
+  id?: string;
+}
+const { measure = 'time', id = `fig-exp3-scaling-${measure}` } = Astro.props;
+
+const rows = data.rows;
+const f = frame(600, 340, { top: 20, right: 90, bottom: 48, left: 60 });
+const x = scaleLog().domain([2e5, 1.2e8]).range([0, f.innerW]);
+
+const isTime = measure === 'time';
+const heVals = rows.map((r) => (isTime ? r.he_ms / 1000 : r.he_ciphertext_bytes / 1e6));
+const plainVals = rows.map((r) => (isTime ? r.plain_ms / 1000 : r.plain_payload_bytes / 1e6));
+const yDomain: [number, number] = isTime ? [0.0005, 200] : [0.5, 10000];
+const y = scaleLog().domain(yDomain).range([f.innerH, 0]);
+const yTicks = isTime ? [0.001, 0.01, 0.1, 1, 10, 100] : [1, 10, 100, 1000, 10000];
+const xTicks = [3e5, 1e6, 3e6, 1e7, 3e7, 1e8];
+const fmtY = (v: number) => (isTime ? (v < 1 ? `${v} s` : `${v} s`) : v >= 1000 ? `${v / 1000} GB` : `${v} MB`);
+void logTicks;
+
+const hePts = rows.map((r, i) => [x(r.n_params), y(heVals[i])] as [number, number]);
+const plainPts = rows.map((r, i) => [x(r.n_params), y(plainVals[i])] as [number, number]);
+const usPerParam = rows.map((r) => (r.he_enc_ms * 1000) / r.n_params);
+
+const table = dataTable({
+  caption: isTime ? 'Encrypt plus aggregate time per round by model' : 'Per-client message size by model',
+  columns: isTime
+    ? ['Model', 'Parameters', 'Plaintext (s)', 'Encrypted (s)', 'µs per parameter (encrypt)']
+    : ['Model', 'Parameters', 'Plaintext (MB)', 'Encrypted (MB)', 'Ratio'],
+  rows: rows.map((r, i) =>
+    isTime
+      ? [r.model, r.n_params.toLocaleString('en-US'), plainVals[i].toFixed(3), heVals[i].toFixed(2), usPerParam[i].toFixed(3)]
+      : [r.model, r.n_params.toLocaleString('en-US'), plainVals[i].toFixed(1), heVals[i].toFixed(0), r.payload_ratio.toFixed(2)],
+  ),
+});
+const labelOffsets: Record<string, [number, number]> = {
+  SmallCNN: [8, -8],
+  LSTM: [8, -8],
+  'ResNet-18': [8, 14],
+  'ResNet-34': [-8, -10],
+  'ResNet-50': [8, 14],
+  'ViT-B/16': [8, -8],
+};
+---
+
+<Figure
+  id={id}
+  title={isTime ? 'Encryption time per round grows linearly with model size' : 'Encrypted messages are about 14.4× larger at every size'}
+  caption={isTime
+    ? 'Log-log axes. Encrypt plus aggregate time with CKKS, five clients, pure-Python TenSEAL on CPU. A slope of one means cost is proportional to parameter count.'
+    : 'Log-log axes. Per-client message size, plaintext float32 versus CKKS ciphertext, five clients.'}
+  source={`Source: Experiment 3, <code>results/overhead.json</code>. <a href="${EXPERIMENT_FOLDERS.exp3}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${f.width} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label={isTime
+      ? `Log-log line chart of time per round against parameter count for six models. Encrypted time rises from ${heVals[0].toFixed(2)} seconds at 0.28 million parameters to ${heVals[5].toFixed(0)} seconds at 86 million, a straight line. Plaintext stays between ${plainVals[0].toFixed(3)} and ${plainVals[5].toFixed(2)} seconds.`
+      : `Log-log line chart of message size against parameter count for six models. Encrypted messages are about 14.4 times larger than plaintext at every size, from ${heVals[0].toFixed(0)} megabytes to ${(heVals[5] / 1000).toFixed(1)} gigabytes.`}
+    data-animate
+  >
+    <g transform={`translate(${f.margin.left},${f.margin.top})`}>
+      {
+        yTicks.map((t) => (
+          <g>
+            <line class="grid-line" x1="0" x2={f.innerW} y1={r2(y(t))} y2={r2(y(t))} />
+            <text class="tick" x="-10" y={r2(y(t))} dy="0.32em" text-anchor="end">
+              {fmtY(t)}
+            </text>
+          </g>
+        ))
+      }
+      {
+        xTicks.map((t) => (
+          <text class="tick" x={r2(x(t))} y={f.innerH + 20} text-anchor="middle">
+            {compactNumber(t)}
+          </text>
+        ))
+      }
+      <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+      <path class="draw-line stroke-ink" d={linePath(plainPts)} fill="none" stroke-width="1.5" stroke-dasharray="4 4" />
+      <path class="draw-line stroke-blue" d={linePath(hePts)} fill="none" stroke-width="2" />
+      {
+        rows.map((r, i) => (
+          <g class="draw-fade">
+            <circle class="fill-ink" cx={r2(plainPts[i][0])} cy={r2(plainPts[i][1])} r="4" stroke="#fff" stroke-width="1.5" data-tip={`${r.model}, plaintext: ${isTime ? `${plainVals[i].toFixed(3)} s` : `${plainVals[i].toFixed(1)} MB`}`} />
+            <circle class="fill-blue" cx={r2(hePts[i][0])} cy={r2(hePts[i][1])} r="5" stroke="#fff" stroke-width="1.5" data-tip={`${r.model}, encrypted: ${isTime ? `${heVals[i].toFixed(2)} s` : `${heVals[i].toFixed(0)} MB`}`} />
+            <text class="tick fill-ink" x={r2(hePts[i][0]) + labelOffsets[r.model][0]} y={r2(hePts[i][1]) + labelOffsets[r.model][1]} text-anchor={labelOffsets[r.model][0] < 0 ? 'end' : 'start'} dy="0.32em">
+              {r.model}
+            </text>
+          </g>
+        ))
+      }
+      <text class="series-label fill-blue" x={f.innerW + 8} y={r2(hePts[5][1])} dy="0.35em">Encrypted</text>
+      <text class="series-label fill-ink" x={f.innerW + 8} y={r2(plainPts[5][1])} dy="0.35em">Plaintext</text>
+      <text class="axis-title" x={f.innerW / 2} y={f.innerH + 40} text-anchor="middle">Model parameters (log scale)</text>
+    </g>
+  </svg>
+</Figure>

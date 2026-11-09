@@ -1,0 +1,165 @@
+---
+// Accessible tabs. Panels are passed through named slots tab-0, tab-1, ...
+interface Props {
+  id: string;
+  tabs: { label: string; meta?: string }[];
+}
+const { id, tabs } = Astro.props;
+---
+
+<div class="tabs" data-tabs id={id}>
+  <div class="tablist" role="tablist" aria-label="Experiments">
+    {
+      tabs.map((t, i) => (
+        <button
+          type="button"
+          role="tab"
+          id={`${id}-tab-${i}`}
+          aria-selected={i === 0 ? 'true' : 'false'}
+          aria-controls={`${id}-panel-${i}`}
+          tabindex={i === 0 ? 0 : -1}
+          class="tab"
+        >
+          <span class="tab-index mono">{String(i + 1).padStart(2, '0')}</span>
+          <span class="tab-label">{t.label}</span>
+          {t.meta && <span class="tab-meta mono">{t.meta}</span>}
+        </button>
+      ))
+    }
+  </div>
+  {
+    tabs.map((_, i) => (
+      <div role="tabpanel" id={`${id}-panel-${i}`} aria-labelledby={`${id}-tab-${i}`} class="tabpanel" hidden={i !== 0} tabindex="0">
+        {i === 0 && <slot name="tab-0" />}
+        {i === 1 && <slot name="tab-1" />}
+        {i === 2 && <slot name="tab-2" />}
+        {i === 3 && <slot name="tab-3" />}
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .tablist {
+    display: grid;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: var(--s-5);
+  }
+  .tab {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--s-2);
+    align-items: baseline;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    padding: var(--s-2) 0 var(--s-2) var(--s-2);
+    cursor: pointer;
+    color: var(--text);
+    position: relative;
+  }
+  .tab:last-child {
+    border-bottom: 0;
+  }
+  .tab-index {
+    font-size: var(--fs-label);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .tab-label {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: var(--fs-body);
+  }
+  .tab-meta {
+    grid-column: 2;
+    font-size: var(--fs-caption);
+    color: var(--muted);
+  }
+  .tab::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -1px;
+    bottom: -1px;
+    width: 3px;
+    background: var(--blue);
+    opacity: 0;
+    transition: opacity var(--t-hover) var(--ease);
+  }
+  .tab[aria-selected='true']::after {
+    opacity: 1;
+  }
+  .tab[aria-selected='true'] .tab-index {
+    color: var(--blue);
+  }
+  .tab:hover .tab-label {
+    color: var(--blue);
+  }
+  .tab:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
+  }
+  @media (min-width: 768px) {
+    .tablist {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      column-gap: var(--s-4);
+    }
+    .tab {
+      border-bottom: 0;
+      padding: var(--s-3) 0 var(--s-3) var(--s-2);
+    }
+    .tab::after {
+      top: -1px;
+      bottom: auto;
+      left: 0;
+      right: 0;
+      width: auto;
+      height: 3px;
+    }
+  }
+  .tabpanel:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 8px;
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((root) => {
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const panels = Array.from(root.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+    const select = (i: number, focus = true) => {
+      tabs.forEach((t, j) => {
+        const on = i === j;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        panels[j].hidden = !on;
+      });
+      if (focus) tabs[i].focus();
+      // Charts inside a previously hidden panel need their draw-in triggered.
+      panels[i].querySelectorAll('.chart[data-animate]').forEach((c) => c.classList.add('is-visible'));
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(i, false));
+      t.addEventListener('keydown', (e) => {
+        const n = tabs.length;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          select((i + 1) % n);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          select((i - 1 + n) % n);
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          select(0);
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          select(n - 1);
+        }
+      });
+    });
+  });
+</script>

@@ -1,0 +1,76 @@
+---
+import HeroDemo from '../components/visuals/HeroDemo.astro';
+import { SITE } from '../lib/site';
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="label">Open-source privacy framework for AI</p>
+      <h1 id="hero-title">Mathematically guaranteed privacy, free for every AI pipeline.</h1>
+      <p class="lede">
+        Obscura DP lets anyone train AI models on sensitive data without exposing the people in it. It combines
+        three proven protections into one pipeline, with a single setting for how much privacy each use case
+        needs.
+      </p>
+      <div class="hero-actions">
+        <a href="#framework" class="btn btn-primary">See how it works</a>
+        <a href="#research" class="arrow-link">Read the research</a>
+      </div>
+      <p class="status mono">{SITE.statusLine}</p>
+    </div>
+    <div class="hero-visual">
+      <HeroDemo />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-block: var(--s-8) var(--s-9);
+  }
+  .hero-grid {
+    display: grid;
+    gap: var(--s-6);
+    align-items: center;
+  }
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+  }
+  .hero-copy .label {
+    margin: 0;
+  }
+  .hero-copy h1 {
+    max-width: 14ch;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    margin-top: var(--s-1);
+  }
+  .status {
+    font-size: var(--fs-caption);
+    color: var(--muted);
+    margin-top: var(--s-1);
+  }
+  .hero-visual {
+    display: flex;
+    justify-content: center;
+  }
+  @media (min-width: 900px) {
+    .hero {
+      padding-block: var(--s-12) var(--s-14);
+    }
+    .hero-grid {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--s-8);
+    }
+    .hero-visual {
+      justify-content: flex-end;
+    }
+  }
+</style>

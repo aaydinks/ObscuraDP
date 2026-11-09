@@ -1,0 +1,115 @@
+---
+// Experiment 1: recall, precision, F1 and AUC against ε, FedProx vs FedAvg,
+// ±1 std bands, as four small multiples.
+import Figure from '../Figure.astro';
+import { frame, scaleLog, scaleLinear, r2, linePath, bandPath, dataTable } from '../../lib/chart';
+import data from '../../data/exp1-results_multiseed.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+type Stat = { mean: number; std: number };
+type Cell = Record<'recall' | 'precision' | 'f1' | 'auc', Stat>;
+const sweep = data.sweep as unknown as Record<'FedProx' | 'FedAvg', Record<string, Cell>>;
+const eps = data.config.epsilon_grid as number[];
+const metrics: { key: keyof Cell; label: string }[] = [
+  { key: 'recall', label: 'Recall' },
+  { key: 'precision', label: 'Precision' },
+  { key: 'f1', label: 'F1' },
+  { key: 'auc', label: 'AUC' },
+];
+const methods = [
+  { key: 'FedProx' as const, label: 'FedProx', cls: 'blue' },
+  { key: 'FedAvg' as const, label: 'FedAvg', cls: 'ink' },
+];
+const pw = 280;
+const ph = 220;
+const gap = 24;
+const f = frame(pw, ph, { top: 28, right: 12, bottom: 36, left: 44 });
+const x = scaleLog().domain([0.4, 60]).range([0, f.innerW]);
+const y = scaleLinear().domain([0.3, 0.9]).range([f.innerH, 0]);
+const yTicks = [0.3, 0.5, 0.7, 0.9];
+const xTicks = [0.5, 2, 9, 50];
+const W = pw * 2 + gap;
+const H = ph * 2 + gap;
+
+const table = dataTable({
+  caption: 'Metrics by privacy budget, mean over 5 seeds',
+  columns: ['ε', ...metrics.flatMap((m) => methods.map((me) => `${me.label} ${m.label}`))],
+  rows: eps.map((e) => [
+    String(e),
+    ...metrics.flatMap((m) => methods.map((me) => sweep[me.key][e.toFixed(1)][m.key].mean.toFixed(3))),
+  ]),
+});
+---
+
+<Figure
+  id="fig-exp1-metrics"
+  title="Recall, precision, F1 and AUC against the privacy budget"
+  caption="Mean over five seeds with ±1 standard deviation bands, both methods with SMOTETomek rebalancing. Axes start at 0.3. Recall falls as ε rises while precision stays roughly flat, so the drop in recall reflects a more conservative model, not a less accurate ranking (AUC moves little)."
+  source={`Source: Experiment 1, <code>results/results_multiseed.json</code>. <a href="${EXPERIMENT_FOLDERS.exp1}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    style="--chart-min: 560px"
+    viewBox={`0 0 ${W} ${H}`}
+    role="img"
+    tabindex="0"
+    aria-label="Four small line charts against privacy budget epsilon on a log scale. Recall falls from about 0.65 to 0.45 for FedProx and 0.41 for FedAvg. Precision stays near 0.7 throughout. F1 falls from about 0.67 to 0.54 and 0.50. AUC drifts from 0.79 to 0.75."
+    data-animate
+  >
+    {
+      metrics.map((m, mi) => {
+        const ox = (mi % 2) * (pw + gap) + f.margin.left;
+        const oy = Math.floor(mi / 2) * (ph + gap) + f.margin.top;
+        return (
+          <g transform={`translate(${ox},${oy})`}>
+            <text class="series-label fill-ink" x={-f.margin.left + 4} y="-12">
+              {m.label}
+            </text>
+            {yTicks.map((t) => (
+              <g>
+                <line class="grid-line" x1="0" x2={f.innerW} y1={r2(y(t))} y2={r2(y(t))} />
+                <text class="tick" x="-8" y={r2(y(t))} dy="0.32em" text-anchor="end">
+                  {t.toFixed(1)}
+                </text>
+              </g>
+            ))}
+            {xTicks.map((t) => (
+              <text class="tick" x={r2(x(t))} y={f.innerH + 16} text-anchor="middle">
+                {t}
+              </text>
+            ))}
+            <line class="axis-line" x1="0" x2={f.innerW} y1={f.innerH} y2={f.innerH} />
+            {methods.map((me) => {
+              const stat = (e: number) => sweep[me.key][e.toFixed(1)][m.key];
+              const band = eps.map((e) => ({ x: x(e), y0: y(Math.max(0.3, stat(e).mean - stat(e).std)), y1: y(Math.min(0.9, stat(e).mean + stat(e).std)) }));
+              const pts = eps.map((e) => [x(e), y(stat(e).mean)] as [number, number]);
+              return (
+                <g>
+                  <path class={`draw-fade fill-${me.cls === 'blue' ? 'soft' : 'muted'}`} d={bandPath(band)} opacity={me.cls === 'blue' ? 0.35 : 0.18} />
+                  <path class={`draw-line stroke-${me.cls}`} d={linePath(pts)} fill="none" stroke-width={me.cls === 'blue' ? 2 : 1.5} />
+                  {eps.map((e, i) => (
+                    <circle class={`draw-fade fill-${me.cls}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="3" stroke="#fff" stroke-width="1.25" data-tip={`${me.label}, ${m.label}, ε = ${e}: ${stat(e).mean.toFixed(3)} ± ${stat(e).std.toFixed(3)}`} />
+                  ))}
+                </g>
+              );
+            })}
+            {mi === 0 && (
+              <g>
+                <text class="series-label fill-blue" x={f.innerW - 4} y="12" text-anchor="end">
+                  FedProx
+                </text>
+                <text class="series-label fill-ink" x={f.innerW - 4} y="28" text-anchor="end">
+                  FedAvg
+                </text>
+              </g>
+            )}
+            <text class="axis-title" x={f.innerW / 2} y={f.innerH + 30} text-anchor="middle">
+              ε (log)
+            </text>
+          </g>
+        );
+      })
+    }
+  </svg>
+</Figure>

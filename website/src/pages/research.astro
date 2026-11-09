@@ -1,0 +1,600 @@
+---
+import Base from '../layouts/Base.astro';
+import Exp2AccuracyDots from '../components/charts/Exp2AccuracyDots.astro';
+import Exp2OverheadBars from '../components/charts/Exp2OverheadBars.astro';
+import Exp3OverheadScaling from '../components/charts/Exp3OverheadScaling.astro';
+import Exp3Spe from '../components/charts/Exp3Spe.astro';
+import Exp3AccuracyCurves from '../components/charts/Exp3AccuracyCurves.astro';
+import Exp1RecallCurve from '../components/charts/Exp1RecallCurve.astro';
+import Exp1MetricsPanel from '../components/charts/Exp1MetricsPanel.astro';
+import { EXPERIMENT_FOLDERS, PAPERS, SITE } from '../lib/site';
+import exp1 from '../data/exp1-results_multiseed.json';
+import exp1single from '../data/exp1-results.json';
+import exp2 from '../data/exp2-results_multiseed.json';
+import exp3o from '../data/exp3-overhead.json';
+import exp3s from '../data/exp3-spe.json';
+import exp3a from '../data/exp3-accuracy.json';
+
+// Experiment 2 tables
+type Agg2 = {
+  accuracy: { mean: number; std: number };
+  loss: { mean: number };
+  agg_ms_per_round: { mean: number };
+  ciphertext_mb?: { mean: number };
+  epsilon_actual?: { mean: number };
+};
+const agg2 = exp2.aggregate as unknown as Record<string, Agg2>;
+const exp2Rows = [
+  ['Standard FL', 'Standard FL'],
+  ['DP-FL (eps=14.13)', 'DP-FL, ε = 14.13'],
+  ['DP-FL (eps=8.65)', 'DP-FL, ε = 8.65'],
+  ['DP-FL (eps=5.74)', 'DP-FL, ε = 5.74'],
+  ['HE-FL', 'HE-FL'],
+].map(([k, label]) => {
+  const a = agg2[k];
+  return {
+    label,
+    acc: `${(a.accuracy.mean * 100).toFixed(2)}% ± ${(a.accuracy.std * 100).toFixed(2)}`,
+    loss: a.loss.mean.toFixed(4),
+    agg: a.agg_ms_per_round.mean.toFixed(3),
+    ct: a.ciphertext_mb ? a.ciphertext_mb.mean.toFixed(3) : '',
+    eps: a.epsilon_actual ? a.epsilon_actual.mean.toFixed(2) : '',
+  };
+});
+const perSeed2 = exp2.per_seed as unknown as Record<string, Record<string, { accuracy: number }>>;
+const seeds2 = exp2.seeds as number[];
+
+// Experiment 3 tables
+const o3 = exp3o.rows;
+type Sweep = { p: number; he_ms: number; payload_bytes: number; he_ms_vs_naive: number; payload_vs_naive: number };
+const s3 = exp3s.models as unknown as Record<string, { n_params: number; sweep: Sweep[] }>;
+const a3 = exp3a as unknown as {
+  config: { model: string; rounds: number; train_subset: number; spe_fraction: number; data_source: string };
+  agreement: { he_vs_plain_max_abs: number; spe_vs_plain_max_abs: number };
+  final: Record<string, number>;
+};
+
+// Experiment 1 tables
+type Stat = { mean: number; std: number };
+type Cell1 = Record<'recall' | 'precision' | 'f1' | 'auc', Stat>;
+const sweep1 = exp1.sweep as unknown as Record<'FedProx' | 'FedAvg', Record<string, Cell1>>;
+const eps1 = exp1.config.epsilon_grid as number[];
+const base1 = exp1.baseline_no_smote as unknown as Record<'recall' | 'precision' | 'f1' | 'auc', Stat>;
+const cfg1 = exp1.config;
+const meta1 = (exp1single as unknown as { meta: { data_info: { n_train: number; train_pos: number; n_test_balanced: number; test_pos: number }; partition: { sizes: number[]; pos_counts: number[] } } }).meta;
+const pm = (s: Stat, d = 3) => `${s.mean.toFixed(d)} ± ${s.std.toFixed(d)}`;
+
+const toc = [
+  { id: 'experiment-2', label: 'What privacy costs in accuracy', meta: 'Experiment 2' },
+  { id: 'experiment-3', label: 'What encryption costs', meta: 'Experiment 3' },
+  { id: 'experiment-1', label: 'Catching rare cases in clinical data', meta: 'Experiment 1' },
+  { id: 'next', label: 'The benchmark plan', meta: 'Next' },
+];
+---
+
+<Base
+  title="Research: full results and methods · Obscura DP"
+  description="Full results, methods, deviations and reproduction steps for the three paper replications behind Obscura DP: credit-risk accuracy under differential privacy, homomorphic-encryption overhead, and rare-case recall on clinical data."
+  path="/research"
+>
+  <div class="research">
+    <header class="wrap research-head">
+      <p class="label">Research</p>
+      <h1>Full results and methods</h1>
+      <p class="lede">
+        Three published studies, replicated end to end before anything new was built. Each section gives the question,
+        the paper, the setup, every chart redrawn from the stored results, the result tables, the documented deviations
+        from the paper, and the commands to reproduce it. All code and data live in the
+        <a href={SITE.github} rel="noopener">GitHub repository</a>.
+      </p>
+      <p class="caption">
+        Means and standard deviations are over five seeds (42 to 46). The reported std is the population standard
+        deviation. Research design:
+        {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">pre-registration</a> : <span>pre-registration link to be added.</span>}
+      </p>
+    </header>
+
+    <div class="wrap research-body">
+      <nav class="toc" aria-label="On this page">
+        <p class="label">On this page</p>
+        <ol>
+          {
+            toc.map((t) => (
+              <li>
+                <a href={`#${t.id}`}>
+                  <span class="toc-meta mono">{t.meta}</span>
+                  <span>{t.label}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+
+      <div class="content">
+        <!-- ============================ Experiment 2 ============================ -->
+        <article id="experiment-2" class="exp">
+          <p class="label">Experiment 2</p>
+          <h2>What does privacy cost in accuracy, and what does encryption cost?</h2>
+          <p class="paper">
+            Replication of <a href={PAPERS.exp2.href} rel="noopener">Privacy-preserving federated learning for credit-risk assessment, {PAPERS.exp2.label}</a>.
+            Code: <a href={EXPERIMENT_FOLDERS.exp2} rel="noopener">Experiment 2 on GitHub</a>.
+          </p>
+
+          <h3>Setup</h3>
+          <div class="table-wrap">
+            <table class="setup">
+              <caption class="visually-hidden">Experiment 2 setup</caption>
+              <tbody>
+                <tr><th scope="row">Task</th><td>Predict whether a loan is approved (two classes) from 11 applicant features.</td></tr>
+                <tr><th scope="row">Data</th><td>Kaggle loan-approval dataset, 4,269 rows, 62.2% approved. Stratified 80/20 split: 3,415 train, 854 test.</td></tr>
+                <tr><th scope="row">Clients</th><td>5, each with 683 training rows, drawn at random (identically distributed).</td></tr>
+                <tr><th scope="row">Model</th><td>Small neural network, 11 → 32 → 16 → 1, 929 parameters.</td></tr>
+                <tr><th scope="row">Training</th><td>5 rounds, 5 local epochs per round, Adam, learning rate 0.005, batch 64, unweighted averaging.</td></tr>
+                <tr><th scope="row">Differential privacy</th><td>Opacus DP-SGD, clipping norm 1.0, δ = 10<sup>-5</sup>, RDP accounting. Noise multipliers 0.915, 1.194, 1.544 give cumulative ε of 14.13, 8.65 and 5.74 over 5 rounds.</td></tr>
+                <tr><th scope="row">Encryption</th><td>TenSEAL CKKS, polynomial degree 8192 (4,096 slots), modulus chain [60, 40, 40, 60], scale 2<sup>40</sup>. The server sums ciphertexts and scales by 1/N; only the mean is decrypted.</td></tr>
+                <tr><th scope="row">Seeds</th><td>42, 43, 44, 45, 46.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Results</h3>
+          <Exp2AccuracyDots />
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Experiment 2 results, mean over five seeds</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Configuration</th>
+                  <th scope="col" class="num">Accuracy</th>
+                  <th scope="col" class="num">Loss</th>
+                  <th scope="col" class="num">Actual ε</th>
+                  <th scope="col" class="num">Aggregation / round (ms)</th>
+                  <th scope="col" class="num">Ciphertext / client (MB)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  exp2Rows.map((r) => (
+                    <tr>
+                      <th scope="row">{r.label}</th>
+                      <td class="num">{r.acc}</td>
+                      <td class="num">{r.loss}</td>
+                      <td class="num">{r.eps}</td>
+                      <td class="num">{r.agg}</td>
+                      <td class="num">{r.ct}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Per-seed accuracy, percent</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Seed</th>
+                  {exp2Rows.map((r) => <th scope="col" class="num">{r.label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  seeds2.map((s) => (
+                    <tr>
+                      <th scope="row">{s}</th>
+                      {['Standard FL', 'DP-FL (eps=14.13)', 'DP-FL (eps=8.65)', 'DP-FL (eps=5.74)', 'HE-FL'].map((k) => (
+                        <td class="num">{(perSeed2[String(s)][k].accuracy * 100).toFixed(2)}%</td>
+                      ))}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            Encrypted and standard accuracy are identical at every seed. Differential privacy is not monotone in ε at
+            every seed (seed 44 drops to 76.46% at ε = 5.74); only the means are.
+          </p>
+          <Exp2OverheadBars />
+
+          <h3>Deviations from the paper</h3>
+          <ul class="dev">
+            <li>Standard and encrypted accuracy land near 93% versus the paper's roughly 91%, because the paper does not state every hyperparameter.</li>
+            <li>The federation is simulated in one process rather than with the Flower framework, for determinism.</li>
+            <li>Wall-clock time per round barely separates the arms, because training dominates at 929 parameters. The encryption cost is therefore reported as aggregation latency and ciphertext size.</li>
+            <li>The learning rate was raised from the paper-style 0.001 to 0.005 for every arm. At 0.001 the DP arms collapse to predicting the 62% majority class.</li>
+          </ul>
+
+          <h3>Reproduce it</h3>
+          <pre><code>cd "Experiment 2"
+python3.11 -m venv ../fedprox_env && source ../fedprox_env/bin/activate
+pip install -r requirements.txt
+python smoke_test.py          # 1-round sanity check plus CKKS exactness
+python run_experiments.py     # single seed  -> results/results.json
+python run_multiseed.py       # 5 seeds      -> results/results_multiseed.json
+python plot_results.py</code></pre>
+        </article>
+
+        <!-- ============================ Experiment 3 ============================ -->
+        <article id="experiment-3" class="exp">
+          <p class="label">Experiment 3</p>
+          <h2>How does encryption cost scale with model size, and can it be cut?</h2>
+          <p class="paper">
+            Replication of <a href={PAPERS.exp3.href} rel="noopener">FedML-HE: An Efficient Homomorphic-Encryption-Based Privacy-Preserving Federated Learning System, arXiv:2303.10837</a>.
+            Code: <a href={EXPERIMENT_FOLDERS.exp3} rel="noopener">Experiment 3 on GitHub</a>.
+          </p>
+
+          <h3>Setup</h3>
+          <div class="table-wrap">
+            <table class="setup">
+              <caption class="visually-hidden">Experiment 3 setup</caption>
+              <tbody>
+                <tr><th scope="row">Question 1</th><td>Overhead of encrypting and aggregating a full model update, for six models from 0.28M to 86M parameters.</td></tr>
+                <tr><th scope="row">Question 2</th><td>Overhead when only a chosen share of parameters (10% to 100%) is encrypted, for LSTM, ResNet-18 and ResNet-50.</td></tr>
+                <tr><th scope="row">Question 3</th><td>Whether encryption changes the trained model: ResNet-18 on CIFAR-10, 6 rounds, 5,000 training images, 2,000 test images.</td></tr>
+                <tr><th scope="row">Clients</th><td>5, identically distributed, FedAvg, one local epoch.</td></tr>
+                <tr><th scope="row">Encryption</th><td>TenSEAL CKKS, polynomial degree 8192 (4,096 slots), modulus chain [60, 40, 60], scale 2<sup>40</sup>. Each model is split into ceil(n / 4096) ciphertexts.</td></tr>
+                <tr><th scope="row">Hardware</th><td>Pure-Python TenSEAL on CPU. The paper used an optimized C++ and GPU stack, so absolute times are not comparable.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Results</h3>
+          <Exp3OverheadScaling measure="time" />
+          <Exp3OverheadScaling measure="bytes" />
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Overhead by model</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  <th scope="col" class="num">Parameters</th>
+                  <th scope="col" class="num">Plaintext (s)</th>
+                  <th scope="col" class="num">Encrypted (s)</th>
+                  <th scope="col" class="num">Time ratio</th>
+                  <th scope="col" class="num">Plaintext (MB)</th>
+                  <th scope="col" class="num">Encrypted (MB)</th>
+                  <th scope="col" class="num">Size ratio</th>
+                  <th scope="col" class="num">Ciphertexts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  o3.map((r) => (
+                    <tr>
+                      <th scope="row">{r.model}</th>
+                      <td class="num">{r.n_params.toLocaleString('en-US')}</td>
+                      <td class="num">{(r.plain_ms / 1000).toFixed(3)}</td>
+                      <td class="num">{(r.he_ms / 1000).toFixed(2)}</td>
+                      <td class="num">{r.time_ratio.toFixed(0)}×</td>
+                      <td class="num">{(r.plain_payload_bytes / 1e6).toFixed(1)}</td>
+                      <td class="num">{(r.he_ciphertext_bytes / 1e6).toFixed(0)}</td>
+                      <td class="num">{r.payload_ratio.toFixed(2)}×</td>
+                      <td class="num">{r.n_chunks.toLocaleString('en-US')}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            Encryption time alone (before aggregation) works out to 0.55–0.60 µs per parameter across all six models.
+            Time ratios fall with size only because plaintext averaging of large tensors is itself slow.
+          </p>
+          <Exp3Spe />
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Selective encryption, ResNet-18</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  <th scope="col" class="num">Share encrypted</th>
+                  <th scope="col" class="num">Time per round (s)</th>
+                  <th scope="col" class="num">Upload per client (MB)</th>
+                  <th scope="col" class="num">Time vs full</th>
+                  <th scope="col" class="num">Upload vs full</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  Object.entries(s3).flatMap(([name, m]) =>
+                    m.sweep.map((s) => (
+                      <tr>
+                        <th scope="row">{name}</th>
+                        <td class="num">{Math.round(s.p * 100)}%</td>
+                        <td class="num">{(s.he_ms / 1000).toFixed(2)}</td>
+                        <td class="num">{(s.payload_bytes / 1e6).toFixed(0)}</td>
+                        <td class="num">{(s.he_ms_vs_naive * 100).toFixed(0)}%</td>
+                        <td class="num">{(s.payload_vs_naive * 100).toFixed(0)}%</td>
+                      </tr>
+                    )),
+                  )
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            The selective-encryption sweep is a separate run from the overhead table above, so its 100% row for
+            ResNet-18 ({(s3['ResNet-18'].sweep[4].he_ms / 1000).toFixed(2)} s) differs slightly from the table's{' '}
+            {(o3[2].he_ms / 1000).toFixed(2)} s.
+          </p>
+          <Exp3AccuracyCurves />
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Agreement between encrypted and plaintext aggregation</caption>
+              <tbody>
+                <tr><th scope="row">Final accuracy, plaintext</th><td class="num">{(a3.final['plaintext'] * 100).toFixed(1)}%</td></tr>
+                <tr><th scope="row">Final accuracy, full encryption</th><td class="num">{(a3.final['full HE'] * 100).toFixed(1)}%</td></tr>
+                <tr><th scope="row">Final accuracy, selective (25%)</th><td class="num">{(a3.final['SPE (p=0.25)'] * 100).toFixed(1)}%</td></tr>
+                <tr><th scope="row">Max difference, encrypted vs plaintext aggregate</th><td class="num">{a3.agreement.he_vs_plain_max_abs.toExponential(2)}</td></tr>
+                <tr><th scope="row">Max difference, selective vs plaintext aggregate</th><td class="num">{a3.agreement.spe_vs_plain_max_abs.toExponential(2)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Deviations from the paper</h3>
+          <ul class="dev">
+            <li>The 5-client federation is simulated in one process with TenSEAL and torchvision, not through the full FedML framework.</li>
+            <li>The time penalty is 37× to 176× rather than the paper's roughly 15×, because this run uses pure-Python TenSEAL on CPU and the paper used an optimized C++ and GPU stack.</li>
+            <li>The size blow-up is 14.4× rather than roughly 15×. It depends on the modulus chain; a longer chain ([60, 40, 40, 60]) gives about 20×.</li>
+            <li>The accuracy run is shortened to 6 rounds on a 5,000-image training subset and a 2,000-image test set, instead of the paper's 100 rounds. Each round takes about 70 s of encrypted aggregation.</li>
+            <li>Final accuracies differ by 1.4 points between the three modes. The aggregates agree to 10<sup>-7</sup>, so the difference comes from floating-point nondeterminism in training (about 28 predictions flip between runs), not from encryption.</li>
+          </ul>
+
+          <h3>Reproduce it</h3>
+          <pre><code>cd "Experiment 3"
+python3.11 -m venv ../fedprox_env && source ../fedprox_env/bin/activate
+pip install -r requirements.txt
+python smoke_test.py
+python run_overhead.py        # -> results/overhead.json  (about 2.5 min, including ViT)
+python run_spe.py             # -> results/spe.json       (about 1.5 min)
+python run_accuracy.py        # -> results/accuracy.json  (needs CIFAR-10 in data/)
+python plot_results.py</code></pre>
+          <p class="caption">
+            For the accuracy run, place <code>cifar-10-python.tar.gz</code> from the CIFAR-10 site in <code>data/</code> first.
+            Without it, the script falls back to a synthetic 10-class dataset.
+          </p>
+        </article>
+
+        <!-- ============================ Experiment 1 ============================ -->
+        <article id="experiment-1" class="exp">
+          <p class="label">Experiment 1</p>
+          <h2>Can a private model still catch rare cases in uneven clinical data?</h2>
+          <p class="paper">
+            Replication of <a href={PAPERS.exp1.href} rel="noopener">SMOTETomek + FedProx for privacy-preserving federated learning on imbalanced clinical data, {PAPERS.exp1.label}</a>.
+            Code: <a href={EXPERIMENT_FOLDERS.exp1} rel="noopener">Experiment 1 on GitHub</a>.
+          </p>
+
+          <h3>Setup</h3>
+          <div class="table-wrap">
+            <table class="setup">
+              <caption class="visually-hidden">Experiment 1 setup</caption>
+              <tbody>
+                <tr><th scope="row">Task</th><td>Predict stroke (yes or no) from 15 patient features. Only 4.87% of patients had a stroke, so the model has to find rare cases.</td></tr>
+                <tr><th scope="row">Data</th><td>Public stroke-prediction dataset, 5,110 rows; 4,908 after dropping rows with missing BMI and one unusable row. Stratified 80/20 split: {meta1.data_info.n_train.toLocaleString('en-US')} train ({meta1.data_info.train_pos} strokes), balanced test set of {meta1.data_info.n_test_balanced} ({meta1.data_info.test_pos} strokes, {meta1.data_info.test_pos} non-strokes).</td></tr>
+                <tr><th scope="row">Clients</th><td>{cfg1.num_clients}, split unevenly (Dirichlet, α = {cfg1.dirichlet_alpha}) like hospitals of different sizes: {meta1.partition.sizes.join(', ')} patients with {meta1.partition.pos_counts.join(', ')} strokes each. Every client has at least 12 of both classes.</td></tr>
+                <tr><th scope="row">Rebalancing</th><td>SMOTETomek, applied on each client separately: it creates synthetic examples of the rare class and removes borderline pairs.</td></tr>
+                <tr><th scope="row">Methods</th><td>FedProx (μ = {cfg1.mu}, a term that keeps each client near the shared model) and FedAvg, both with rebalancing; FedAvg without rebalancing as the baseline.</td></tr>
+                <tr><th scope="row">Model</th><td>Feed-forward network 15 → 64 → 32 → 1.</td></tr>
+                <tr><th scope="row">Training</th><td>{cfg1.rounds} rounds, {cfg1.local_epochs} local epochs, Adam, learning rate {cfg1.lr}, batch {cfg1.batch_size}, decision threshold 0.5.</td></tr>
+                <tr><th scope="row">Differential privacy</th><td>Opacus DP-SGD, clipping norm {cfg1.max_grad_norm}, δ = 10<sup>-5</sup>. ε is a per-round budget across {eps1.join(', ')}.</td></tr>
+                <tr><th scope="row">Seeds</th><td>{exp1.seeds.join(', ')}.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Results</h3>
+          <Exp1RecallCurve />
+          <Exp1MetricsPanel />
+          <div class="table-wrap">
+            <table>
+              <caption class="visually-hidden">Experiment 1 results, mean ± std over five seeds</caption>
+              <thead>
+                <tr>
+                  <th scope="col">ε</th>
+                  <th scope="col" class="num">FedProx recall</th>
+                  <th scope="col" class="num">FedAvg recall</th>
+                  <th scope="col" class="num">FedProx precision</th>
+                  <th scope="col" class="num">FedAvg precision</th>
+                  <th scope="col" class="num">FedProx F1</th>
+                  <th scope="col" class="num">FedAvg F1</th>
+                  <th scope="col" class="num">FedProx AUC</th>
+                  <th scope="col" class="num">FedAvg AUC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  eps1.map((e) => {
+                    const k = e.toFixed(1);
+                    const fp = sweep1.FedProx[k];
+                    const fa = sweep1.FedAvg[k];
+                    return (
+                      <tr>
+                        <th scope="row">{k}</th>
+                        <td class="num">{pm(fp.recall)}</td>
+                        <td class="num">{pm(fa.recall)}</td>
+                        <td class="num">{pm(fp.precision)}</td>
+                        <td class="num">{pm(fa.precision)}</td>
+                        <td class="num">{pm(fp.f1)}</td>
+                        <td class="num">{pm(fa.f1)}</td>
+                        <td class="num">{pm(fp.auc)}</td>
+                        <td class="num">{pm(fa.auc)}</td>
+                      </tr>
+                    );
+                  })
+                }
+                <tr>
+                  <th scope="row">No rebalancing (ε = 9)</th>
+                  <td class="num">{pm(base1.recall)}</td>
+                  <td class="num"></td>
+                  <td class="num">{pm(base1.precision)}</td>
+                  <td class="num"></td>
+                  <td class="num">{pm(base1.f1)}</td>
+                  <td class="num"></td>
+                  <td class="num">{pm(base1.auc)}</td>
+                  <td class="num"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="caption">
+            Across all 45 paired comparisons (5 seeds × 9 ε), FedProx had higher recall than FedAvg in 27, tied in 18,
+            and was lower in none. The gaps (0.005 to 0.043) are small next to the seed-to-seed spread (±0.09 to ±0.15).
+            With 42 stroke cases in the test set, recall moves in steps of about 0.024.
+          </p>
+
+          <h3>Deviations from the paper</h3>
+          <ul class="dev">
+            <li>The federation is simulated in one process rather than with the Flower framework.</li>
+            <li>The FedProx term is added to the gradient after Opacus has clipped and noised it, rather than to the loss. Added to the loss, the DP step would silently discard it. This does not weaken the privacy guarantee, because the term depends only on the public shared weights.</li>
+            <li>ε is a per-round budget. Cumulative privacy over 20 rounds is looser than the labelled ε. The noise multiplier is computed once and reused.</li>
+            <li>SMOTETomek is computed once per client and cached, not re-run every round.</li>
+            <li>The dataset comes from a public mirror, because Kaggle requires a login.</li>
+            <li>The paper frames recall as rising toward a knee near ε ≈ 9. Here recall declines smoothly as ε rises, because the model flags fewer patients as positive (the predicted-positive rate falls from 0.46 to 0.32 for FedProx). Precision stays roughly flat across ε in the five-seed means, although it rises in the single seed-42 run.</li>
+            <li>The no-rebalancing baseline was run at ε = 9 for all five seeds (recall 0.0 at every seed) and at ε = 0.5, 9 and 50 for one seed (recall 0.0 at each).</li>
+          </ul>
+
+          <h3>Reproduce it</h3>
+          <pre><code>cd "Experiment 1"
+python3.11 -m venv fedprox_env && source fedprox_env/bin/activate
+pip install -r requirements.txt
+python run_sweep.py                       # single seed (42) plus baselines, about 14 min
+python plot_results.py
+for s in 42 43 44 45 46; do python run_one_seed.py $s & done; wait   # five seeds, about 20 min
+python aggregate_seeds.py && python plot_multiseed.py</code></pre>
+        </article>
+
+        <!-- ============================ Next ============================ -->
+        <article id="next" class="exp">
+          <p class="label">Next</p>
+          <h2>The benchmark plan</h2>
+          <p>
+            The three replications establish a reproducible base. The next study benchmarks privacy against accuracy
+            for the full stack (differential privacy, federated learning and homomorphic encryption together) under
+            non-IID conditions, meaning each device's data looks different, as it does in real deployments.
+          </p>
+          <div class="table-wrap">
+            <table class="setup">
+              <caption class="visually-hidden">Benchmark plan</caption>
+              <tbody>
+                <tr><th scope="row">Datasets</th><td>FEMNIST (handwritten characters split by writer), Shakespeare (next-character prediction split by role) and synthetic health data.</td></tr>
+                <tr><th scope="row">Conditions</th><td>Non-IID client splits, several ε values, five seeds each.</td></tr>
+                <tr><th scope="row">Output</th><td>The first ε-versus-accuracy curve for DP + FL + HE, with code, data and a replication guide.</td></tr>
+                <tr><th scope="row">Design</th><td>{SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Pre-registered</a> : 'Pre-registered (link to be added).'}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .research-head {
+    padding-block: var(--s-9) var(--s-6);
+    display: grid;
+    gap: var(--s-3);
+  }
+  .research-head h1 {
+    max-width: 16ch;
+  }
+  .research-body {
+    display: grid;
+    gap: var(--s-8);
+    padding-bottom: var(--s-16);
+  }
+  .toc ol {
+    list-style: none;
+    border-top: 1px solid var(--line);
+    margin-top: var(--s-2);
+  }
+  .toc li {
+    border-bottom: 1px solid var(--line);
+  }
+  .toc a {
+    display: grid;
+    gap: 0.125rem;
+    padding: 0.75rem 0;
+    color: var(--ink);
+    font-size: var(--fs-small);
+    font-weight: 500;
+  }
+  .toc a:hover {
+    text-decoration: none;
+    color: var(--blue);
+  }
+  .toc-meta {
+    font-size: var(--fs-label);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .content {
+    display: grid;
+    gap: var(--s-14);
+    min-width: 0;
+  }
+  .exp {
+    display: grid;
+    gap: var(--s-4);
+    scroll-margin-top: calc(var(--header-h) + 16px);
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-6);
+  }
+  .exp h2 {
+    max-width: 24ch;
+  }
+  .exp h3 {
+    margin-top: var(--s-4);
+    padding-bottom: var(--s-1);
+    border-bottom: 1px solid var(--line);
+  }
+  .paper {
+    font-size: var(--fs-small);
+    color: var(--muted);
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+  }
+  .setup th[scope='row'] {
+    white-space: nowrap;
+    width: 11rem;
+  }
+  .setup td {
+    max-width: 68ch;
+  }
+  .dev {
+    list-style: none;
+    display: grid;
+    gap: var(--s-2);
+  }
+  .dev li {
+    padding-left: 1.25rem;
+    position: relative;
+    font-size: var(--fs-small);
+  }
+  .dev li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.7em;
+    width: 8px;
+    height: 1px;
+    background: var(--blue);
+  }
+  @media (min-width: 1024px) {
+    .research-body {
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: var(--s-8);
+      align-items: start;
+    }
+    .toc {
+      position: sticky;
+      top: calc(var(--header-h) + 24px);
+    }
+  }
+</style>

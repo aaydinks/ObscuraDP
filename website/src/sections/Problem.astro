@@ -1,0 +1,221 @@
+---
+import Section from '../components/Section.astro';
+import WorldMap from '../components/visuals/WorldMap.astro';
+import Photo from '../components/Photo.astro';
+import BreachCostBars from '../components/charts/BreachCostBars.astro';
+import BlockersDiagram from '../components/visuals/BlockersDiagram.astro';
+---
+
+<Section id="problem" tone="surface" labelledBy="problem-title">
+  <h2 id="problem-title">Privacy law is regional. AI models are global.</h2>
+
+  <div class="stat-block">
+    <div class="stat-map" aria-hidden="true"><WorldMap /></div>
+    <div class="stat-copy">
+      <p class="stat stat-xl">29%</p>
+      <p class="stat-text">of countries have no data-privacy law in force.</p>
+      <p class="source">Source: UNCTAD, <em>Data Protection and Privacy Legislation Worldwide</em> (June 2024).</p>
+      <p class="stat-explain">
+        People there have no legal protection when their personal data is collected and used to train AI. A free,
+        portable framework gives them a baseline to build on.
+      </p>
+    </div>
+  </div>
+
+  <div class="affected">
+    <div>
+      <h3>Who's affected</h3>
+      <ul class="rows affected-rows">
+        <li>
+          <strong>Patients and students</strong>
+          <p>Their own records train the models that judge them.</p>
+        </li>
+        <li>
+          <strong>Under-resourced organizations</strong>
+          <p>Startups, labs and NGOs with no privacy team.</p>
+        </li>
+        <li>
+          <strong>Unprotected populations</strong>
+          <p>No law means no floor to stand on.</p>
+        </li>
+      </ul>
+    </div>
+    <Photo
+      name="photo-a"
+      alt="A community health worker talking with a patient at a clinic."
+      description="A health worker or clinic scene in a low- or middle-income country, in natural light, people shown with dignity."
+      credit="Photo via Unsplash"
+    />
+  </div>
+
+  <div class="cost">
+    <h3>The real cost</h3>
+    <div class="cost-grid">
+      <div class="cost-chart">
+        <BreachCostBars />
+      </div>
+      <div class="cost-facts">
+        <ul class="rows">
+          <li>
+            <strong>Silent, permanent leaks.</strong>
+            <p>AI models can memorize and later reveal the data they were trained on.</p>
+          </li>
+          <li>
+            <strong>Eroded participation.</strong>
+            <p>When people distrust a system, they hold back data from health and civic services.</p>
+          </li>
+        </ul>
+        <div class="callout">
+          <p class="stat stat-lg">2.75 years</p>
+          <p>
+            How long Blue Shield of California's leak of member health data went unnoticed. No hacking was involved.
+          </p>
+          <p class="source">Source: Healthcare Dive.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="blockers">
+    <div class="blockers-copy">
+      <h3>Three blockers keep the gap open.</h3>
+      <ol class="rows blockers-list">
+        <li>
+          <span class="mono num">01</span>
+          <div>
+            <strong>Legal</strong>
+            <p>Protection stops at borders. Models and data do not.</p>
+          </div>
+        </li>
+        <li>
+          <span class="mono num">02</span>
+          <div>
+            <strong>Economic</strong>
+            <p>More data can mean better accuracy, so privacy gets treated as a cost.</p>
+          </div>
+        </li>
+        <li>
+          <span class="mono num">03</span>
+          <div>
+            <strong>Social</strong>
+            <p>Consent fatigue makes clicking "agree" an unreliable safeguard.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+    <BlockersDiagram />
+  </div>
+</Section>
+
+<style>
+  h2 {
+    max-width: 20ch;
+  }
+  .stat-block {
+    position: relative;
+    margin-top: var(--s-6);
+    display: grid;
+    align-items: center;
+    min-height: 320px;
+  }
+  .stat-map {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+  .stat-map :global(svg) {
+    width: min(100%, 720px);
+    margin-left: auto;
+  }
+  .stat-copy {
+    position: relative;
+    display: grid;
+    gap: var(--s-2);
+    max-width: 46ch;
+  }
+  .stat-xl {
+    font-size: clamp(4rem, 10vw, 7.5rem);
+  }
+  .stat-text {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .stat-explain {
+    margin-top: var(--s-1);
+  }
+  .affected,
+  .cost,
+  .blockers {
+    margin-top: var(--s-12);
+  }
+  .affected {
+    display: grid;
+    gap: var(--s-5);
+    align-items: center;
+  }
+  .affected h3,
+  .cost h3,
+  .blockers h3 {
+    margin-bottom: var(--s-3);
+  }
+  .rows strong {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  .cost-grid {
+    display: grid;
+    gap: var(--s-5);
+  }
+  .callout {
+    margin-top: var(--s-4);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: var(--s-1);
+  }
+  .stat-lg {
+    font-size: clamp(2.25rem, 4vw, 3rem);
+  }
+  .blockers {
+    display: grid;
+    gap: var(--s-5);
+    align-items: start;
+  }
+  .blockers-list {
+    list-style: none;
+  }
+  .blockers-list li {
+    display: grid;
+    grid-template-columns: 3rem 1fr;
+    gap: var(--s-2);
+  }
+  .blockers-list .num {
+    color: var(--blue);
+    font-size: var(--fs-caption);
+    padding-top: 0.2rem;
+  }
+  @media (min-width: 900px) {
+    .affected {
+      grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+      gap: var(--s-8);
+    }
+    .cost-grid {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--s-8);
+      align-items: start;
+    }
+    .blockers {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      gap: var(--s-8);
+    }
+    .stat-block {
+      min-height: 400px;
+    }
+  }
+</style>

@@ -1,0 +1,111 @@
+---
+// Experiment 2: what encryption costs in time and bytes. Two paired bars each,
+// on a log axis because the ratios are 345x and 90x.
+import Figure from '../Figure.astro';
+import { frame, scaleLog, r2, dataTable } from '../../lib/chart';
+import data from '../../data/exp2-results_multiseed.json';
+import { EXPERIMENT_FOLDERS } from '../../lib/site';
+
+type Agg = { agg_ms_per_round: { mean: number }; ciphertext_mb?: { mean: number } };
+const agg = data.aggregate as unknown as Record<string, Agg>;
+const perSeed = data.per_seed as unknown as Record<string, Record<string, { plaintext_payload_mb: number }>>;
+const plainMs = agg['Standard FL'].agg_ms_per_round.mean;
+const heMs = agg['HE-FL'].agg_ms_per_round.mean;
+const plainKB = perSeed['42']['Standard FL'].plaintext_payload_mb * 1000;
+const heKB = (agg['HE-FL'].ciphertext_mb?.mean ?? 0) * 1000;
+const timeRatio = heMs / plainMs;
+const sizeRatio = heKB / plainKB;
+
+const panels = [
+  {
+    title: 'Aggregation time per round',
+    unit: 'ms',
+    domain: [0.01, 100] as [number, number],
+    ticks: [0.01, 0.1, 1, 10, 100],
+    bars: [
+      { label: 'Plaintext', v: plainMs, fmt: `${plainMs.toFixed(3)} ms` },
+      { label: 'Encrypted (CKKS)', v: heMs, fmt: `${heMs.toFixed(1)} ms` },
+    ],
+    ratio: `about ${Math.round(timeRatio)}× slower`,
+  },
+  {
+    title: 'Upload per client per round',
+    unit: 'KB',
+    domain: [1, 1000] as [number, number],
+    ticks: [1, 10, 100, 1000],
+    bars: [
+      { label: 'Plaintext', v: plainKB, fmt: `${plainKB.toFixed(1)} KB` },
+      { label: 'Encrypted (CKKS)', v: heKB, fmt: `${heKB.toFixed(0)} KB` },
+    ],
+    ratio: `about ${Math.round(sizeRatio)}× larger`,
+  },
+];
+
+const pw = 300;
+const f = frame(pw, 170, { top: 28, right: 16, bottom: 30, left: 110 });
+const barH = 22;
+const table = dataTable({
+  caption: 'Encryption overhead, mean over 5 seeds',
+  columns: ['Measure', 'Plaintext', 'Encrypted (CKKS)', 'Ratio'],
+  rows: [
+    ['Aggregation time per round (ms)', plainMs.toFixed(3), heMs.toFixed(2), `${timeRatio.toFixed(0)}×`],
+    ['Upload per client per round (KB)', plainKB.toFixed(2), heKB.toFixed(1), `${sizeRatio.toFixed(0)}×`],
+  ],
+});
+---
+
+<Figure
+  id="fig-exp2-overhead"
+  title="What encryption costs: time and bytes (log scale)"
+  caption="Accuracy is unchanged, so the whole cost of encryption is overhead. Logarithmic axes; read the labels, not the bar lengths."
+  source={`Source: Experiment 2, <code>results/results_multiseed.json</code>. <a href="${EXPERIMENT_FOLDERS.exp2}" rel="noopener">Code and data on GitHub</a>.`}
+  table={table}
+>
+  <svg
+    class="chart"
+    viewBox={`0 0 ${pw * 2 + 24} ${f.height}`}
+    role="img"
+    tabindex="0"
+    aria-label={`Two paired bar charts on logarithmic axes. Aggregation time per round: plaintext ${plainMs.toFixed(3)} milliseconds versus encrypted ${heMs.toFixed(1)} milliseconds, about ${Math.round(timeRatio)} times slower. Upload per client: plaintext ${plainKB.toFixed(1)} kilobytes versus encrypted ${heKB.toFixed(0)} kilobytes, about ${Math.round(sizeRatio)} times larger.`}
+    data-animate
+  >
+    {
+      panels.map((p, pi) => {
+        const x = scaleLog().domain(p.domain).range([0, f.innerW]);
+        return (
+          <g transform={`translate(${pi * (pw + 24) + f.margin.left},${f.margin.top})`}>
+            <text class="series-label fill-ink" x={-f.margin.left} y="-12">
+              {p.title}
+            </text>
+            {p.ticks.map((t) => (
+              <g>
+                <line class="grid-line" x1={r2(x(t))} x2={r2(x(t))} y1="0" y2={f.innerH} />
+                <text class="tick" x={r2(x(t))} y={f.innerH + 18} text-anchor="middle">
+                  {t >= 1 ? t : t}
+                </text>
+              </g>
+            ))}
+            {p.bars.map((b, bi) => {
+              const yy = bi * 50 + 12;
+              const w = Math.max(2, r2(x(b.v)));
+              return (
+                <g>
+                  <text class="tick" x="-10" y={yy + barH / 2} dy="0.35em" text-anchor="end">
+                    {b.label}
+                  </text>
+                  <rect class:list={['draw-bar', bi === 0 ? 'fill-ink' : 'fill-blue']} x="0" y={yy} width={w} height={barH} data-tip={`${p.title}, ${b.label}: ${b.fmt}`} />
+                  <text class="value-label fill-ink" x={w + 6} y={yy + barH / 2} dy="0.35em">
+                    {b.fmt}
+                  </text>
+                </g>
+              );
+            })}
+            <text class="tick" x={f.innerW} y={f.innerH + 32} text-anchor="end">
+              {p.unit}, log scale · {p.ratio}
+            </text>
+          </g>
+        );
+      })
+    }
+  </svg>
+</Figure>

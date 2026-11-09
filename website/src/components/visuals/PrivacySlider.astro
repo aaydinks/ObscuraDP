@@ -1,0 +1,366 @@
+---
+// The privacy dial: a native range input on a log scale, driving a Laplace demo.
+import { mulberry32 } from '../../lib/rng';
+import { releaseCount, attackerCeiling } from '../../lib/laplace';
+
+const CLINICS = ['Clinic A', 'Clinic B', 'Clinic C', 'Clinic D', 'Clinic E', 'Clinic F'];
+const TRUE = [12, 25, 7, 18, 3, 21];
+const EPS0 = 1.0;
+const rng = mulberry32(2026);
+const released = TRUE.map((t) => releaseCount(t, EPS0, rng));
+
+const W = 560;
+const H = 240;
+const m = { top: 12, right: 12, bottom: 32, left: 36 };
+const iw = W - m.left - m.right;
+const ih = H - m.top - m.bottom;
+const maxY = 40;
+const y = (v: number) => ih - (v / maxY) * ih;
+const band = iw / CLINICS.length;
+const barW = band * 0.42;
+const ticks = [0, 10, 20, 30, 40];
+const ceiling = attackerCeiling(EPS0);
+---
+
+<div class="dial" data-privacy-slider data-true={JSON.stringify(TRUE)} data-max={maxY} data-ih={ih}>
+  <div class="dial-control">
+    <div class="dial-head">
+      <label for="eps-range" class="dial-label">Privacy budget ε</label>
+      <output for="eps-range" class="dial-value mono" id="eps-value">1.0</output>
+    </div>
+    <input
+      type="range"
+      id="eps-range"
+      min="0"
+      max="1000"
+      step="1"
+      value="500"
+      aria-valuemin="0.1"
+      aria-valuemax="10"
+      aria-valuenow="1"
+      aria-valuetext="epsilon 1.0, strong privacy"
+    />
+    <div class="dial-ends">
+      <span>Health records · ε &lt; 1</span>
+      <span>Language model training · higher ε</span>
+    </div>
+  </div>
+
+  <div class="dial-demo">
+    <div class="demo-title-row">
+      <p class="demo-title">Patients with a rare condition, per clinic</p>
+      <span class="label">Illustrative data</span>
+    </div>
+    <div class="dial-chart-wrap">
+    <svg class="dial-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Bar chart of six clinics. Thin outlines show true counts; solid bars show counts released with privacy noise. The two are close but not identical.">
+      <g transform={`translate(${m.left},${m.top})`}>
+        {ticks.map((t) => (
+          <g>
+            <line class="grid" x1="0" x2={iw} y1={y(t)} y2={y(t)} />
+            <text class="tick" x="-8" y={y(t)} dy="0.32em" text-anchor="end">{t}</text>
+          </g>
+        ))}
+        {CLINICS.map((c, i) => {
+          const cx = i * band + band / 2;
+          return (
+            <g>
+              <rect class="true-bar" x={cx - barW - 2} y={y(TRUE[i])} width={barW} height={ih - y(TRUE[i])} />
+              <rect class="released-bar" data-i={i} x={cx + 2} y={y(released[i])} width={barW} height={ih - y(released[i])} />
+              <text class="tick" x={cx} y={ih + 18} text-anchor="middle">{c}</text>
+            </g>
+          );
+        })}
+        <line class="axis" x1="0" x2={iw} y1={ih} y2={ih} />
+      </g>
+    </svg>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><i class="swatch true"></i> True count</span>
+      <span class="legend-item"><i class="swatch released"></i> Released count</span>
+      <button type="button" class="btn btn-outline redraw" data-redraw>Draw again</button>
+    </div>
+  </div>
+
+  <dl class="readouts">
+    <div>
+      <dt>Typical error</dt>
+      <dd><span class="mono" data-readout="error">± {(1 / EPS0).toFixed(1)}</span> people per clinic</dd>
+    </div>
+    <div>
+      <dt>Worst-case attacker confidence that you're in the data</dt>
+      <dd><span class="mono" data-readout="attacker">{(ceiling * 100).toFixed(0)}%</span></dd>
+    </div>
+  </dl>
+  <p class="caption">
+    This is the mathematical ceiling. Real attacks measured in audits land far lower; our target is at most 5%
+    attacker advantage at ε = 1.
+  </p>
+</div>
+
+<style>
+  .dial {
+    display: grid;
+    gap: var(--s-4);
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+    padding: var(--s-3);
+  }
+  .dial-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--s-1);
+  }
+  .dial-label {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: var(--fs-small);
+  }
+  .dial-value {
+    font-size: 1.5rem;
+    color: var(--blue);
+    font-weight: 500;
+  }
+  .dial-ends {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-2);
+    margin-top: var(--s-1);
+    font-family: var(--font-mono);
+    font-size: var(--fs-label);
+    color: var(--muted);
+  }
+  .dial-ends span {
+    max-width: 48%;
+    text-wrap: balance;
+  }
+  .dial-ends span:last-child {
+    text-align: right;
+  }
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    margin: 0;
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+  }
+  input[type='range']::-moz-range-track {
+    height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    margin-top: -9px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px var(--blue);
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--blue);
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px var(--blue);
+  }
+  input[type='range']:focus-visible {
+    outline: none;
+  }
+  input[type='range']:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 1px var(--blue), 0 0 0 4px var(--blue-tint), 0 0 0 6px var(--blue);
+  }
+  input[type='range']:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 1px var(--blue), 0 0 0 4px var(--blue-tint), 0 0 0 6px var(--blue);
+  }
+  .demo-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin-bottom: var(--s-2);
+  }
+  .demo-title {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: var(--fs-small);
+  }
+  .dial-chart-wrap {
+    overflow-x: auto;
+    contain: inline-size;
+    position: relative;
+  }
+  .dial-chart {
+    width: 100%;
+    min-width: 440px;
+    height: auto;
+    font-family: var(--font-mono);
+  }
+  .grid {
+    stroke: var(--line);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .axis {
+    stroke: var(--line);
+    stroke-width: 1;
+  }
+  .tick {
+    fill: var(--muted);
+    font-size: 11px;
+  }
+  .true-bar {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1.25;
+  }
+  .released-bar {
+    fill: var(--blue);
+    transition: y 220ms var(--ease), height 220ms var(--ease);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    margin-top: var(--s-2);
+    font-size: var(--fs-caption);
+    color: var(--muted);
+  }
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+  .swatch.true {
+    border: 1.25px solid var(--ink);
+  }
+  .swatch.released {
+    background: var(--blue);
+  }
+  .redraw {
+    margin-left: auto;
+    height: 36px;
+    padding: 0 0.875rem;
+  }
+  .readouts {
+    margin: 0;
+    display: grid;
+    gap: var(--s-2);
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-3);
+  }
+  .readouts dt {
+    font-size: var(--fs-caption);
+    color: var(--muted);
+  }
+  .readouts dd {
+    margin: 0.125rem 0 0;
+    color: var(--ink);
+    font-size: var(--fs-small);
+  }
+  .readouts .mono {
+    font-size: 1.25rem;
+    color: var(--blue);
+    font-weight: 500;
+  }
+  @media (min-width: 640px) {
+    .readouts {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (min-width: 1000px) {
+    .dial {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      grid-template-areas:
+        'control demo'
+        'readouts demo'
+        'caption demo';
+      align-items: start;
+      column-gap: var(--s-6);
+      padding: var(--s-4);
+    }
+    .dial-control {
+      grid-area: control;
+    }
+    .dial-demo {
+      grid-area: demo;
+    }
+    .readouts {
+      grid-area: readouts;
+      grid-template-columns: 1fr;
+      align-self: start;
+    }
+    .dial > .caption {
+      grid-area: caption;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .released-bar {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { mulberry32 } from '../../lib/rng';
+  import { releaseCount, attackerCeiling } from '../../lib/laplace';
+
+  const root = document.querySelector<HTMLElement>('[data-privacy-slider]');
+  if (root) {
+    const trueCounts: number[] = JSON.parse(root.dataset.true ?? '[]');
+    const maxY = Number(root.dataset.max);
+    const ih = Number(root.dataset.ih);
+    const range = root.querySelector<HTMLInputElement>('#eps-range')!;
+    const out = root.querySelector<HTMLOutputElement>('#eps-value')!;
+    const bars = Array.from(root.querySelectorAll<SVGRectElement>('.released-bar'));
+    const errOut = root.querySelector<HTMLElement>('[data-readout="error"]')!;
+    const atkOut = root.querySelector<HTMLElement>('[data-readout="attacker"]')!;
+    const redraw = root.querySelector<HTMLButtonElement>('[data-redraw]')!;
+    const LOG_MIN = Math.log10(0.1);
+    const LOG_MAX = Math.log10(10);
+    let seed = 2027;
+
+    const toEps = (pos: number) => 10 ** (LOG_MIN + (pos / 1000) * (LOG_MAX - LOG_MIN));
+    const fmt = (e: number) => (e >= 10 ? e.toFixed(0) : e >= 1 ? e.toFixed(1) : e.toFixed(2));
+    const words = (e: number) => (e < 1 ? 'strong privacy' : e < 3 ? 'moderate privacy' : 'weaker privacy, higher accuracy');
+
+    function render(fresh: boolean) {
+      let eps = toEps(Number(range.value));
+      if (Math.abs(eps - 1) < 0.02) eps = 1; // snap to the default so the label reads 1.0
+      out.value = fmt(eps);
+      range.setAttribute('aria-valuenow', eps.toFixed(2));
+      range.setAttribute('aria-valuetext', `epsilon ${fmt(eps)}, ${words(eps)}`);
+      const rng = mulberry32(fresh ? seed++ : seed);
+      trueCounts.forEach((t, i) => {
+        const r = releaseCount(t, eps, rng);
+        const h = (Math.min(r, maxY) / maxY) * ih;
+        bars[i].setAttribute('y', String(ih - h));
+        bars[i].setAttribute('height', String(h));
+        bars[i].setAttribute('data-tip', `${r} released (true ${t})`);
+      });
+      const err = 1 / eps;
+      errOut.textContent = `± ${err >= 10 ? err.toFixed(0) : err.toFixed(1)}`;
+      atkOut.textContent = `${(attackerCeiling(eps) * 100).toFixed(eps >= 5 ? 1 : 0)}%`;
+    }
+
+    range.addEventListener('input', () => render(false));
+    redraw.addEventListener('click', () => render(true));
+  }
+</script>

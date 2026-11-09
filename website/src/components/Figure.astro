@@ -1,0 +1,109 @@
+---
+// Wraps an SVG chart with its caption, source note and a "View data" toggle.
+interface Props {
+  id: string;
+  title?: string;
+  caption?: string;
+  source?: string; // may contain inline HTML (links)
+  table: string; // HTML table string from dataTable()
+  class?: string;
+}
+const { id, title, caption, source, table, class: cls } = Astro.props;
+---
+
+<figure class:list={['figure', cls]} id={id}>
+  {title && <p class="figure-title">{title}</p>}
+  <div class="figure-body">
+    <slot />
+  </div>
+  <span class="figure-live visually-hidden" aria-live="polite"></span>
+  <figcaption>
+    {caption && <span class="caption">{caption}</span>}
+    {source && <span class="source" set:html={source} />}
+    <button class="view-data" type="button" aria-expanded="false" aria-controls={`${id}-table`}>
+      View data
+    </button>
+  </figcaption>
+  <div class="figure-table" id={`${id}-table`} hidden set:html={table} />
+</figure>
+
+<style>
+  .figure {
+    margin: 0;
+  }
+  .figure-title {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: var(--fs-small);
+    margin-bottom: var(--s-2);
+  }
+  .figure-body {
+    position: relative;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    contain: inline-size;
+  }
+  .figure-body :global(.chart) {
+    min-width: var(--chart-min, 480px);
+  }
+  .figure-body :global(.chart:focus-visible) {
+    outline: 2px solid var(--blue);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  .figure-body :global(.is-focused) {
+    stroke: var(--ink);
+    stroke-width: 2;
+  }
+  .figure-hint {
+    font-size: var(--fs-label);
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  figcaption {
+    margin-top: var(--s-2);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    align-items: baseline;
+  }
+  figcaption .caption,
+  figcaption .source {
+    flex: 1 1 100%;
+  }
+  .view-data {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--fs-label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .view-data:hover {
+    color: var(--blue);
+  }
+  .figure-table {
+    margin-top: var(--s-2);
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r-panel);
+  }
+  .figure-table :global(table) {
+    font-size: var(--fs-caption);
+  }
+  .figure-table :global(th),
+  .figure-table :global(td) {
+    padding: 0.5rem 0.75rem;
+  }
+</style>
+
+<script>
+  import { initFigures } from '../lib/figures';
+  initFigures();
+</script>
