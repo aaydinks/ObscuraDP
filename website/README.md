@@ -80,12 +80,12 @@ Local development: copy `.dev.vars.example` to `.dev.vars`. It uses Cloudflare's
 
 ## Deploy to Cloudflare
 
-The Astro Cloudflare adapter targets Workers with static assets (Cloudflare Pages is no longer supported by the adapter). `wrangler.jsonc` is already configured: the Worker entry is the adapter's server entrypoint, static files are served from `dist/`, and a missing path returns the built `404.html`. The Worker is named `obscuradp`, so the first live URL is `https://obscuradp.<your-subdomain>.workers.dev` until the custom domain is attached.
+The Astro Cloudflare adapter targets Workers with static assets (Cloudflare Pages is no longer supported by the adapter). `wrangler.jsonc` is already configured: the Worker entry is the adapter's server entrypoint, static files are served from `dist/`, and a missing path returns the built `404.html`. The Worker is named `obscura-dp` (the `name` in `wrangler.jsonc` must match the project name in the Cloudflare dashboard exactly, or Workers Builds fails), so the first live URL is `https://obscura-dp.aayushdinker.workers.dev` until the custom domain is attached.
 
 ### Option A: Cloudflare dashboard (Workers Builds), the configured path
 
 1. Workers & Pages → Create → Workers → *Import a repository* → pick `aaydinks/ObscuraDP`.
-2. Build settings: root directory `website`, build command `npm run build`, deploy command `npx wrangler deploy`, build variable `NODE_VERSION` = `22.23.4`, production branch `main`.
+2. Project name `obscura-dp` (must equal the `name` in `wrangler.jsonc`). Build settings: root directory `website`, build command `npm run build`, deploy command `npx wrangler deploy`, build variable `NODE_VERSION` = `22.23.4`, production branch `main`.
 3. Save and deploy. Every push to `main` redeploys; other branches get preview URLs. Make sure you are on the **Workers** tab, not Pages: the Pages form (framework preset, build output directory, `*.pages.dev`) does not work with this adapter.
 
 If you would rather deploy from GitHub Actions, add a workflow that runs `npm ci && npm run build && npx wrangler deploy` in `website/` with a `CLOUDFLARE_API_TOKEN` repository secret (Workers Scripts: Edit, Account Settings: Read) and `CLOUDFLARE_ACCOUNT_ID` set. Do not run both paths at once.
