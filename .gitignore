@@ -220,3 +220,7 @@ __marimo__/
 # --- Experiment 1 (SMOTETomek + FedProx) reproduction ---
 fedprox_env/
 results/*.log
+
+# Trial 07/27 virtualenv and job logs
+obscura_env/
+Trial 07/27/logs/*.log
