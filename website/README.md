@@ -82,21 +82,15 @@ Local development: copy `.dev.vars.example` to `.dev.vars`. It uses Cloudflare's
 
 The Astro Cloudflare adapter targets Workers with static assets (Cloudflare Pages is no longer supported by the adapter). `wrangler.jsonc` is already configured: the Worker entry is the adapter's server entrypoint, static files are served from `dist/`, and a missing path returns the built `404.html`. The Worker is named `obscuradp`, so the first live URL is `https://obscuradp.<your-subdomain>.workers.dev` until the custom domain is attached.
 
-### Option A: GitHub Actions (set up in this repo)
-
-`.github/workflows/deploy-website.yml` builds and deploys on every push to `main` that touches `website/`, and can be run by hand from the Actions tab. It needs one repository secret:
-
-1. GitHub → repository → Settings → Secrets and variables → Actions → *New repository secret*: name `CLOUDFLARE_API_TOKEN`, value: a Cloudflare API token with **Workers Scripts: Edit** and **Account Settings: Read** (create one at dash.cloudflare.com → My Profile → API Tokens, or Manage Account → Account API Tokens). Note the token's expiry date and renew it before then.
-2. The account ID is already in the workflow file (it is not secret).
-3. Merge the website branch into `main`. The workflow runs; if the secret was added after the merge, re-run it from the Actions tab.
-
-### Option B: Cloudflare dashboard (Workers Builds)
+### Option A: Cloudflare dashboard (Workers Builds), the configured path
 
 1. Workers & Pages → Create → Workers → *Import a repository* → pick `aaydinks/ObscuraDP`.
 2. Build settings: root directory `website`, build command `npm run build`, deploy command `npx wrangler deploy`, build variable `NODE_VERSION` = `22.23.4`, production branch `main`.
-3. Save. Every push to `main` redeploys; other branches get preview URLs. If you use this, delete the GitHub Actions workflow so the two do not race.
+3. Save and deploy. Every push to `main` redeploys; other branches get preview URLs. Make sure you are on the **Workers** tab, not Pages: the Pages form (framework preset, build output directory, `*.pages.dev`) does not work with this adapter.
 
-### Option C: from a terminal
+If you would rather deploy from GitHub Actions, add a workflow that runs `npm ci && npm run build && npx wrangler deploy` in `website/` with a `CLOUDFLARE_API_TOKEN` repository secret (Workers Scripts: Edit, Account Settings: Read) and `CLOUDFLARE_ACCOUNT_ID` set. Do not run both paths at once.
+
+### Option B: from a terminal
 
 ```bash
 cd website
