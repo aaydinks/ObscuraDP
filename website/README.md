@@ -70,46 +70,55 @@ Configuration (all four documented here, none in code):
 | `RESEND_API_KEY` | Secret | Cloudflare → Worker → Settings → Variables and Secrets, or `npx wrangler secret put RESEND_API_KEY` | Sends the email. |
 | `TURNSTILE_SECRET_KEY` | Secret | Same as above | Verifies the Turnstile token server-side. If unset, verification is skipped (development only). |
 | `CONTACT_TO_EMAIL` | Variable | `wrangler.jsonc` `vars`, or the dashboard | Inbox that receives messages. |
+| `CONTACT_FROM_EMAIL` | Variable | `wrangler.jsonc` `vars`, or the dashboard | Sender shown on the email. Defaults to Resend's test sender `onboarding@resend.dev`, which only delivers to the Resend account owner's own address. Set `Obscura DP <contact@obscuradp.org>` once the domain is verified in Resend. |
 | `PUBLIC_TURNSTILE_SITE_KEY` | Variable (public) | `wrangler.jsonc` `vars`, or the dashboard | Renders the Turnstile widget. If unset, no widget is rendered. |
 | `CONTACT_MOCK` | Variable (optional) | `.dev.vars` locally | `true` logs the email instead of sending it. |
 
-The `from` address is `contact@obscuradp.org`; verify the `obscuradp.org` domain in Resend first, or change the address in `src/pages/api/contact.ts`.
+Getting the form to deliver mail, in order: (1) create a free Resend account with the inbox address above, (2) create an API key and add it as the `RESEND_API_KEY` secret; messages now arrive via the test sender, (3) later, verify `obscuradp.org` in Resend (Domains, add the DNS records it gives you in the Cloudflare zone) and set `CONTACT_FROM_EMAIL` to `Obscura DP <contact@obscuradp.org>`. Until step 2 the endpoint answers "Email delivery is not configured yet" and the form shows the `mailto:` fallback.
 
 Local development: copy `.dev.vars.example` to `.dev.vars`. It uses Cloudflare's public Turnstile test keys (the widget always passes) and `CONTACT_MOCK=true`.
 
 ## Deploy to Cloudflare
 
-The Astro Cloudflare adapter targets Workers with static assets (Cloudflare Pages is no longer supported by the adapter). `wrangler.jsonc` is already configured: the Worker entry is the adapter's server entrypoint, static files are served from `dist/`, and a missing path returns the built `404.html`.
+The Astro Cloudflare adapter targets Workers with static assets (Cloudflare Pages is no longer supported by the adapter). `wrangler.jsonc` is already configured: the Worker entry is the adapter's server entrypoint, static files are served from `dist/`, and a missing path returns the built `404.html`. The Worker is named `obscuradp`, so the first live URL is `https://obscuradp.<your-subdomain>.workers.dev` until the custom domain is attached.
 
-### One-time setup in the Cloudflare dashboard
+### Option A: GitHub Actions (set up in this repo)
 
-1. **Create the Worker from the repository.** Workers & Pages → Create → Workers → *Import a repository* → pick `aaydinks/ObscuraDP` → connect GitHub if asked.
-2. **Build settings.**
-   - Root directory: `website`
-   - Build command: `npm run build`
-   - Deploy command: `npx wrangler deploy`
-   - Build variable: `NODE_VERSION` = `22.23.4` (the `.node-version` file in `website/` covers this too)
-   - Production branch: `main`
-3. **Variables and secrets.** Worker → Settings → Variables and Secrets.
-   - Add secrets `RESEND_API_KEY` and `TURNSTILE_SECRET_KEY`.
-   - Add plain variables `CONTACT_TO_EMAIL` and `PUBLIC_TURNSTILE_SITE_KEY` (or fill the `vars` block in `wrangler.jsonc` and commit).
-   - `PUBLIC_TURNSTILE_SITE_KEY` is read at build time, so it must also be present as a build variable.
-4. **Turnstile.** Cloudflare dashboard → Turnstile → Add widget → hostname `obscuradp.org` → copy the site key and secret key into the two settings above.
-5. **Resend.** Resend → Domains → add and verify `obscuradp.org` (DNS records go into the Cloudflare zone) → API Keys → create a sending key → `RESEND_API_KEY`.
-6. **Custom domain.** Worker → Settings → Domains & Routes → Add → Custom domain → `obscuradp.org`. Add `www.obscuradp.org` too, or create a redirect rule from `www` to the apex. The zone must already be on Cloudflare.
-7. **Deploy.** Save; Cloudflare builds and deploys. Every later push to `main` redeploys. Pushes to other branches get preview URLs.
+`.github/workflows/deploy-website.yml` builds and deploys on every push to `main` that touches `website/`, and can be run by hand from the Actions tab. It needs one repository secret:
 
-### Deploy from a terminal instead
+1. GitHub → repository → Settings → Secrets and variables → Actions → *New repository secret*: name `CLOUDFLARE_API_TOKEN`, value: a Cloudflare API token with **Workers Scripts: Edit** and **Account Settings: Read** (create one at dash.cloudflare.com → My Profile → API Tokens, or Manage Account → Account API Tokens). Note the token's expiry date and renew it before then.
+2. The account ID is already in the workflow file (it is not secret).
+3. Merge the website branch into `main`. The workflow runs; if the secret was added after the merge, re-run it from the Actions tab.
+
+### Option B: Cloudflare dashboard (Workers Builds)
+
+1. Workers & Pages → Create → Workers → *Import a repository* → pick `aaydinks/ObscuraDP`.
+2. Build settings: root directory `website`, build command `npm run build`, deploy command `npx wrangler deploy`, build variable `NODE_VERSION` = `22.23.4`, production branch `main`.
+3. Save. Every push to `main` redeploys; other branches get preview URLs. If you use this, delete the GitHub Actions workflow so the two do not race.
+
+### Option C: from a terminal
 
 ```bash
 cd website
 npm ci
 npm run build
 npx wrangler login
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put TURNSTILE_SECRET_KEY
 npx wrangler deploy
 ```
+
+### After the first deploy
+
+- **Secrets and variables** (Worker → Settings → Variables and Secrets): add secrets `RESEND_API_KEY` and `TURNSTILE_SECRET_KEY` when those services exist. `CONTACT_TO_EMAIL` and `CONTACT_FROM_EMAIL` are already set in `wrangler.jsonc`; `PUBLIC_TURNSTILE_SITE_KEY` is read at build time, so set it in `wrangler.jsonc` `vars` (or as a build variable) and redeploy.
+- **Turnstile**: Cloudflare dashboard → Turnstile → Add widget → hostname `obscuradp.org` → copy the site key into `PUBLIC_TURNSTILE_SITE_KEY` and the secret key into `TURNSTILE_SECRET_KEY`.
+- **Resend**: see the contact-form section above.
+- **Custom domain**: the `obscuradp.org` zone must first be added to the Cloudflare account (Add a domain, then point the registrar's nameservers at Cloudflare). Then either Worker → Settings → Domains & Routes → Add → Custom domain → `obscuradp.org` (and `www.obscuradp.org`), or add to `wrangler.jsonc` and redeploy:
+
+  ```jsonc
+  "routes": [
+    { "pattern": "obscuradp.org", "custom_domain": true },
+    { "pattern": "www.obscuradp.org", "custom_domain": true }
+  ]
+  ```
 
 ## Privacy and analytics
 

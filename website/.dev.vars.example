@@ -3,7 +3,9 @@
 PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 # Where contact-form messages are delivered.
-CONTACT_TO_EMAIL=you@example.org
+CONTACT_TO_EMAIL=aayushdinker@gmail.com
+# Sender. Resend's test sender only delivers to the Resend account owner; use contact@obscuradp.org once the domain is verified.
+CONTACT_FROM_EMAIL=Obscura DP <onboarding@resend.dev>
 # Leave RESEND_API_KEY unset locally and set CONTACT_MOCK=true to log instead of sending.
 CONTACT_MOCK=true
 # RESEND_API_KEY=re_xxxxxxxxx

@@ -5,7 +5,7 @@ Usage:
     python3 scripts/extract-brand.py path/to/deck.pdf
 
 Requires `pdfimages` (poppler-utils) and Pillow. Writes:
-    src/assets/brand/logo.png   (full logo with alpha, cropped)
+    src/assets/brand/logo.png   (full logo with alpha, cropped; Astro makes the web sizes)
     src/assets/brand/mark.png   (logo mark with alpha, cropped)
     src/assets/brand/founder.png
     public/favicon.ico, public/favicon.svg (kept), public/apple-touch-icon.png
@@ -41,8 +41,17 @@ def with_alpha(image: Path, mask: Path | None) -> Image.Image:
         im.putalpha(m)
     else:
         im = im.convert("RGBA")
-    bbox = im.getchannel("A").getbbox() if "A" in im.getbands() else im.getbbox()
-    return im.crop(bbox) if bbox else im
+    # Crop to the solid shapes (alpha above ~43%) plus a small margin, so the soft
+    # glow does not pad the box and shrink the logo at header sizes.
+    alpha = im.getchannel("A")
+    solid = alpha.point(lambda a: 255 if a > 110 else 0)
+    bbox = solid.getbbox() or alpha.getbbox()
+    if not bbox:
+        return im
+    pad_x = int((bbox[2] - bbox[0]) * 0.04)
+    pad_y = int((bbox[3] - bbox[1]) * 0.08)
+    box = (max(0, bbox[0] - pad_x), max(0, bbox[1] - pad_y), min(im.width, bbox[2] + pad_x), min(im.height, bbox[3] + pad_y))
+    return im.crop(box)
 
 
 def main() -> None:
@@ -62,7 +71,6 @@ def main() -> None:
         for name, (img, mask) in PAIRS.items():
             out = with_alpha(Path(tmp) / img, Path(tmp) / mask)
             out.save(BRAND / f"{name}.png", optimize=True)
-            out.save(BRAND / f"{name}.webp", quality=92, method=6)
             print(f"{name}: {out.size} -> {BRAND / (name + '.png')}")
         portrait = Image.open(Path(tmp) / PORTRAIT).convert("RGB")
         portrait.save(BRAND / "founder.png", optimize=True)

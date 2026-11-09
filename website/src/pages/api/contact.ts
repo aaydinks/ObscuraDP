@@ -2,7 +2,7 @@
 // 1. Validate fields and the honeypot. 2. Check the Turnstile token.
 // 3. Email the message with Resend. 4. Store nothing.
 import type { APIRoute } from 'astro';
-import { RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_TO_EMAIL, CONTACT_MOCK } from 'astro:env/server';
+import { RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_TO_EMAIL, CONTACT_FROM_EMAIL, CONTACT_MOCK } from 'astro:env/server';
 
 export const prerender = false;
 
@@ -85,7 +85,7 @@ export const POST: APIRoute = async ({ request }) => {
     method: 'POST',
     headers: { authorization: `Bearer ${RESEND_API_KEY}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      from: 'Obscura DP website <contact@obscuradp.org>',
+      from: CONTACT_FROM_EMAIL,
       to: [to],
       reply_to: email,
       subject,
