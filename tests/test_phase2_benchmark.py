@@ -121,3 +121,85 @@ def test_interval_helper() -> None:
     assert stat["high"] - stat["mean"] == pytest.approx(0.2484, abs=1e-3)
     assert common.mean_and_interval([0.5])["n"] == 1
     assert common.mean_and_interval([float("nan")])["n"] == 0
+
+
+# --------------------------------------------------------------------------- the stored results
+
+RESULTS = ROOT / "benchmarks" / "results" / "phase2"
+MEMO = ROOT / "docs" / "GATE_PHASE2.md"
+
+
+@pytest.fixture(scope="module")
+def summary() -> dict:  # type: ignore[type-arg]
+    import json
+
+    if not (RESULTS / "summary.json").is_file():
+        pytest.skip("the Phase 2 results are not present")
+    return json.loads((RESULTS / "summary.json").read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+
+
+def test_the_stored_summary_covers_the_whole_grid_and_passed_its_checks(summary: dict) -> None:  # type: ignore[type-arg]
+    assert summary["runs"] == 200
+    assert summary["failed_checks"] == []
+    assert len(list((RESULTS / "runs").glob("*.json"))) == 200
+    rows = summary["rows"]
+    assert len(rows) == 40
+    assert all(row["seeds"] == [42, 43, 44, 45, 46] for row in rows)
+    protected = [row for row in rows if row["epsilon"] is not None]
+    assert len(protected) == 32
+    for row in protected:
+        assert row["all_within_budget"]
+        assert row["unsafe_flags"] == []
+        assert row["epsilon_spent_max"] <= row["epsilon"]
+        assert row["epsilon_spent_max"] > 0.99 * row["epsilon"]
+    masked = [row for row in rows if row["secure_sum"]]
+    assert all(0.46 < row["upload_ratio"] < 0.5 for row in masked)  # the bytes target
+    assert all(row["saturated_share_max"] == 0.0 for row in masked)
+
+
+def test_one_stored_run_verifies_from_its_own_recorded_releases() -> None:
+    import json
+
+    path = RESULTS / "runs" / "stroke_logistic_eps-1_masked_seed-42.json"
+    if not path.is_file():
+        pytest.skip("the Phase 2 results are not present")
+    record = json.loads(path.read_text(encoding="utf-8"))
+    validate_result(record)
+    stored = record["data"]["privacy_report"]
+    assert odp.verify_report(stored) == []
+    assert stored["policy"]["epsilon"] == 1.0
+    assert record["data"]["communication"]["setup_bytes"] == 160.0
+    # Tampering with a stored result is noticed.
+    stored["scopes"][0]["events"][0]["noise_multiplier"] /= 2
+    assert odp.verify_report(stored) != []
+
+
+def test_the_gate_memo_quotes_the_stored_numbers(summary: dict) -> None:  # type: ignore[type-arg]
+    if not MEMO.is_file():
+        pytest.skip("the gate memo is not present")
+    memo = MEMO.read_text(encoding="utf-8")
+    assert report.headline_markdown(summary["rows"]) in memo
+    assert chr(0x2014) not in memo
+    earlier = {
+        e["label_epsilon_per_round"]: e
+        for e in summary["earlier_results"]["stroke_frontier_fedprox_dp"]
+    }
+    for label in (0.5, 1.0, 9.0, 50.0):
+        entry = earlier[label]
+        recall = f"{entry['recall']['mean']:.3f} ± {entry['recall']['std']:.3f}"
+        whole_run = f"{entry['whole_run_epsilon_by_old_code_max']:.1f}"
+        assert f"| {label:g} | {whole_run} | {recall} |" in memo
+
+
+@pytest.mark.slow
+def test_the_stored_summary_is_what_the_report_script_produces(summary: dict) -> None:  # type: ignore[type-arg]
+    """Rebuild the rows from the stored runs and compare a few of them with the stored file."""
+    runs, problems = report.load_runs()
+    assert problems == []
+    rebuilt = {
+        (r["dataset"], r["model"], r["epsilon"], r["secure_sum"]): r for r in report.summarize(runs)
+    }
+    for row in summary["rows"]:
+        fresh = rebuilt[(row["dataset"], row["model"], row["epsilon"], row["secure_sum"])]
+        assert fresh["test_auc"]["mean"] == pytest.approx(row["test_auc"]["mean"], abs=1e-12)
+        assert fresh["upload_ratio"] == row["upload_ratio"]

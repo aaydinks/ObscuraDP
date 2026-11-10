@@ -60,6 +60,9 @@ public interface.
 - `obscuradp.crypto.ckks` (research only, refused unless `allow_unsafe=True`) and
   `obscuradp.selection.policy` (which numbers to encrypt, chosen without leaking through the choice).
 - New dependency: `cryptography`. `dp-accounting` is limited to versions below 0.7 for now.
+- Phase 2 results (`benchmarks/results/phase2/`, `docs/GATE_PHASE2.md`): the research experiments run again
+  with one total privacy budget per run, no synthetic rows and held-out rows at their natural mix. They
+  replace the earlier Trial 07/27 numbers, whose budgets were per round.
 
 ### Changed
 

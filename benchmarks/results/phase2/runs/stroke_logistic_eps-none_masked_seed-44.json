@@ -1,0 +1,186 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "clip_norm": 1.0,
+   "dataset": "stroke",
+   "epsilon": null,
+   "learning_rate": 0.05,
+   "model": "logistic",
+   "rounds": 20,
+   "secure_sum": true,
+   "seed": 44
+  },
+  "choose_threshold": true,
+  "clients": {
+   "site-0": 264,
+   "site-1": 328,
+   "site-2": 93,
+   "site-3": 378,
+   "site-4": 2373
+  },
+  "learning_rate": 0.05,
+  "local_epochs": 3.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.029,
+   "proximal_mu": 0.0,
+   "secure_sum": {
+    "kind": "PairwiseMasking",
+    "value_bits": 12,
+    "value_range": 1.0
+   }
+  },
+  "policy": null,
+  "rounds": 20,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "balanced_rows": 64,
+  "communication": {
+   "bits_per_value": 15.0,
+   "plain_bytes_per_round": 84.0,
+   "ratio": 0.47619047619047616,
+   "saturated_share": 0.0,
+   "setup_bytes": 160.0,
+   "upload_bytes_per_round": 40.0
+  },
+  "history": [
+   {
+    "accuracy": 0.8410326086956522,
+    "ap": 0.19420230758577453,
+    "auc": 0.8105912642045454,
+    "f1": 0.2251655629139073,
+    "loss": 0.38787737294707403,
+    "precision": 0.14285714285714285,
+    "pred_pos_rate": 0.16168478260869565,
+    "recall": 0.53125,
+    "round": 5
+   },
+   {
+    "accuracy": 0.7921195652173914,
+    "ap": 0.1867610980039281,
+    "auc": 0.8141867897727273,
+    "f1": 0.19047619047619047,
+    "loss": 0.42222204483053655,
+    "precision": 0.11464968152866242,
+    "pred_pos_rate": 0.21331521739130435,
+    "recall": 0.5625,
+    "round": 10
+   },
+   {
+    "accuracy": 0.8206521739130435,
+    "ap": 0.19860767088824166,
+    "auc": 0.8162286931818182,
+    "f1": 0.2235294117647059,
+    "loss": 0.37553627641046367,
+    "precision": 0.13768115942028986,
+    "pred_pos_rate": 0.1875,
+    "recall": 0.59375,
+    "round": 15
+   },
+   {
+    "accuracy": 0.7595108695652174,
+    "ap": 0.2001616903309859,
+    "auc": 0.8153852982954546,
+    "f1": 0.17674418604651163,
+    "loss": 0.44444366573198046,
+    "precision": 0.10382513661202186,
+    "pred_pos_rate": 0.24864130434782608,
+    "recall": 0.59375,
+    "round": 20
+   }
+  ],
+  "label": "stroke_logistic_eps-none_masked_seed-44",
+  "noise_multipliers": {},
+  "privacy_report": null,
+  "seconds": 1.8261589660000936,
+  "test": {
+   "accuracy": 0.748641304347826,
+   "ap": 0.21901087936961075,
+   "auc": 0.8368696732954546,
+   "f1": 0.19213973799126638,
+   "loss": 0.4625104787037729,
+   "precision": 0.1116751269035533,
+   "pred_pos_rate": 0.26766304347826086,
+   "recall": 0.6875
+  },
+  "test_at_chosen_threshold": {
+   "accuracy": 0.9198369565217391,
+   "ap": 0.21901087936961075,
+   "auc": 0.8368696732954546,
+   "f1": 0.3058823529411765,
+   "loss": 0.4625104787037729,
+   "precision": 0.24528301886792453,
+   "pred_pos_rate": 0.07201086956521739,
+   "recall": 0.40625
+  },
+  "test_balanced": {
+   "accuracy": 0.71875,
+   "ap": 0.799407975022911,
+   "auc": 0.830078125,
+   "f1": 0.7096774193548387,
+   "loss": 0.4966736654316941,
+   "precision": 0.7333333333333333,
+   "pred_pos_rate": 0.46875,
+   "recall": 0.6875
+  },
+  "test_balanced_at_chosen_threshold": {
+   "accuracy": 0.65625,
+   "ap": 0.799407975022911,
+   "auc": 0.830078125,
+   "f1": 0.5416666666666666,
+   "loss": 0.4966736654316941,
+   "precision": 0.8125,
+   "pred_pos_rate": 0.25,
+   "recall": 0.40625
+  },
+  "test_positive_rows": 32,
+  "test_rows": 736,
+  "threshold": 0.7705553770065308,
+  "validation": {
+   "accuracy": 0.7595108695652174,
+   "ap": 0.2001616903309859,
+   "auc": 0.8153852982954546,
+   "f1": 0.17674418604651163,
+   "loss": 0.44444366573198046,
+   "precision": 0.10382513661202186,
+   "pred_pos_rate": 0.24864130434782608,
+   "recall": 0.59375
+  }
+ },
+ "kind": "phase2_run",
+ "manifest": {
+  "config_sha256": "8f905cf8f0a3062fc1c348463ca5dc45b63464c0dc502abb7a21a4360cc7aa1b",
+  "cpu_count": 4,
+  "created_utc": "2026-11-10T21:20:41+00:00",
+  "git_commit": "69b96d637811fa6c9da694952c5a6a3f24648a54+dirty",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": "0.14.2",
+   "numpy": "2.4.6",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": "1.6.0",
+   "pandas": "3.0.5",
+   "scikit-learn": "1.9.0",
+   "scipy": "1.17.1",
+   "tenseal": "0.3.16",
+   "torch": "2.13.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v338-x86_64-with-glibc2.39",
+  "python": "3.11.18",
+  "seeds": [
+   44
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}
