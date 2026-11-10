@@ -6,6 +6,6 @@ Status is one of: proposed (waiting for the owner), accepted, replaced.
 | # | Decision | Status |
 |---|---|---|
 | 0001 | Standalone core with an optional Flower adapter | Accepted (owner, 2026-11-10) |
-| 0002 | Privacy unit and how the budget is counted | Proposed |
-| 0003 | Default way to hide individual updates from the server | Proposed |
-| 0004 | Class imbalance without SMOTE inside private training | Proposed |
+| 0002 | Privacy unit and how the budget is counted | Accepted (owner, 2026-11-10) |
+| 0003 | Default way to hide individual updates from the server | Accepted (owner, 2026-11-10) |
+| 0004 | Class imbalance without SMOTE inside private training | Accepted (owner, 2026-11-10) |

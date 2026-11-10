@@ -198,7 +198,8 @@ Gate decisions: see `docs/ROADMAP_STATUS.md`, "Decisions needed".
   **(added)** `website/src/data/claims.json` and a build check that every number in copy matches its results
   field (G23). Build sdist and wheel, `twine check`, TestPyPI, install test on three operating systems, a
   timed fresh-machine quickstart, then PyPI by Trusted Publishing **only after the owner's go-ahead**. v0.1 is
-  labelled "research preview, not independently audited".
+  labelled "Prerun + novel research action" (the owner's wording). The README and docs also state plainly that the code has not
+  been independently audited.
 
 ## Phase 7, after release (added)
 

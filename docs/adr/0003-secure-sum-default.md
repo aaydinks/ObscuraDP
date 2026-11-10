@@ -1,6 +1,6 @@
 # 0003. Default way to hide individual updates from the server
 
-Status: proposed, for the Phase 0 gate.
+Status: accepted by the owner on 2026-11-10.
 
 ## Context
 

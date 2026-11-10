@@ -60,7 +60,13 @@ Writing rules (the owner's preferences, apply to every file you write and every 
 | Website | **Propose, then edit** | When the site disagrees with the math or the code, list each mismatch with reasoning in the PR, then fix the copy in the same PR so the site and library stay in sync. |
 | Package name | `obscuradp` on PyPI | Verified free as of 2026-11-10 (`obscura` is taken; `obscuradp` and `obscura-dp` normalize to the same free name). Reserve it on TestPyPI first. |
 | Session plan | `docs/ROADMAP.md` (approved 2026-11-10) | 22 sessions, cut order and never-cut list are fixed there. |
-| License | Apache-2.0 (default) | Patent grant matters for a privacy and crypto library. The website promises "permissively licensed". If the owner prefers MIT, they will say so in review. |
+| License | Apache-2.0 (confirmed 2026-11-10) | Patent grant matters for a privacy and crypto library. |
+| Secure sum | Pairwise masking over integers by default; exact BFV optional; CKKS `research_only` | `docs/adr/0003-secure-sum-default.md`. |
+| Privacy unit | One record, one total budget per run, PLD accountant with RDP cross-check | `docs/adr/0002-privacy-unit-and-budget.md`. |
+| Imbalance | SMOTE refused inside private training unless forced; class weighting instead | `docs/adr/0004-imbalance-without-smote.md`. |
+| Datasets | The two CSV files stay in the repository for now; the package never ships data | Add source and license notes if they can be found (S17). |
+| Targets | Attacker advantage is a measured target beside two ceilings; bytes are counted against 32-bit plain messages | `docs/KPI_MAPPING.md`. |
+| Release label | "Prerun + novel research action" | Owner's wording for v0.1. |
 
 ---
 
@@ -282,8 +288,9 @@ real deployment is a configuration change, not a rewrite.
 - Membership, gradient-inversion and attribute-inference audits shipped and run on the benchmark.
 - The pre-registered CPU benchmark published with code, configs, results and privacy reports.
 - Docs site live; website claims match the library and results; Trial 07/27 on `/research`.
-- Apache-2.0 (or the owner's choice) license, CITATION, SECURITY policy, CHANGELOG, tagged release,
-  labelled "research preview, not independently audited".
+- Apache-2.0 license, CITATION, SECURITY policy, CHANGELOG, tagged release, labelled
+  "Prerun + novel research action" (the owner's wording), with a plain statement that there has been no
+  independent audit.
 
 ---
 

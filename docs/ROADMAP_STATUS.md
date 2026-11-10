@@ -2,28 +2,29 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): Phase 0 is done and waiting at its GATE.** Do not start S3 or S4 until the
-owner has answered "Decisions needed" below.
+**Current state (2026-11-10): the Phase 0 gate is closed.** All eight decisions are answered (below). S3
+(website statements that are false today, plus the license file) is being handled in its own pull request.
+S4 (packaging, tooling, CI) is the session in progress.
 
-## Decisions needed (Phase 0 gate)
+## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
-| # | Decision | Recommendation | Where it is argued | Answer |
-|---|---|---|---|---|
-| 1 | License | Apache-2.0 | `NEXT_STEPS_PROMPT.md`, section 1 | open |
-| 2 | Default way to hide individual updates from the server | Pairwise masking over integers; exact BFV optional; CKKS `research_only` | `adr/0003-secure-sum-default.md` | open |
-| 3 | Privacy unit and counting | One record; one total budget per run; PLD accountant with RDP cross-check | `adr/0002-privacy-unit-and-budget.md` | open |
-| 4 | Class imbalance | Refuse SMOTE inside private training unless forced; class weighting instead | `adr/0004-imbalance-without-smote.md` | open |
-| 5 | Dataset files in the repository | Keep for now, add source and license notes if they can be found, never ship them in the package | `AUDIT.md`, G10 | open |
-| 6 | Wording of the attacker-advantage and bytes targets | Measured target beside two ceilings; bytes defined against 32-bit plain messages | `KPI_MAPPING.md` | open |
-| 7 | When to fix the 12 website statements that are false today | Next session (S3), together with adding the license file | `WEBSITE_MISMATCHES.md`, "Fix now" | open |
-| 8 | Release label | "Research preview, not independently audited" for v0.1 | `RISK_REGISTER.md`, risk 10 | open |
+| # | Decision | Answer |
+|---|---|---|
+| 1 | License | Apache-2.0 |
+| 2 | Default way to hide individual updates from the server | Pairwise masking over integers; exact BFV optional; CKKS `research_only` (`adr/0003-secure-sum-default.md`) |
+| 3 | Privacy unit and counting | One record; one total budget per run; PLD accountant with RDP cross-check (`adr/0002-privacy-unit-and-budget.md`) |
+| 4 | Class imbalance | SMOTE refused inside private training unless forced; class weighting instead (`adr/0004-imbalance-without-smote.md`) |
+| 5 | Dataset files in the repository | Stay for now; add source and license notes if they can be found; never shipped in the package |
+| 6 | Wording of the attacker-advantage and bytes targets | As proposed in `KPI_MAPPING.md`: a measured target beside two ceilings; bytes counted against 32-bit plain messages |
+| 7 | The 12 website statements that are false today | Fixed now, in a separate pull request that is merged automatically once its checks pass |
+| 8 | Release label for v0.1 | "Prerun + novel research action" (owner's wording) |
 
 ## Session checklist
 
 - [x] **S1, Phase 0.** Audit, baseline reproduction, threat model, target definitions, website wording
-      list, risk list, decision records, roadmap. Draft PR aaydinks/ObscuraDP#8. **GATE open.**
+      list, risk list, decision records, roadmap. Draft PR aaydinks/ObscuraDP#8. Gate closed 2026-11-10.
 - [ ] S2, spare for changes requested at the gate
-- [ ] S3, Phase 0.5: `LICENSE` and website items 1 to 12 (only if decision 7 says so)
+- [ ] S3, Phase 0.5: `LICENSE` and website items 1 to 12. In progress in its own pull request
 - [ ] S4, Phase 1: packaging, tooling, CI
 - [ ] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation
 - [ ] S6, Phase 1: port the rest; `sim/legacy.py`; smoke checks as tests; results manifest

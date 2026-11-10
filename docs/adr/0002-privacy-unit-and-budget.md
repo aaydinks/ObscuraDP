@@ -1,6 +1,6 @@
 # 0002. Privacy unit and how the budget is counted
 
-Status: proposed, for the Phase 0 gate.
+Status: accepted by the owner on 2026-11-10.
 
 ## Context
 
