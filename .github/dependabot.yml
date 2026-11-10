@@ -39,3 +39,8 @@ updates:
       website:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # The Astro type checker (@astrojs/check) accepts TypeScript 5 and 6 only. Remove this
+      # rule once a released version of it accepts TypeScript 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]

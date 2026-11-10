@@ -2,9 +2,9 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1, S3, S4 and S5 are done. The next session is S6** (port the private
-training step, encryption, masks and benchmarks; keep the old loop verbatim in `obscuradp.legacy`; results
-manifest). No gate is open.
+**Current state (2026-11-10): S1 and S3 to S6 are done (Phase 0 and Phase 1 complete). The next session is
+S7** (privacy policy, ledger, report and accountants). No gate is open. Each step's pull request is merged
+by the agent once all its checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -26,8 +26,10 @@ manifest). No gate is open.
 - [ ] S2, spare for changes requested at the gate
 - [x] S3, Phase 0.5: `LICENSE` and website items 1 to 12. aaydinks/ObscuraDP#9, merged as `37b924c`
 - [x] S4, Phase 1: packaging, tooling, CI. aaydinks/ObscuraDP#8, merged as `fbbf42d`
-- [x] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation
-- [ ] S6, Phase 1: port the rest; `sim/legacy.py`; smoke checks as tests; results manifest
+- [x] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation.
+      aaydinks/ObscuraDP#21, merged as `544ffba`
+- [x] S6, Phase 1: port the rest; old loop kept verbatim in `obscuradp.legacy`; smoke checks as tests;
+      results manifest
 - [ ] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
 - [ ] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
 - [ ] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
@@ -44,6 +46,79 @@ manifest). No gate is open.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S6 log (2026-11-10)
+
+### What was done
+
+- **`obscuradp.legacy` is now the whole Trial 07/27 pipeline**, copied with the settings passed in and the
+  optional libraries imported lazily: `dp` (noise multiplier and both budget figures), `training` (one
+  local round, plain or Opacus DP-SGD, with the FedProx term), `he` (CKKS context and aggregation),
+  `sensitivity` (mask scoring), `aggregate` (the plain, encrypted and partly encrypted switch), `loop`
+  (`run_stack`, line for line) and `bench`. Every known defect is kept and named in the docstrings with
+  its finding number.
+- **New clean modules** (numpy and torch only): `obscuradp.selection.masks`, `obscuradp.crypto.chunking`,
+  `obscuradp.bench.payload`, `obscuradp.seeding` (fixes G17 for new code) and `obscuradp.results`
+  (results schema v1 with a reproducibility manifest; closes G26 for new results).
+- **Tests**: 134 more, for 253 in total.
+- **CI**: the comparison job runs the whole suite once and fails if coverage of the library is under 80%.
+- The dependency bot no longer proposes TypeScript major versions for the website (see below).
+
+### What was verified and how
+
+- 253 tests pass with the research code's pinned versions (Python 3.11, CPU-only build), coverage of
+  `src/obscuradp` 97%, in under 3 minutes. With the newest versions and no optional packages (Python 3.13)
+  111 unit tests pass and the comparison tests skip.
+- **Bit for bit equal to the research code** (same process, one thread):
+  - noise multipliers, per-round and whole-run budgets and noise level for 6 participant sizes and 4
+    budgets;
+  - the weights after one local round for both datasets, plain and private, with and without the FedProx
+    term;
+  - mask scores and masks in the three modes at four fractions, and every mask helper;
+  - the complete result record of `run_stack` (every metric of every round, every privacy number, the
+    mask and size fields; only wall-clock times excluded) for the `plain` and `dp` stacks on both datasets
+    with both algorithms, plus two other budgets, another seed and a wider model.
+- **Encrypted stacks** (`he`, `dp_he`, `dp_spe`, both datasets, three mask modes): settings, privacy
+  numbers, mask, chunk count and encrypted fraction exactly equal; ciphertext bytes within 0.1%; metrics of
+  every round within $10^{-3}$; the encrypted average within $10^{-4}$ of the plain one in a free 3-round
+  run. With the same recorded client states fed to both aggregators, results agree within $10^{-6}$ with
+  each other and with the plain reference, and entries averaged in the clear are bit for bit equal.
+- The research smoke checks are now tests, including two the research code did not have: unequal weights
+  really are applied under encryption (the result differs from the unweighted mean by more than $10^{-2}$),
+  and a second multiplication on a ciphertext fails with "scale out of bounds", as the write-up states.
+- The four sha256 prefixes printed in `Trial 07/27/VERIFICATION.md` are compared with the files by a test
+  (closes G19).
+- The comparison tests can fail: changing the per-participant seed formula by one digit in the copied loop
+  made all 14 selected loop comparisons fail. The change was reverted.
+- `ruff check`, `ruff format --check`, strict `mypy` (on Python 3.11 and 3.13), the ignore-rule guard, the
+  research fingerprint check, the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- The copied code lives in the subpackage `obscuradp.legacy` (see the S5 log), with the loop in
+  `legacy/loop.py`.
+- The copied `make_mask` refuses the random mode without a seed. The research code would silently draw an
+  unseeded mask there. The loop always passes a seed, so no result changes.
+- The copied `get_sigma` cache also keys on $\delta$, so changing $\delta$ can no longer return a stale
+  value. Results for the research $\delta$ are unchanged (tested).
+- The third comparison tier (frozen numbers for macOS and Windows) is still not needed: the comparisons
+  run live on Linux, and the unit tests of the clean modules run on all three systems.
+
+### Pull requests cleared before this step (2026-11-10)
+
+| PR | What | Outcome |
+|---|---|---|
+| aaydinks/ObscuraDP#10 to #14 | GitHub Actions version bumps from the dependency bot | Merged in order, each with all checks green. #11 conflicted with #10; a helper agent merged `main` into its branch, keeping both bumps, and its checks passed again before the merge. |
+| aaydinks/ObscuraDP#15, #16, #18, #19, #20 | Version bumps that touch the frozen research folders or the pins that reproduce the old results | Closed unmerged (owner's decision). The bot configuration now excludes those paths. |
+| aaydinks/ObscuraDP#17 | TypeScript 5.9 to 7.0 for the website | Closed unmerged. A helper agent reproduced the failure: the Astro type checker `@astrojs/check` 0.9.12 (the newest version of any kind on 2026-11-10) accepts TypeScript 5 and 6 only, so `npm ci` cannot resolve. No fix exists without forcing an unsupported combination. The bot now ignores TypeScript major versions; the rule should be removed when the checker supports TypeScript 7. A bump to TypeScript 6 builds cleanly and could be done separately. |
+| aaydinks/ObscuraDP#21 | Step 5 | Merged as `544ffba` after `main` was merged in and all 9 checks passed again. |
+
+Left for the owner: the merged remote branch `cu/trusting-pasteur-sms0ou-s03-website` can be deleted.
+
+### Open items
+
+- The start-up script of the "ObscuraDP" cloud environment has still not been exercised by a fresh session.
+- TestPyPI setup by the owner (see the S4 log).
 
 ## S5 log (2026-11-10)
 
