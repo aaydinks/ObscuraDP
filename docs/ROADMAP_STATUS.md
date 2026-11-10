@@ -2,10 +2,10 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1 and S3 to S7 are done (Phase 0 and Phase 1 complete, Phase 2 started). The
-next session is S8** (the library's own private training step and its safety tests). No gate is open. Each
-step's pull request is merged by the agent once all its checks are green (owner's decision, 2026-11-10);
-work stops at the S11 gate.
+**Current state (2026-11-10): S1 and S3 to S8 are done (Phase 0 and Phase 1 complete, Phase 2 under way). The
+next session is S9** (validation split, preprocessing from declared bounds, class weighting, unsafe flags
+and the new `Simulation`). No gate is open. Each step's pull request is merged by the agent once all its
+checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -31,8 +31,9 @@ work stops at the S11 gate.
       aaydinks/ObscuraDP#21, merged as `544ffba`
 - [x] S6, Phase 1: port the rest; old loop kept verbatim in `obscuradp.legacy`; smoke checks as tests;
       results manifest. aaydinks/ObscuraDP#23, merged as `b62ad69`
-- [x] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
-- [ ] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
+- [x] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`. aaydinks/ObscuraDP#24,
+      merged as `249308b`
+- [x] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
 - [ ] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
 - [ ] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks
 - [ ] S11, Phase 2: corrected re-runs, old against new. **GATE**
@@ -47,6 +48,78 @@ work stops at the S11 gate.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S8 log (2026-11-10)
+
+### What was done
+
+- **`obscuradp.mechanisms`**: `sampling` (each record joins each step independently with probability $q$),
+  `noise` (Gaussian noise; a stream seeded from the operating system for real data) and `dpsgd` (the
+  gradient of every record separately through `torch.func`, one joint clipping norm over all parameters,
+  noise on the sum, division by the fixed number $q \cdot n$).
+- **`obscuradp.client.train_private_round`**: one participant's private round. It charges the whole round
+  to the ledger before it draws a single random number, takes the records as tensors and draws every batch
+  itself, takes a noise-only step when a batch is empty (closes G27 for new code), supports the FedProx
+  term and any torch optimizer, and offers an observer hook for audits.
+- **`obscuradp.audit.bounds`**: turns an attack's results into a lower limit on the true budget, either from
+  exact error counts with no assumptions or, when the attacker's score is Gaussian by construction, from
+  the separation of the two score distributions.
+- Budgets of repeated identical settings are now remembered (many participants and rounds share them).
+- `scipy` is declared as a dependency (it was already installed through `dp-accounting`).
+- **Tests**: 76 more, for 424 in total.
+
+### What was verified and how
+
+- **Three independent per-record gradient implementations agree to $10^{-6}$**: the library's engine,
+  Opacus and a loop with one backward pass per record, on the stroke and loan networks, logistic
+  regression and a deeper network, three seeds each (12 cases). The clipped sums agree too, also against
+  what Opacus hands its own optimizer.
+- **One record never moves the clipped sum by more than the clipping norm**: property test on real
+  gradients at input scales from $10^{-3}$ to $10^{3}$ (40 generated cases). Records whose gradient is not
+  a finite number contribute nothing.
+- **Noise level**: on 61,500 noisy coordinates the spread is $\sigma C / (q n)$ within 1.5%, each
+  coordinate is centred on the clipped sum over the fixed divisor, and coordinates are uncorrelated.
+- **Sampling**: inclusion frequency, batch-size mean and variance, the share of empty batches and
+  independence between steps match Poisson sampling.
+- **The trainer replayed from its seeds**: batches, clipped sums, noise and the fixed divisor of every step
+  reproduce the trainer's weights to $10^{-6}$. A refused round changes nothing and draws nothing.
+- **Attack check, every pull request** (2 full-batch steps, ledger budget 1.0, 2,000 runs with and 2,000
+  without the target record, attacker sees every noisy gradient): the attack proves a budget of at least
+  0.46 at 99.9% confidence (point estimate 0.87), below the ledger's 1.0 and close enough to show the
+  accounting is not loose.
+- **Planted defects are caught by that check**: with half the reported noise, and with clipping at three
+  times the reported norm, the proven budget exceeds 1.5 times the ledger's figure.
+- **Attack check, nightly** (Poisson sampling at rate 0.5, 8 steps, a small network, exact error counts,
+  threshold chosen on one half of the runs and scored on the other): proven 2.2 against a ledger figure of
+  13.1 (98 s).
+- Speed: after start-up, one round of 65 steps on a 683-row table takes 0.16 s (2.4 ms per step) on one
+  CPU thread, against 2.0 ms per step for Opacus.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- The fallback (keep Opacus as the mechanism) was not needed.
+- The third gradient implementation is a plain loop in the tests. The loop inside
+  `obscuradp.legacy.sensitivity` cannot be called on its own (it clips, averages and adds noise in the same
+  function).
+- The divisor is $q$ times the **declared** dataset size (`declared_records`, by default the actual size).
+  The guarantee treats that number as public. The audits pass the same declared size in both worlds.
+- The attack check that runs on every pull request uses full batches, where the best attack and its exact
+  Gaussian form are known, so 4,000 runs suffice to catch a factor of two in the noise. The sampled check
+  makes no such assumption and is therefore much less sharp; it runs nightly.
+- "Shuffled fixed-size loaders are refused" holds by design: the trainer accepts tensors only.
+- The three slow tests (the two full reference tables of S7 and the sampled attack of S8, about 2.5 minutes
+  together) run in the nightly job only, as their marker says. The comparison job on pull requests now
+  leaves them out; it ran the S7 ones once, in aaydinks/ObscuraDP#24.
+
+### Open items
+
+- Floating-point Gaussian noise has known weaknesses against an attacker who can read exact low-order bits
+  (G16). The integer noise path is S13; `mechanisms/noise.py` says so.
+- Nothing yet calls the trainer for a whole federation. That is the `Simulation` of S9.
+- Carried forward: the start-up script of the "ObscuraDP" cloud environment is untested by a fresh session;
+  TestPyPI setup by the owner.
 
 ## S7 log (2026-11-10)
 

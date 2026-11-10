@@ -32,6 +32,8 @@ dependencies = [
   "torch>=2.3",
   # Privacy accountants (PLD and RDP). Pure Python apart from its small dm-tree dependency.
   "dp-accounting>=0.6",
+  # Exact confidence limits for the attack-based checks. Already required by dp-accounting.
+  "scipy>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -105,7 +107,12 @@ markers = [
   "slow: takes more than a few seconds; runs in the nightly job",
   "integration: needs optional extras or the old research code",
 ]
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # torch prints this once on virtual Macs (hosted CI machines) the first time it looks for a
+  # graphics chip. It says nothing about this library.
+  "ignore:Skipping device Apple Paravirtual device:UserWarning",
+]
 xfail_strict = true
 
 [tool.coverage.run]
@@ -149,6 +156,14 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 # Optional libraries without type information. They are imported lazily, only by the
-# comparison code in obscuradp.legacy and by optional backends.
-module = ["pandas.*", "sklearn.*", "imblearn.*", "tenseal.*", "opacus.*", "dp_accounting.*"]
+# comparison code in obscuradp.legacy and by optional backends. scipy ships no type information.
+module = [
+  "pandas.*",
+  "sklearn.*",
+  "imblearn.*",
+  "tenseal.*",
+  "opacus.*",
+  "dp_accounting.*",
+  "scipy.*",
+]
 ignore_missing_imports = true

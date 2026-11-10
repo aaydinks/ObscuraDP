@@ -94,7 +94,8 @@ jobs:
       - name: Research folders are unchanged
         run: python tools/freeze_research.py --check
       - name: Old and new code give identical results; coverage of the library at least 80%
-        run: pytest -rs --cov --cov-report=term --cov-fail-under=80
+        # Slow tests (more than a minute each) run in the nightly workflow with the same pins.
+        run: pytest -m "not slow" -rs --cov --cov-report=term --cov-fail-under=80
 
   build:
     name: Build and check the package
