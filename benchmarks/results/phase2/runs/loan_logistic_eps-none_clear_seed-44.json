@@ -1,0 +1,182 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "clip_norm": 1.0,
+   "dataset": "loan",
+   "epsilon": null,
+   "learning_rate": 0.5,
+   "model": "logistic",
+   "rounds": 20,
+   "secure_sum": false,
+   "seed": 44
+  },
+  "choose_threshold": true,
+  "clients": {
+   "site-0": 598,
+   "site-1": 598,
+   "site-2": 598,
+   "site-3": 598,
+   "site-4": 597
+  },
+  "learning_rate": 0.5,
+  "local_epochs": 3.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "NoRebalancing",
+   "positive_prior": null,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": null,
+  "rounds": 20,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "balanced_rows": 484,
+  "communication": {
+   "bits_per_value": 32.0,
+   "plain_bytes_per_round": 56.0,
+   "ratio": 1.0,
+   "saturated_share": 0.0,
+   "setup_bytes": 0.0,
+   "upload_bytes_per_round": 56.0
+  },
+  "history": [
+   {
+    "accuracy": 0.9140625,
+    "ap": 0.9796828857886757,
+    "auc": 0.96259188504506,
+    "f1": 0.9306431273644389,
+    "loss": 0.24771241565510121,
+    "precision": 0.9341772151898734,
+    "pred_pos_rate": 0.6171875,
+    "recall": 0.9271356783919598,
+    "round": 5
+   },
+   {
+    "accuracy": 0.9125,
+    "ap": 0.9797712957803905,
+    "auc": 0.9630279496656838,
+    "f1": 0.929471032745592,
+    "loss": 0.24072361150518687,
+    "precision": 0.9318181818181818,
+    "pred_pos_rate": 0.61875,
+    "recall": 0.9271356783919598,
+    "round": 10
+   },
+   {
+    "accuracy": 0.9109375,
+    "ap": 0.9798476651584587,
+    "auc": 0.9633186594127663,
+    "f1": 0.9277566539923955,
+    "loss": 0.23961032522412942,
+    "precision": 0.9360613810741688,
+    "pred_pos_rate": 0.6109375,
+    "recall": 0.9195979899497487,
+    "round": 15
+   },
+   {
+    "accuracy": 0.9125,
+    "ap": 0.9799994595423245,
+    "auc": 0.9636924290875867,
+    "f1": 0.9296482412060302,
+    "loss": 0.2377078819928881,
+    "precision": 0.9296482412060302,
+    "pred_pos_rate": 0.621875,
+    "recall": 0.9296482412060302,
+    "round": 20
+   }
+  ],
+  "label": "loan_logistic_eps-none_clear_seed-44",
+  "noise_multipliers": {},
+  "privacy_report": null,
+  "seconds": 1.2804770550001194,
+  "test": {
+   "accuracy": 0.9140625,
+   "ap": 0.9658674647303617,
+   "auc": 0.9577951742181984,
+   "f1": 0.9304677623261695,
+   "loss": 0.2551876350108223,
+   "precision": 0.9363867684478372,
+   "pred_pos_rate": 0.6140625,
+   "recall": 0.9246231155778895
+  },
+  "test_at_chosen_threshold": {
+   "accuracy": 0.9125,
+   "ap": 0.9658674647303617,
+   "auc": 0.9577951742181984,
+   "f1": 0.927461139896373,
+   "loss": 0.2551876350108223,
+   "precision": 0.9572192513368984,
+   "pred_pos_rate": 0.584375,
+   "recall": 0.8994974874371859
+  },
+  "test_balanced": {
+   "accuracy": 0.9173553719008265,
+   "ap": 0.9470123504150154,
+   "auc": 0.9598388088245339,
+   "f1": 0.9190283400809717,
+   "loss": 0.26114716372290825,
+   "precision": 0.9007936507936508,
+   "pred_pos_rate": 0.5206611570247934,
+   "recall": 0.9380165289256198
+  },
+  "test_balanced_at_chosen_threshold": {
+   "accuracy": 0.9256198347107438,
+   "ap": 0.9470123504150154,
+   "auc": 0.9598388088245339,
+   "f1": 0.925,
+   "loss": 0.26114716372290825,
+   "precision": 0.9327731092436975,
+   "pred_pos_rate": 0.49173553719008267,
+   "recall": 0.9173553719008265
+  },
+  "test_positive_rows": 398,
+  "test_rows": 640,
+  "threshold": 0.6021342277526855,
+  "validation": {
+   "accuracy": 0.9125,
+   "ap": 0.9799994595423245,
+   "auc": 0.9636924290875867,
+   "f1": 0.9296482412060302,
+   "loss": 0.2377078819928881,
+   "precision": 0.9296482412060302,
+   "pred_pos_rate": 0.621875,
+   "recall": 0.9296482412060302
+  }
+ },
+ "kind": "phase2_run",
+ "manifest": {
+  "config_sha256": "815218ad7b5b443275159452f07f52622632fa8e9717e44b3abe92d1533cae63",
+  "cpu_count": 4,
+  "created_utc": "2026-11-10T21:18:53+00:00",
+  "git_commit": "69b96d637811fa6c9da694952c5a6a3f24648a54+dirty",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": "0.14.2",
+   "numpy": "2.4.6",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": "1.6.0",
+   "pandas": "3.0.5",
+   "scikit-learn": "1.9.0",
+   "scipy": "1.17.1",
+   "tenseal": "0.3.16",
+   "torch": "2.13.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v338-x86_64-with-glibc2.39",
+  "python": "3.11.18",
+  "seeds": [
+   44
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

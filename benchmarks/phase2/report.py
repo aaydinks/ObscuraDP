@@ -81,6 +81,11 @@ def summarize(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             )
         for name in BALANCED:
             row[f"balanced_{name}"] = mean_and_interval([d["test_balanced"][name] for d in data])
+        for name in ("recall", "accuracy"):
+            row[f"balanced_chosen_{name}"] = mean_and_interval(
+                [d["test_balanced_at_chosen_threshold"][name] for d in data]
+            )
+        row["pred_pos_rate_at_half"] = mean_and_interval([d["test"]["pred_pos_rate"] for d in data])
         if epsilon is not None:
             spent = [d["privacy_report"]["epsilon"] for d in data]
             sigmas = [value for d in data for value in d["noise_multipliers"].values()]
@@ -188,9 +193,10 @@ def markdown(
                 f"Natural test rows per seed: {first['test_rows']} with {first['test_positive_rows']} positive. "
                 f"Balanced comparison rows per seed: {first['balanced_rows']}.",
                 "",
-                "| Budget | Noise multiplier | AUC | Average precision | Recall at 0.5 | F1 at chosen threshold "
-                "| Balanced-set recall | Balanced-set accuracy |",
-                "|---|---|---|---|---|---|---|---|",
+                "| Budget | Noise multiplier | AUC | Average precision | Recall at 0.5 | Share predicted positive at 0.5 "
+                "| F1 at chosen threshold | Balanced-set recall at 0.5 | Balanced-set accuracy at 0.5 "
+                "| Balanced-set accuracy at chosen threshold |",
+                "|---|---|---|---|---|---|---|---|---|---|",
             ]
             for row in subset:
                 sigma = (
@@ -200,8 +206,10 @@ def markdown(
                 )
                 lines.append(
                     f"| {_budget(row['epsilon'])} | {sigma} | {_cell(row['test_auc'])} | {_cell(row['test_ap'])} "
-                    f"| {_cell(row['test_recall'])} | {_cell(row['test_chosen_f1'])} "
-                    f"| {_cell(row['balanced_recall'])} | {_cell(row['balanced_accuracy'])} |"
+                    f"| {_cell(row['test_recall'])} | {_cell(row['pred_pos_rate_at_half'])} "
+                    f"| {_cell(row['test_chosen_f1'])} "
+                    f"| {_cell(row['balanced_recall'])} | {_cell(row['balanced_accuracy'])} "
+                    f"| {_cell(row['balanced_chosen_accuracy'])} |"
                 )
             lines.append("")
     lines += [
@@ -256,6 +264,24 @@ def markdown(
     return "\n".join(lines) + "\n"
 
 
+def headline_markdown(rows: list[dict[str, Any]]) -> str:
+    """The short table the gate memo quotes: AUC on natural test rows at every budget.
+
+    ``docs/GATE_PHASE2.md`` contains this text exactly; a test compares the two.
+    """
+    budgets = (None, *BUDGETS)
+    lines = [
+        "| Table, model | " + " | ".join(_budget(b) for b in budgets) + " |",
+        "|---|" + "---|" * len(budgets),
+    ]
+    index = {(r["dataset"], r["model"], r["epsilon"]): r for r in rows if not r["secure_sum"]}
+    for dataset in ("loan", "stroke"):
+        for model in MODELS:
+            cells = [_cell(index[(dataset, model, budget)]["test_auc"]) for budget in budgets]
+            lines.append(f"| {dataset}, {model} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
 def main() -> int:
     runs, problems = load_runs()
     rows = summarize(runs)
@@ -269,6 +295,7 @@ def main() -> int:
     }
     (RESULTS / "summary.json").write_text(json.dumps(summary, indent=1, sort_keys=True) + "\n")
     (RESULTS / "summary.md").write_text(markdown(rows, old, problems, len(runs)), encoding="utf-8")
+    print(headline_markdown(rows))
     print(f"{len(runs)} runs, {len(problems)} failed checks")
     for text in problems[:20]:
         print("  -", text)

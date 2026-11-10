@@ -1,0 +1,178 @@
+{
+ "chosen": {
+  "loan/logistic/1": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.2,
+   "standin_validation_auc": 0.9603287516455723
+  },
+  "loan/logistic/8": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.5,
+   "standin_validation_auc": 0.9618380177445665
+  },
+  "loan/logistic/none": {
+   "clip_norm": 1.0,
+   "learning_rate": 0.5,
+   "standin_validation_auc": 0.9622985528140539
+  },
+  "loan/network/1": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.05,
+   "standin_validation_auc": 0.9547650733737871
+  },
+  "loan/network/8": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.2,
+   "standin_validation_auc": 0.9602020572393198
+  },
+  "loan/network/none": {
+   "clip_norm": 1.0,
+   "learning_rate": 0.05,
+   "standin_validation_auc": 0.9611723331108932
+  },
+  "stroke/logistic/1": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.2,
+   "standin_validation_auc": 0.7105263157894737
+  },
+  "stroke/logistic/8": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.5,
+   "standin_validation_auc": 0.829903093883357
+  },
+  "stroke/logistic/none": {
+   "clip_norm": 1.0,
+   "learning_rate": 0.05,
+   "standin_validation_auc": 0.8433721550497866
+  },
+  "stroke/network/1": {
+   "clip_norm": 0.5,
+   "learning_rate": 0.05,
+   "standin_validation_auc": 0.6174431009957326
+  },
+  "stroke/network/8": {
+   "clip_norm": 1.0,
+   "learning_rate": 0.2,
+   "standin_validation_auc": 0.7924075391180654
+  },
+  "stroke/network/none": {
+   "clip_norm": 1.0,
+   "learning_rate": 0.02,
+   "standin_validation_auc": 0.8351262446657184
+  }
+ },
+ "clip_norms_tried": [
+  0.5,
+  1.0
+ ],
+ "grid": {
+  "loan/logistic/1/lr=0.02/clip=0.5": 0.9227237192320261,
+  "loan/logistic/1/lr=0.02/clip=1": 0.9570327853558642,
+  "loan/logistic/1/lr=0.05/clip=0.5": 0.9559530843465912,
+  "loan/logistic/1/lr=0.05/clip=1": 0.9602195283012936,
+  "loan/logistic/1/lr=0.1/clip=0.5": 0.959841197499087,
+  "loan/logistic/1/lr=0.1/clip=1": 0.9602308924571064,
+  "loan/logistic/1/lr=0.2/clip=0.5": 0.9603287516455723,
+  "loan/logistic/1/lr=0.2/clip=1": 0.9591666976791293,
+  "loan/logistic/1/lr=0.5/clip=0.5": 0.9597298075307095,
+  "loan/logistic/1/lr=0.5/clip=1": 0.9564691232275528,
+  "loan/logistic/8/lr=0.02/clip=0.5": 0.9229486870342927,
+  "loan/logistic/8/lr=0.02/clip=1": 0.9568119596290807,
+  "loan/logistic/8/lr=0.05/clip=0.5": 0.9556028559334317,
+  "loan/logistic/8/lr=0.05/clip=1": 0.9604161600589729,
+  "loan/logistic/8/lr=0.1/clip=0.5": 0.9593391354677044,
+  "loan/logistic/8/lr=0.1/clip=1": 0.9612540063428557,
+  "loan/logistic/8/lr=0.2/clip=0.5": 0.9608554112329009,
+  "loan/logistic/8/lr=0.2/clip=1": 0.9616004325431358,
+  "loan/logistic/8/lr=0.5/clip=0.5": 0.9618380177445665,
+  "loan/logistic/8/lr=0.5/clip=1": 0.9617351455826952,
+  "loan/logistic/none/lr=0.02/clip=1": 0.9597215658625687,
+  "loan/logistic/none/lr=0.05/clip=1": 0.9613418183430984,
+  "loan/logistic/none/lr=0.1/clip=1": 0.9619159737293005,
+  "loan/logistic/none/lr=0.2/clip=1": 0.9622208304848598,
+  "loan/logistic/none/lr=0.5/clip=1": 0.9622985528140539,
+  "loan/network/1/lr=0.02/clip=0.5": 0.8978234094302697,
+  "loan/network/1/lr=0.02/clip=1": 0.9501607422667238,
+  "loan/network/1/lr=0.05/clip=0.5": 0.9547650733737871,
+  "loan/network/1/lr=0.05/clip=1": 0.9540827991967687,
+  "loan/network/1/lr=0.1/clip=0.5": 0.9546610754170411,
+  "loan/network/1/lr=0.1/clip=1": 0.9496749192953764,
+  "loan/network/1/lr=0.2/clip=0.5": 0.9510716696311182,
+  "loan/network/1/lr=0.2/clip=1": 0.9315994647843716,
+  "loan/network/1/lr=0.5/clip=0.5": 0.923427595925795,
+  "loan/network/1/lr=0.5/clip=1": 0.8029050945574232,
+  "loan/network/8/lr=0.02/clip=0.5": 0.8935284594996781,
+  "loan/network/8/lr=0.02/clip=1": 0.9521303310210781,
+  "loan/network/8/lr=0.05/clip=0.5": 0.9567533545713474,
+  "loan/network/8/lr=0.05/clip=1": 0.9592597138254917,
+  "loan/network/8/lr=0.1/clip=0.5": 0.9599752201927327,
+  "loan/network/8/lr=0.1/clip=1": 0.9596318633765928,
+  "loan/network/8/lr=0.2/clip=0.5": 0.9602020572393198,
+  "loan/network/8/lr=0.2/clip=1": 0.9591170883596889,
+  "loan/network/8/lr=0.5/clip=0.5": 0.9591472936485967,
+  "loan/network/8/lr=0.5/clip=1": 0.9579010493427822,
+  "loan/network/none/lr=0.02/clip=1": 0.9598406027395305,
+  "loan/network/none/lr=0.05/clip=1": 0.9611723331108932,
+  "loan/network/none/lr=0.1/clip=1": 0.9611665342052168,
+  "loan/network/none/lr=0.2/clip=1": 0.9607726122060635,
+  "loan/network/none/lr=0.5/clip=1": 0.9593776036661659,
+  "stroke/logistic/1/lr=0.02/clip=0.5": 0.4961326458036984,
+  "stroke/logistic/1/lr=0.02/clip=1": 0.5687233285917497,
+  "stroke/logistic/1/lr=0.05/clip=0.5": 0.5984397226173542,
+  "stroke/logistic/1/lr=0.05/clip=1": 0.6764980440967283,
+  "stroke/logistic/1/lr=0.1/clip=0.5": 0.6764980440967283,
+  "stroke/logistic/1/lr=0.1/clip=1": 0.710326280227596,
+  "stroke/logistic/1/lr=0.2/clip=0.5": 0.7105263157894737,
+  "stroke/logistic/1/lr=0.2/clip=1": 0.7081814544807965,
+  "stroke/logistic/1/lr=0.5/clip=0.5": 0.7066367354196301,
+  "stroke/logistic/1/lr=0.5/clip=1": 0.6685410739687055,
+  "stroke/logistic/8/lr=0.02/clip=0.5": 0.5023559743954481,
+  "stroke/logistic/8/lr=0.02/clip=1": 0.5894603485064012,
+  "stroke/logistic/8/lr=0.05/clip=0.5": 0.6293118776671408,
+  "stroke/logistic/8/lr=0.05/clip=1": 0.7485997510668563,
+  "stroke/logistic/8/lr=0.1/clip=0.5": 0.7485997510668563,
+  "stroke/logistic/8/lr=0.1/clip=1": 0.8083881578947368,
+  "stroke/logistic/8/lr=0.2/clip=0.5": 0.8083881578947368,
+  "stroke/logistic/8/lr=0.2/clip=1": 0.826924786628734,
+  "stroke/logistic/8/lr=0.5/clip=0.5": 0.829903093883357,
+  "stroke/logistic/8/lr=0.5/clip=1": 0.8274359886201992,
+  "stroke/logistic/none/lr=0.02/clip=1": 0.8431721194879089,
+  "stroke/logistic/none/lr=0.05/clip=1": 0.8433721550497866,
+  "stroke/logistic/none/lr=0.1/clip=1": 0.8417940967283073,
+  "stroke/logistic/none/lr=0.2/clip=1": 0.8382156827880511,
+  "stroke/logistic/none/lr=0.5/clip=1": 0.8311255334281651,
+  "stroke/network/1/lr=0.02/clip=0.5": 0.5413851351351351,
+  "stroke/network/1/lr=0.02/clip=1": 0.6097083926031295,
+  "stroke/network/1/lr=0.05/clip=0.5": 0.6174431009957326,
+  "stroke/network/1/lr=0.05/clip=1": 0.5993509957325747,
+  "stroke/network/1/lr=0.1/clip=0.5": 0.5993509957325747,
+  "stroke/network/1/lr=0.1/clip=1": 0.597350640113798,
+  "stroke/network/1/lr=0.2/clip=0.5": 0.5986175320056899,
+  "stroke/network/1/lr=0.2/clip=1": 0.5701791429587482,
+  "stroke/network/1/lr=0.5/clip=0.5": 0.5665118243243243,
+  "stroke/network/1/lr=0.5/clip=1": 0.5356396692745378,
+  "stroke/network/8/lr=0.02/clip=0.5": 0.5536984352773826,
+  "stroke/network/8/lr=0.02/clip=1": 0.646003733997155,
+  "stroke/network/8/lr=0.05/clip=0.5": 0.6784094950213371,
+  "stroke/network/8/lr=0.05/clip=1": 0.7549342105263158,
+  "stroke/network/8/lr=0.1/clip=0.5": 0.7549342105263158,
+  "stroke/network/8/lr=0.1/clip=1": 0.7890291607396871,
+  "stroke/network/8/lr=0.2/clip=0.5": 0.7890291607396871,
+  "stroke/network/8/lr=0.2/clip=1": 0.7924075391180654,
+  "stroke/network/8/lr=0.5/clip=0.5": 0.7897848506401138,
+  "stroke/network/8/lr=0.5/clip=1": 0.7546563833570412,
+  "stroke/network/none/lr=0.02/clip=1": 0.8351262446657184,
+  "stroke/network/none/lr=0.05/clip=1": 0.7871399359886202,
+  "stroke/network/none/lr=0.1/clip=1": 0.7576235775248933,
+  "stroke/network/none/lr=0.2/clip=1": 0.759068278805121,
+  "stroke/network/none/lr=0.5/clip=1": 0.7623799786628733
+ },
+ "learning_rates_tried": [
+  0.02,
+  0.05,
+  0.1,
+  0.2,
+  0.5
+ ],
+ "note": "Chosen on made-up stand-in tables (standin.py), by mean validation AUC of two tables. No real row was used."
+}

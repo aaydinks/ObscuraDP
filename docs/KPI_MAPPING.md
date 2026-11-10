@@ -103,6 +103,18 @@ What this means:
   budget of 1 is at most 5%, shown next to the proven worst case." The gate decides whether to keep the
   budget at 1 or move the target to a budget where 5% is provable.
 
+## Measured at the Phase 2 gate (2026-11-10)
+
+From `benchmarks/results/phase2/summary.json` (200 runs, five seeds per setting); details in
+`docs/GATE_PHASE2.md`.
+
+| Target | Measured |
+|---|---|
+| At least 50% fewer bytes per round | Default secure sum, five participants, 12-bit values: uploads are 46.9% to 48.2% of the same update as 32-bit numbers, so 51.8% to 53.1% fewer. One-time setup: 160 bytes per participant. CKKS: 10 to 40 times larger than plain |
+| At most 5% attacker advantage at a budget of 1 | Not measured (S15). Proven limit for the noise that was added: 10.6% (loan) and 10.7% (stroke) at a total budget of 1; 5.7% at 0.5. These match reference table 3 |
+| Quality under a total budget of 1 (AUC, natural test rows) | Loan: 0.960 (network), 0.962 (logistic regression), against 0.976 and 0.964 without protection. Stroke: 0.739 and 0.780, against 0.838 and 0.849 |
+| Budgets counted for the whole run | All 160 protected runs within budget; every stored report recomputes with `obscuradp report verify` |
+
 ## Engineering measures to track from Phase 1 on
 
 - CI green on `main`.

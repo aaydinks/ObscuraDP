@@ -48,6 +48,22 @@ Proposed wording follows the site's own rules: no em dashes, everyday words, and
 | 28 | Roadmap "Workstreams" table at phone width | The table scrolls sideways inside its own box | Not wrong, but easy to miss on a phone. The page itself does not scroll sideways. | Consider a stacked layout for narrow screens. |
 | 26 | `website/src/lib/laplace.ts:16` | Ceiling formula ignores $\delta$ | The site states $\delta = 10^{-5}$ for experiments (`website/src/sections/Framework.astro:56`). The effect on the shown percentage is far below rounding. | Leave the number; add a code comment that the tiny extra term is omitted. |
 
+## Added at the Phase 2 gate (2026-11-10)
+
+The corrected re-runs (`docs/GATE_PHASE2.md`) change what the site can say. These wait for S22 with the
+items above; none has been applied.
+
+| # | Where | Current wording | Problem | Proposed change |
+|---|---|---|---|---|
+| 29 | `website/src/components/charts/Exp1RecallCurve.astro:41`, `website/src/components/charts/Exp1MetricsPanel.astro:47` | Recall against ε "at a fixed 0.5 threshold", "with SMOTETomek rebalancing" | The ε axis is a budget per round and the training rows are synthetic, so the axis is not a privacy level for real records. With one total budget and no synthetic rows, a fixed 0.5 threshold flips between "all yes" and "all no" across seeds, and quality falls as the budget gets stricter | Keep the chart as a replication of the paper, labelled "budget per round, synthetic rows". Put the Phase 2 table beside it: AUC on real held-out rows at total budgets 0.5 to 8 |
+| 30 | `website/src/sections/Roadmap.astro:21` (extends item 20) | "DP-SGD integrated with federated learning, and encryption implemented alongside differential privacy." | If Trial 07/27 is added to `/research`, its own tables show stroke recall rising with stricter privacy, which the corrected runs reverse | Show `benchmarks/results/phase2/summary.md` and the list of changed claims from the gate memo, with the Trial tables only as "earlier, superseded" |
+| 31 | `website/src/sections/Impact.astro:14` (extends item 14) | "fewer bytes per training round compared with an uncompressed federated learning baseline." | A measured value now exists for the default secure sum | "Uploads are 52% to 53% smaller than the same update sent as 32-bit numbers (five participants, default secure sum, measured)." Say that the encryption option is larger, not smaller |
+| 32 | `website/src/sections/Framework.astro:66-67` (extends item 16) | "Hospital records can run below ε = 1 ..." | Each participant can now have its own budget, and a total budget of 0.5 was measured: nearly free on the loan table (AUC 0.96), costly on the small stroke table (0.74 against 0.85 without protection) | "A total budget below 1 is possible. What it costs depends on the data: almost nothing on our loan table, a clear drop on our small stroke table." |
+
+Items 18 and 19 ("mathematically guaranteed", "a bound you can check") now have their precondition: budgets
+are counted for the whole run, checked three ways, and `obscuradp report verify` recomputes any report.
+They still wait for S22 and for the statement that no outside audit has been done.
+
 ## Checks to run after any edit
 
 ```bash

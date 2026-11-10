@@ -20,6 +20,23 @@ the mitigation. Review this file at every gate.
 | 13 | The one-run audit is too weak on tables of about 4,000 rows to say anything useful | Medium | Medium | Pilot first; report the audit's own detection power; shadow-model attack as a second opinion | S15, S16 |
 | 14 | A partner misreads the report and deploys an unsafe configuration | Medium | High | Unsafe flags in plain words; "what this does not protect against" page; `obscuradp doctor` | S9, S21 |
 
+## Changes at the Phase 2 gate (2026-11-10)
+
+- **Risk 3 has happened, in part.** Correct accounting reverses the stroke headline (better recall with
+  stricter privacy) and lowers stroke quality at strict budgets (AUC 0.74 to 0.78 at a total budget of 1
+  against 0.84 to 0.85 without protection). The loan result holds. Old and new numbers are published side
+  by side in `docs/GATE_PHASE2.md`. The planned recovery (participants sharing the noise, S12 and S14) is
+  now the main open question; its impact stays medium until that is measured.
+- **Risk 8, bytes:** the target is met by the default secure sum (uploads 47% to 48% of plain size,
+  measured). **Risk 8, attacker advantage:** unchanged; the proven limit for the added noise is 10.6% at a
+  total budget of 1 and 5.7% at 0.5, so "5% at a budget of 1" can only be a measured result (S15).
+- **Risk 6 has happened twice:** `dp-accounting` 0.7.0 pins an old `typing-extensions` that forces `torch`
+  back to 2.5, and it forbids `attrs` 24 and later; `sympy` forbids `mpmath` 1.4. Handled with a version
+  limit and documented ignore rules for the dependency bot.
+- **New, low:** the dependency bot's own configuration check stayed queued on one commit of
+  aaydinks/ObscuraDP#28 and never reported. The rules were verified by the bot acting on them (it closed
+  aaydinks/ObscuraDP#22).
+
 ## Triggers that reopen a decision
 
 - Any independent finding that the default plan leaks more than its report states: stop feature work, fix,
