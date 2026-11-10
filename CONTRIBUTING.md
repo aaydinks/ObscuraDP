@@ -31,6 +31,20 @@ Slow tests and tests that need optional extras are marked and can be selected:
 pytest -m "slow or integration"
 ```
 
+The comparison tests in `tests/golden/` run the Trial 07/27 research code next to the library and require
+identical results. They need the research code's pinned versions:
+
+```bash
+pip install -c constraints/legacy-py311.txt -e ".[dev,legacy]"
+```
+
+```bash
+OBSCURADP_REQUIRE_GOLDEN=1 pytest -m integration
+```
+
+Without those packages the comparison tests are skipped; with `OBSCURADP_REQUIRE_GOLDEN=1` a skip is a
+failure.
+
 If you change anything under `website/`, also run its checks (see `website/README.md`).
 
 ## Ground rules
@@ -45,7 +59,8 @@ If you change anything under `website/`, also run its checks (see `website/READM
    privacy ledger or be refused by default.
 5. **The research folders are frozen.** `Experiment 1` to `3` and `Trial 07/27` are the reference the
    library is compared against. The library never imports them. Change them only to fix a documented error,
-   and record the correction next to the old value.
+   record the correction next to the old value, and then run `python tools/freeze_research.py --write` so
+   the fingerprint list in `tests/golden/research_manifest.json` matches. A test fails until you do.
 6. **No real personal data** in issues, tests or examples. Use synthetic data.
 7. **No telemetry.** The library never opens a network connection on its own. Tests run with sockets
    disabled.

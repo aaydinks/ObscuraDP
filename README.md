@@ -65,8 +65,8 @@ code tries to.
 
 | Path | What it is |
 |---|---|
-| `src/obscuradp/` | The library (skeleton for now) |
-| `tests/` | Its tests |
+| `src/obscuradp/` | The library (first building blocks; no private training yet) |
+| `tests/` | Its tests. `tests/golden/` compares the library with the research code, number for number |
 | `docs/` | Roadmap, audit, threat model, target definitions, decision records |
 | `constraints/` | Pinned package versions for repeatable installs |
 | `tools/` | Small scripts used by developers and CI |

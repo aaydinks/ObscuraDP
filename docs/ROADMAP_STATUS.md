@@ -2,8 +2,9 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1, S3 and S4 are done. The next session is S5** (comparison harness against
-the old code, then porting config, models, data, metrics and aggregation). No gate is open.
+**Current state (2026-11-10): S1, S3, S4 and S5 are done. The next session is S6** (port the private
+training step, encryption, masks and benchmarks; keep the old loop verbatim in `obscuradp.legacy`; results
+manifest). No gate is open.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -21,11 +22,11 @@ the old code, then porting config, models, data, metrics and aggregation). No ga
 ## Session checklist
 
 - [x] **S1, Phase 0.** Audit, baseline reproduction, threat model, target definitions, website wording
-      list, risk list, decision records, roadmap. Draft PR aaydinks/ObscuraDP#8. Gate closed 2026-11-10.
+      list, risk list, decision records, roadmap. aaydinks/ObscuraDP#8. Gate closed 2026-11-10.
 - [ ] S2, spare for changes requested at the gate
 - [x] S3, Phase 0.5: `LICENSE` and website items 1 to 12. aaydinks/ObscuraDP#9, merged as `37b924c`
-- [x] S4, Phase 1: packaging, tooling, CI. In aaydinks/ObscuraDP#8
-- [ ] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation
+- [x] S4, Phase 1: packaging, tooling, CI. aaydinks/ObscuraDP#8, merged as `fbbf42d`
+- [x] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation
 - [ ] S6, Phase 1: port the rest; `sim/legacy.py`; smoke checks as tests; results manifest
 - [ ] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
 - [ ] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
@@ -43,6 +44,81 @@ the old code, then porting config, models, data, metrics and aggregation). No ga
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S5 log (2026-11-10)
+
+### What was done
+
+- **Comparison harness** (`tests/golden/conftest.py`): imports the Trial 07/27 package `obscura` from its
+  folder and runs its functions with that folder as the working directory. The library never imports it
+  (a lint rule and a test enforce this).
+- **Frozen reference**: `tools/freeze_research.py` and `tests/golden/research_manifest.json` hold a sha256
+  fingerprint of all 125 tracked files in `Experiment 1` to `3` and `Trial 07`. A test and a CI step fail
+  if any of them changes without the list being rewritten on purpose.
+- **New library modules** (numpy and torch only):
+  - `obscuradp.state`: `get_state`, `set_state`, `flatten_state`, `unflatten_state`, `state_layout`.
+    Buffers are part of the vector, and integer entries are rounded (closes the buffer part of G20).
+  - `obscuradp.models.TabularMLP`: any number of hidden layers, optional probability output.
+  - `obscuradp.partition`: `iid_partition`, `dirichlet_partition`, with a typed description of the split.
+  - `obscuradp.aggregation`: `fedavg_weights`, `weighted_mean`, `aggregate_states` (in the clear).
+  - `obscuradp.metrics`: `binary_metrics`, `roc_auc`, `average_precision`, `evaluate`, `summarize`.
+    No scikit-learn needed. `summarize` reports the sample standard deviation (G22).
+- **`obscuradp.legacy`** (comparison only, needs the `legacy` extra): `LegacyTrialConfig` (all 46 research
+  settings as one frozen object), `data` (loading, pooled scaling, split, resampling, `prepare`), `models`,
+  `metrics`. It reproduces the research code's known defects on purpose and says so in its docstrings.
+- CI: a new job "Comparison with the research code" installs the research code's pinned versions and runs
+  the comparison tests with skips turned into failures.
+
+### What was verified and how
+
+- 119 tests pass locally on Python 3.11 with the research code's pinned versions: 67 unit and property
+  tests, 52 comparison tests. Coverage of `src/obscuradp` is 95% overall.
+- **Bit-for-bit equal to the research code** (arrays with `array_equal`, states with `torch.equal`,
+  numbers with `==`):
+  - all 46 settings;
+  - uneven and even splits for seeds 42 to 46;
+  - loading of both tables; split, scaling, partition and per-participant rows for both datasets at seeds
+    42 and 44, with and without resampling;
+  - initial weights, state keys, flat vector, layout, rebuild from a flat vector and forward pass for the
+    stroke and loan networks and a 4-times-wider one;
+  - averaging weights, weighted and unweighted mean, and the averaged state;
+  - all 8 evaluation measures on both test sets.
+- The numpy-only measures agree with scikit-learn within $10^{-12}$ on 24 random cases, with and without
+  tied scores.
+- The comparison tests can fail: removing one shuffle from the split made 8 of them fail. A second change
+  (computing the weighted mean as an explicit sum) did not change any bit, so it was correctly not flagged.
+- `ruff check`, `ruff format --check` and strict `mypy` pass.
+
+### Deviations from the plan
+
+- The plan named a single file `sim/legacy.py`. It is a subpackage, `obscuradp.legacy`, because the copied
+  research code spans settings, data, models and evaluation. The old training loop joins it in S6.
+- The plan said "port data". The research data preparation is defective by design (pooled scalers,
+  resampling), so it was ported only into `obscuradp.legacy`. The library's own data handling comes with
+  the declared-bounds preprocessing in S9 and the dataset downloaders in S17.
+- The plan's third comparison tier (frozen numbers for macOS and Windows) is not needed yet: everything
+  ported so far is compared live against the research code in the same process.
+- Coverage of `src/obscuradp` is measured but not yet enforced in CI. The bar is set in S6.
+
+### Open items
+
+- `tools/bootstrap.sh` finished on the cloud machine with exit code 0 after 23 minutes 39 seconds, almost all
+  of it downloading GPU libraries through the fallback path (the environment is 5.6 GB). In that
+  environment (Python 3.13, newest dependencies, no optional extras) the unit tests pass, the comparison
+  tests are skipped as designed, and lint, format and strict types pass. It surfaced one type error that
+  only appears with the newest numpy; it is fixed.
+- GitHub Actions on aaydinks/ObscuraDP#21 at `87c6155`: all 10 checks green. The comparison job ran 52 tests
+  with skips turned into failures.
+- The dependency bot configured in S4 opened 11 pull requests when S4 merged, four of them against the
+  frozen research folders. Its configuration now excludes those folders and groups updates. The owner
+  decides what to do with the pull requests already open (aaydinks/ObscuraDP#10 to #20).
+- **Cloud environment "ObscuraDP" created (owner approved, 2026-11-10).** It allows the two hosts the
+  CPU-only PyTorch build is served from (`download.pytorch.org` for the index, `download-r2.pytorch.org` for
+  the files) and runs `tools/bootstrap.sh` when a session starts. Measured in a fresh clone on this machine
+  with both hosts allowed: 1 minute 12 seconds and 1.2 GB, against 23 minutes 39 seconds and 5.6 GB before.
+  The setup script has not yet been exercised by a fresh session starting on that environment. The saved
+  Cloudflare deploy token stays on the Default environment and must be added again to "ObscuraDP" if the
+  website is ever deployed from a session there.
 
 ## S4 log (2026-11-10)
 
@@ -86,10 +162,9 @@ the old code, then porting config, models, data, metrics and aggregation). No ga
 
 ### Open items
 
-- `tools/bootstrap.sh` was started on this machine and takes the fallback path (the CPU-only download host
-  is blocked here), which downloads several gigabytes. Its outcome is recorded in the pull request.
-- A cloud environment for this repository (allowing the CPU-only PyTorch host and running the bootstrap
-  script at start) is proposed to the owner separately. It needs the owner's approval.
+- `tools/bootstrap.sh` works on this machine but takes the fallback path (the CPU-only download host is
+  blocked here): 23 minutes 39 seconds, 5.6 GB. See the S5 log.
+- The cloud environment for this repository now exists. See the S5 log.
 - TestPyPI: the owner needs to register the name `obscuradp` on test.pypi.org with this repository's
   `release-dry-run.yml` as a trusted publisher, and create a GitHub environment named `testpypi`, before the
   upload option of the dry run can work.
@@ -152,8 +227,9 @@ independently and passed.
 
 ### Environment notes for later sessions
 
-- **The CPU-only torch download host (`download.pytorch.org`) is blocked** by this cloud environment's
-  network rules (HTTP 403 from the proxy). `pip install torch` from PyPI works but pulls GPU libraries: the
+- (Resolved on 2026-11-10 by the "ObscuraDP" cloud environment, see the S5 log.) **The CPU-only torch
+  download host (`download.pytorch.org`) was blocked** by the Default cloud environment's network rules
+  (HTTP 403 from the proxy). `pip install torch` from PyPI works but pulls GPU libraries: the
   environment is 5.1 GB and takes several minutes to build. S4 should propose either allowing that host or a
   setup script that prepares the environment once. This is a request for the owner to approve, not something
   a session should work around.

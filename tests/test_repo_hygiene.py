@@ -49,3 +49,16 @@ def test_no_em_dashes_in_library_or_docs() -> None:
         p.relative_to(ROOT).as_posix() for p in checked if em_dash in p.read_text(encoding="utf-8")
     ]
     assert offenders == []
+
+
+@needs_checkout
+def test_research_folders_are_unchanged() -> None:
+    """The comparison tests are only meaningful if the reference itself never moves."""
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "freeze_research.py"), "--check"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
