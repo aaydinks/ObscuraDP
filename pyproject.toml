@@ -30,6 +30,8 @@ classifiers = [
 dependencies = [
   "numpy>=2.0",
   "torch>=2.3",
+  # Privacy accountants (PLD and RDP). Pure Python apart from its small dm-tree dependency.
+  "dp-accounting>=0.6",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +66,9 @@ dev = [
   "build>=1.2",
   "twine>=6.0",
 ]
+
+[project.scripts]
+obscuradp = "obscuradp.cli:main"
 
 [project.urls]
 Homepage = "https://obscuradp.org"
@@ -145,5 +150,5 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 # Optional libraries without type information. They are imported lazily, only by the
 # comparison code in obscuradp.legacy and by optional backends.
-module = ["pandas.*", "sklearn.*", "imblearn.*", "tenseal.*", "opacus.*"]
+module = ["pandas.*", "sklearn.*", "imblearn.*", "tenseal.*", "opacus.*", "dp_accounting.*"]
 ignore_missing_imports = true
