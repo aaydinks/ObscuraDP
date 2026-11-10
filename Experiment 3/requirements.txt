@@ -5,5 +5,5 @@
 matplotlib==3.11.0
 numpy==2.4.6
 tenseal==0.3.16
-torch==2.12.1
+torch==2.15.0
 torchvision==0.27.1

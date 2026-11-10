@@ -31,6 +31,6 @@ sklearn-compat==0.1.6
 sympy==1.14.0
 tenseal==0.3.16
 threadpoolctl==3.8.0
-torch==2.13.0
+torch==2.15.0
 typing_extensions==4.16.0
 tzdata==2026.6
