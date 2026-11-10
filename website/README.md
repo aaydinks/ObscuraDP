@@ -114,6 +114,12 @@ npx wrangler deploy
   ]
   ```
 
+## Continuous integration
+
+`.github/workflows/website-ci.yml` runs on every pull request and every push to `main`: install, `npm run build` (type-check and build), copy lint, contrast check, and `wrangler deploy --dry-run`. It deploys nothing and needs no secrets. This is the check that shows a pull request is safe to merge.
+
+Cloudflare's own preview builds (the "Workers Builds: obscura-dp" check) can fail independently of the code: Workers Builds has open bugs where non-production builds ignore the saved Previews Base settings. If that check stays red while this workflow is green, turn off non-production branch builds in the Worker's Settings → Builds. Production deploys from `main` are not affected.
+
 ## Privacy and analytics
 
 No cookies, no third-party trackers, no analytics. The only third-party script is Cloudflare Turnstile on the contact form, and only when a site key is configured. If analytics is ever wanted, use Cloudflare Web Analytics (cookieless), enabled in the dashboard without touching the code.
