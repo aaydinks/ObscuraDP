@@ -9,3 +9,6 @@ lighthouse/
 *.log
 scripts/og/.rendered.html
 screenshots-preview/
+
+# The repository root ignores Python "lib/" folders; the site's source lives in src/lib.
+!src/lib/
