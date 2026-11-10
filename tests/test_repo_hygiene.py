@@ -62,3 +62,26 @@ def test_research_folders_are_unchanged() -> None:
         check=False,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+@needs_checkout
+def test_documented_result_fingerprints_match_the_files() -> None:
+    """The research write-up prints sha256 prefixes of its result files. They must be true.
+
+    The research harness prints these for a reader to compare by eye (finding G19). Here
+    the comparison is made by the test.
+    """
+    import hashlib
+
+    trial = ROOT / "Trial 07" / "27"
+    text = (trial / "VERIFICATION.md").read_text(encoding="utf-8")
+    documented = dict(re.findall(r"\| `(results/[a-z_]+\.json)` \| `([0-9a-f]{12})` \|", text))
+    assert sorted(documented) == [
+        "results/arms.json",
+        "results/lossless.json",
+        "results/overhead.json",
+        "results/sensitivity.json",
+    ]
+    for name, prefix in documented.items():
+        raw = (trial / name).read_bytes().replace(b"\r\n", b"\n")
+        assert hashlib.sha256(raw).hexdigest()[:12] == prefix, name

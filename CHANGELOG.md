@@ -25,6 +25,13 @@ public interface.
   evaluation, kept only so tests can compare old and new code number for number. Not for real data.
 - Comparison tests (`tests/golden/`) that run the research code and the library side by side and require
   bit-for-bit equal results, and a fingerprint list that keeps the research folders frozen.
+- More library modules: `obscuradp.selection` (masks over a model's flat vector and ways to compare them),
+  `obscuradp.crypto.chunking`, `obscuradp.bench.payload` (how large encrypted messages are),
+  `obscuradp.seeding` (collision-free seeds for every random stream of a run) and `obscuradp.results`
+  (result records that carry the code version, machine, settings fingerprint and seeds).
+- `obscuradp.legacy` now holds the complete Trial 07/27 pipeline (accounting, local training, encrypted
+  aggregation, mask scoring, the training loop and the benchmarks), compared against the research code:
+  bit for bit without encryption, within stated tolerances with it.
 
 ### Changed
 

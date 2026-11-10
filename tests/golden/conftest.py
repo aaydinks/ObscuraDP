@@ -55,13 +55,36 @@ class Oracle:
             return function(*args, **kwargs)
 
 
-@pytest.fixture(scope="session")
-def oracle() -> Iterator[Oracle]:
+def _check_available() -> None:
     if not (TRIAL_DIR / "obscura" / "__init__.py").is_file():
         _unavailable("the Trial 07/27 research folder is not present (not a full checkout)")
     missing = [name for name in EXTRAS if importlib.util.find_spec(name) is None]
     if missing:
         _unavailable(f"missing optional packages: {', '.join(missing)} (install the legacy extra)")
+
+
+@pytest.fixture(scope="session")
+def legacy_available() -> None:
+    """Skip (or fail, when comparisons are required) if the research code cannot be run here."""
+    _check_available()
+
+
+@pytest.fixture(autouse=True)
+def _comparison_environment(legacy_available: None) -> Iterator[None]:
+    """Every test in this folder needs the research code's packages, and runs on one thread.
+
+    One thread keeps floating-point sums in a fixed order, which bit-for-bit comparisons need.
+    """
+    import torch
+
+    before = torch.get_num_threads()
+    torch.set_num_threads(1)
+    yield
+    torch.set_num_threads(before)
+
+
+@pytest.fixture(scope="session")
+def oracle(legacy_available: None) -> Iterator[Oracle]:
 
     sys.path.insert(0, str(TRIAL_DIR))
     try:
@@ -76,6 +99,6 @@ def oracle() -> Iterator[Oracle]:
 
 
 @pytest.fixture(scope="session")
-def cfg() -> LegacyTrialConfig:
+def cfg(legacy_available: None) -> LegacyTrialConfig:
     """The library's copy of the research settings, pointed at the research data files."""
     return LegacyTrialConfig(data_dir=TRIAL_DIR / "data")
