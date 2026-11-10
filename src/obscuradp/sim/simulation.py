@@ -27,8 +27,11 @@ import torch
 from torch import nn
 
 from obscuradp.accounting.calibrate import Calibration, calibrate_noise_multiplier, steps_per_round
-from obscuradp.aggregation.fedavg import aggregate_states
+from obscuradp.aggregation.fedavg import aggregate_states, fedavg_weights
 from obscuradp.client.trainer import train_plain_round, train_private_round
+from obscuradp.compression.packing import float32_size
+from obscuradp.compression.quantize import Quantizer
+from obscuradp.crypto.pairwise_masking import MaskingAggregator, MaskingClient
 from obscuradp.imbalance import UnsafeOversampling
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.noise import entropy_generator
@@ -37,8 +40,15 @@ from obscuradp.plan import Plan
 from obscuradp.policy import PrivacyPolicy
 from obscuradp.report import PrivacyReport
 from obscuradp.results import make_result
-from obscuradp.seeding import derive_seed, torch_generator
-from obscuradp.state import State, get_state, set_state
+from obscuradp.seeding import derive_seed, numpy_generator, torch_generator
+from obscuradp.state import (
+    State,
+    flatten_state,
+    get_state,
+    set_state,
+    state_size,
+    unflatten_state,
+)
 from obscuradp.tables.split import ClientData
 from obscuradp.unsafe import UnsafeFlags
 
@@ -59,6 +69,10 @@ class SimulationResult:
             that was requested.
         threshold: The decision threshold chosen on validation rows, or 0.5.
         noise_multipliers: The noise multiplier of each participant (empty if not private).
+        communication: What one participant uploads per round: ``upload_bytes_per_round``,
+            the same update as 32-bit numbers (``plain_bytes_per_round``), their ``ratio``,
+            ``bits_per_value``, one-time ``setup_bytes``, and ``saturated_share`` (the largest
+            share of numbers in any update that had to be cut off before rounding).
         state: The final shared model.
         seed: The run's seed.
         config: The settings of the run.
@@ -72,6 +86,7 @@ class SimulationResult:
     test_at_chosen_threshold: dict[str, float] | None
     threshold: float
     noise_multipliers: dict[str, float]
+    communication: dict[str, float]
     state: State
     seed: int
     config: dict[str, Any]
@@ -86,6 +101,7 @@ class SimulationResult:
             "test_at_chosen_threshold": self.test_at_chosen_threshold,
             "threshold": self.threshold,
             "noise_multipliers": self.noise_multipliers,
+            "communication": self.communication,
             "seconds": self.seconds,
             "privacy_report": None if self.report is None else self.report.to_dict(),
         }
@@ -178,6 +194,8 @@ class Simulation:
             )
         if self.policy is not None and self.policy.unit != "record":
             raise ValueError("only record-level privacy is implemented so far")
+        if self.plan.secure_sum is not None and len(self.clients) < 2:
+            raise ValueError("a secure sum needs at least two participants")
         self._flags = UnsafeFlags(self.allow_unsafe)
         self._check_unsafe()
 
@@ -265,6 +283,13 @@ class Simulation:
                 "imbalance": type(self.plan.imbalance).__name__,
                 "positive_prior": getattr(self.plan.imbalance, "positive_prior", None),
                 "proximal_mu": self.plan.proximal_mu,
+                "secure_sum": None
+                if self.plan.secure_sum is None
+                else {
+                    "kind": type(self.plan.secure_sum).__name__,
+                    "value_bits": self.plan.secure_sum.value_bits,
+                    "value_range": self.plan.secure_sum.value_range,
+                },
             },
             "policy": None if self.policy is None else self.policy.to_dict(),
             "clients": {client.name: client.n_train for client in self.clients},
@@ -299,6 +324,27 @@ class Simulation:
 
         history: list[dict[str, Any]] = []
         state = get_state(shared)
+        names = [client.name for client in self.clients]
+        length = state_size(state)
+        communication: dict[str, float] = {
+            "upload_bytes_per_round": float(float32_size(length)),
+            "plain_bytes_per_round": float(float32_size(length)),
+            "ratio": 1.0,
+            "bits_per_value": 32.0,
+            "setup_bytes": 0.0,
+            "saturated_share": 0.0,
+        }
+        maskers: dict[str, MaskingClient] = {}
+        aggregator: MaskingAggregator | None = None
+        if self.plan.secure_sum is not None:
+            maskers, aggregator = self.plan.secure_sum.build(names)
+            upload = self.plan.secure_sum.message_bytes(length, len(names))
+            communication.update(
+                upload_bytes_per_round=float(upload),
+                ratio=upload / float32_size(length),
+                bits_per_value=float(self.plan.secure_sum.modulus_bits(len(names))),
+                setup_bytes=float(self.plan.secure_sum.setup_bytes(len(names))),
+            )
         for round_index in range(self.rounds):
             updates = []
             for index, client in enumerate(self.clients):
@@ -317,7 +363,13 @@ class Simulation:
                     index,
                 )
                 updates.append(get_state(worker))
-            state = aggregate_states(updates, sizes, weighted=self.weighted_average)
+            if aggregator is None:
+                state = aggregate_states(updates, sizes, weighted=self.weighted_average)
+            else:
+                state, saturated = self._secure_average(
+                    state, updates, sizes, maskers, aggregator, seed, round_index
+                )
+                communication["saturated_share"] = max(communication["saturated_share"], saturated)
             last = round_index == self.rounds - 1
             due = self.evaluate_every > 0 and (round_index + 1) % self.evaluate_every == 0
             if (due or last) and self._has_rows("validation"):
@@ -343,7 +395,7 @@ class Simulation:
         if ledger is not None and self.plan.dp is not None:
             report = PrivacyReport.from_ledger(
                 ledger,
-                protection=self.plan.dp.protection(),
+                protection=self._protection(),
                 unsafe_flags=self._flags.messages,
                 caveats=self._caveats(),
             )
@@ -355,6 +407,7 @@ class Simulation:
             test_at_chosen_threshold=test_at_chosen,
             threshold=threshold,
             noise_multipliers={name: c.noise_multiplier for name, c in calibrations.items()},
+            communication=communication,
             state=state,
             seed=seed,
             config=self.config(),
@@ -417,6 +470,48 @@ class Simulation:
             clip_scale=self.plan.imbalance.clip_scale,
             proximal_mu=mu,
             reference=reference if mu > 0 else None,
+        )
+
+    def _secure_average(
+        self,
+        state: State,
+        updates: Sequence[State],
+        sizes: Sequence[int],
+        maskers: dict[str, MaskingClient],
+        aggregator: MaskingAggregator,
+        seed: int,
+        round_index: int,
+    ) -> tuple[State, float]:
+        """Average the updates through the secure sum: the server only ever sees the total.
+
+        Each participant sends its change to the shared model, already multiplied by its
+        averaging weight, rounded to whole numbers and masked. The sum of those messages is
+        the weighted average change.
+        """
+        assert self.plan.secure_sum is not None
+        quantizer = Quantizer(self.plan.secure_sum.value_bits, self.plan.secure_sum.value_range)
+        weights = fedavg_weights(sizes, weighted=self.weighted_average)
+        start = flatten_state(state)
+        messages: dict[str, bytes] = {}
+        saturated = 0.0
+        for index, (client, update) in enumerate(zip(self.clients, updates, strict=True)):
+            change = weights[index] * (flatten_state(update) - start)
+            saturated = max(saturated, quantizer.saturated_share(change))
+            rounding = numpy_generator(seed, "quantize", round_index, index)
+            messages[client.name] = maskers[client.name].protect(
+                round_index, quantizer.quantize(change, rounding)
+            )
+        total = aggregator.combine(round_index, messages, start.size)
+        average_change = quantizer.dequantize_sum(total, len(self.clients))
+        return unflatten_state(start + average_change, state), saturated
+
+    def _protection(self) -> tuple[str, ...]:
+        assert self.plan.dp is not None
+        if self.plan.secure_sum is None:
+            return self.plan.dp.protection(updates_in_the_clear=True)
+        return (
+            *self.plan.dp.protection(updates_in_the_clear=False),
+            *self.plan.secure_sum.protection(len(self.clients)),
         )
 
     # ------------------------------------------------------------------ scoring

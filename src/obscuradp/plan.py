@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from obscuradp.crypto.pairwise_masking import PairwiseMasking
 from obscuradp.imbalance import Imbalance, NoRebalancing
 
 
@@ -30,12 +31,17 @@ class LocalDPSGD:
         if not self.clip_norm > 0:
             raise ValueError("clip_norm must be positive")
 
-    def protection(self) -> tuple[str, ...]:
+    def protection(self, *, updates_in_the_clear: bool = True) -> tuple[str, ...]:
         """Who is protected from whom, in plain words."""
-        return (
+        noise = (
             "Each participant adds its own noise before anything leaves its machine. Its "
             "training records are protected, at the stated budget, from the server, from the "
-            "other participants and from anyone who sees a model.",
+            "other participants and from anyone who sees a model."
+        )
+        if not updates_in_the_clear:
+            return (noise,)
+        return (
+            noise,
             "The updates themselves travel in the clear: the server sees each participant's "
             "noisy update.",
         )
@@ -49,12 +55,15 @@ class Plan:
         dp: How privacy noise is added. ``None`` means no privacy protection at all (a
             baseline for comparison).
         imbalance: How a rare outcome is handled (see ``obscuradp.imbalance``).
+        secure_sum: How individual updates are hidden from the server. ``None`` sends them
+            in the clear (in a private plan they still carry each participant's own noise).
         proximal_mu: Strength of the FedProx term that keeps local training close to the
             shared model. 0 gives plain federated averaging.
     """
 
     dp: LocalDPSGD | None = field(default_factory=LocalDPSGD)
     imbalance: Imbalance = field(default_factory=NoRebalancing)
+    secure_sum: PairwiseMasking | None = None
     proximal_mu: float = 0.0
 
     def __post_init__(self) -> None:

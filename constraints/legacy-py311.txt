@@ -4,10 +4,13 @@
 # Use with: pip install -c constraints/legacy-py311.txt -e ".[dev,legacy]"
 # dp-accounting and its three dependencies were added in S7 (the library's accountants);
 # the research code does not use them, and no earlier pin was changed.
+# cryptography and its two dependencies were added in S10 (the default secure sum), likewise.
 absl-py==2.5.1
 attrs==23.2.0
+cffi==2.1.1
 cloudpickle==3.1.2
 contourpy==1.3.3
+cryptography==50.0.2
 cycler==0.12.1
 dm-tree==0.1.10
 dp-accounting==0.6.0
@@ -29,6 +32,7 @@ opt_einsum==3.4.0
 packaging==26.3
 pandas==3.0.5
 pillow==13.0.0
+pycparser==3.12
 pyparsing==3.3.3
 python-dateutil==4.0.0
 scikit-learn==1.9.0

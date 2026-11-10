@@ -53,6 +53,13 @@ public interface.
 - `obscuradp.unsafe`: settings that weaken the guarantee are refused unless `allow_unsafe=True`, and are
   then named in the privacy report.
 - A first worked example in the README, run by the tests.
+- `obscuradp.crypto.PairwiseMasking`: the default secure sum. The server learns the exact total of the
+  participants' updates and no single update. Use it with `Plan(secure_sum=...)`.
+- `obscuradp.compression`: updates rounded to a few bits per number and packed tightly; every run reports
+  its measured upload size (44% of plain for three participants with 12-bit values).
+- `obscuradp.crypto.ckks` (research only, refused unless `allow_unsafe=True`) and
+  `obscuradp.selection.policy` (which numbers to encrypt, chosen without leaking through the choice).
+- New dependency: `cryptography`. `dp-accounting` is limited to versions below 0.7 for now.
 
 ### Changed
 

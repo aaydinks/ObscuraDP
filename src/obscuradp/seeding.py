@@ -25,6 +25,7 @@ PURPOSES = {
     "mask": 5,
     "evaluation": 6,
     "data": 7,
+    "quantize": 8,
 }
 
 

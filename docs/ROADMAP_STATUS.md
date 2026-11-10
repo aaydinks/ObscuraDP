@@ -2,10 +2,9 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1 and S3 to S9 are done (Phase 0 and Phase 1 complete, Phase 2 under way). The
-next session is S10** (secure-sum interface, pairwise masking, quantizer, key roles, masks). No gate is
-open. Each step's pull request is merged by the agent once all its checks are green (owner's decision,
-2026-11-10); work stops at the S11 gate.
+**Current state (2026-11-10): S1 and S3 to S10 are done (Phase 0 and Phase 1 complete, Phase 2 nearly so).
+The next session is S11** (corrected re-runs, old against new), which ends in a mandatory review stop. Each
+step's pull request is merged by the agent once all its checks are green (owner's decision, 2026-11-10).
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -35,8 +34,9 @@ open. Each step's pull request is merged by the agent once all its checks are gr
       merged as `249308b`
 - [x] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests. aaydinks/ObscuraDP#25, merged
       as `77071f1`
-- [x] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
-- [ ] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks
+- [x] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags,
+      `Simulation`. aaydinks/ObscuraDP#26, merged as `c188641`
+- [x] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks
 - [ ] S11, Phase 2: corrected re-runs, old against new. **GATE**
 - [ ] S12, Phase 3: distributed and central modes
 - [ ] S13, Phase 3: integer noise path
@@ -49,6 +49,98 @@ open. Each step's pull request is merged by the agent once all its checks are gr
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S10 log (2026-11-10)
+
+### What was done
+
+- **`obscuradp.crypto.PairwiseMasking`** (the default secure sum, decision record 0003). Every pair of
+  participants agrees on a secret the server never sees (X25519), stretches it into a stream of random
+  numbers (HKDF-SHA256, then ChaCha20), and one of the two adds that stream to its update while the other
+  subtracts it. A single message then looks like random numbers; in the sum every stream cancels and the
+  exact total remains. Arithmetic is on whole numbers modulo $2^k$. A sum index can be used once only.
+- **Roles are separate objects** (`crypto/roles.py`): `MaskingClient` runs on a participant's machine and
+  holds its secrets; `MaskingAggregator` runs on the server and holds none (closes G5 for new code).
+- **`obscuradp.compression`**: `Quantizer` rounds an update to $b$-bit whole numbers at random but right
+  on average; `pack_bits` writes them with exactly as many bits as needed. Upload sizes reported by the
+  library are the lengths of real messages.
+- **`Plan(secure_sum=PairwiseMasking(...))` in the simulation**: each participant sends its weighted
+  change to the shared model, rounded and masked; the server sees only the total. The privacy report's
+  "who is protected from whom" text changes accordingly, and every result carries the measured upload
+  bytes, the plain size, their ratio, the one-time setup bytes and the share of values cut off.
+- **`obscuradp.crypto.ckks`**, research only: a key holder separate from the party that adds, no unused
+  rotation keys, decrypted sums rounded to four decimals and returned as 32-bit numbers (G15). Refused
+  unless `allow_unsafe=True`.
+- **`obscuradp.selection.policy`**: the choice of which numbers to encrypt comes from a public seed by
+  default; scores from private data are available with noise charged to the ledger (fixes G14 for new
+  code); a choice from private data without noise is refused unless forced (G4).
+- Dependencies: `cryptography>=42` added. `dp-accounting` limited to below 0.7 (see deviations).
+- **Tests**: 38 more, for 525 in total.
+
+### What was verified and how
+
+- 522 tests pass in the pull-request selection with the pinned versions (Python 3.11), coverage of
+  `src/obscuradp` 98%. With the newest versions (Python 3.13) 360 pass and 2 skip (no `pandas`, no
+  `sklearn`); the comparison tests are not selected there.
+- **The masked sum is exact**: property test over 2 to 7 participants, 1 to 62 bits and random values;
+  the result equals the plain sum modulo $2^k$ every time.
+- **A single message reveals nothing visible**: with all-zero input the 16 possible 4-bit values appear
+  equally often in 40,000 numbers (chi-square below 60 on 15 degrees of freedom); the same input in
+  another sum, or from another participant, gives a different message.
+- **Nothing opens without everyone**: three of four messages added by hand give noise; the aggregator
+  refuses an incomplete or unknown set.
+- **The server-side object holds no secret**: its only fields are the participant names and the bit
+  width. Both ends of a pair derive the same secret; different pairs and fresh setups differ.
+- **Bytes** (measured from messages): three participants, 12-bit values, 129-number model: 226 bytes
+  against 516 as 32-bit numbers, ratio 0.44. Stroke-sized model, five participants: 5,882 against 12,548,
+  ratio 0.47. With 8-bit values and three participants: 0.31. All below the 0.5 target.
+- **Same model with and without the secure sum**: with 20-bit values the final weights agree within the
+  rounding limit and the test score within 0.001; with 12-bit values a private run's score moves by less
+  than 0.02 at the same noise level. Runs are repeatable although the keys are fresh each time.
+- **CKKS wrapper** (old-code setup, needs TenSEAL): refused by default; sum within $10^{-4}$ of the plain
+  sum; output is 32-bit on a four-decimal grid; neither the aggregator nor a participant can decrypt; the
+  public material is more than 20 times smaller than the research code's context with rotation keys; one
+  update of the stroke network is 10 to 40 times larger than plain.
+- The tests can fail: letting both ends of a pair add the mask broke 4 tests; all-zero masks (correct
+  sums, unprotected messages) broke 3 tests. Both changes were reverted.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- **A flaw found by the tests before it shipped**: the aggregator first inferred the number of values
+  from the message length, which is wrong when the last byte is padding. It now takes the length (the
+  model size, which is public) as an argument and checks every message against it.
+- **`dp-accounting` is limited to below 0.7.** Version 0.7.0, released during this work, requires
+  `typing-extensions` 4.9.x, which forces `torch` back from 2.15 to 2.5 when pins are regenerated. The
+  limit carries a comment saying when to lift it.
+- The CKKS wrapper is not wired into the simulation. It is there for size and accuracy comparisons with
+  the role objects directly; the simulation's secure sum is pairwise masking.
+- The exact BFV backend ("if time allows" in the roadmap) was not built.
+- The update length is passed to `combine` explicitly, a small change to the planned interface.
+- No dropout recovery, as decided: a missing message makes the sum unopenable and the round is repeated
+  with a new sum index.
+
+### Pull requests handled around this step (2026-11-10)
+
+| PR | What | Outcome |
+|---|---|---|
+| aaydinks/ObscuraDP#26 | Step 9 | Merged as `c188641`, nine checks green. |
+| aaydinks/ObscuraDP#22 | Bot: `mpmath` 1.4.1 | Closed by the bot itself once the ignore rule from Step 9 was on `main`. |
+| aaydinks/ObscuraDP#27 | Bot: `attrs` 23.2.0 to 26.1.0 in `constraints/dev.txt` | Not merged. Six of nine checks fail at the install step. A helper agent confirmed the cause from a job log and a local reproduction: `dp-accounting` 0.6.0 declares `attrs<24,>=22`, and so do 0.5.0, 0.5.1 and 0.7.0 (the newest), so the pinned set cannot be installed with `attrs` 26.1.0. `attrs` 23.2.0 is already the newest version below 24. Nothing was changed on that branch. The bot configuration now ignores `attrs` 24 and later, and `dp-accounting` 0.7 and later (which the library's own requirement excludes); each rule says when to remove it. The pull request is left for the bot to close on its next run. |
+
+Owner's rule for such bot pull requests (2026-11-10): the bot keeps watching that file; when a bump is
+forbidden by another package, a helper confirms the cause, the pull request stays unmerged and a
+documented ignore rule is added; bumps that pass all checks are merged.
+
+### Open items
+
+- Public keys are not authenticated: a server that swaps keys in transit could read updates. The report
+  says so. Authenticated key exchange belongs with the Flower adapter (S19).
+- With two participants each can work out the other's update from the sum. The report states the number
+  of participants that may collude with the server ($N - 2$).
+- Carried forward: the start-up script of the "ObscuraDP" cloud environment is untested by a fresh session;
+  TestPyPI setup by the owner.
 
 ## S9 log (2026-11-10)
 

@@ -20,7 +20,7 @@ try:
 except PackageNotFoundError:  # running from a source tree that was never installed
     __version__ = "0.0.0+unknown"
 
-from obscuradp import imbalance, tables
+from obscuradp import crypto, imbalance, tables
 from obscuradp.ledger import BudgetExceeded, PrivacyLedger
 from obscuradp.plan import LocalDPSGD, Plan
 from obscuradp.policy import PrivacyPolicy
@@ -39,6 +39,7 @@ __all__ = [
     "SimulationResult",
     "UnsafeConfiguration",
     "__version__",
+    "crypto",
     "imbalance",
     "tables",
     "verify_report",

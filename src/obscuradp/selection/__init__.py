@@ -9,10 +9,20 @@ from obscuradp.selection.masks import (
     tensor_selection,
     tensor_selection_agreement,
 )
+from obscuradp.selection.policy import (
+    mask_from_private_data,
+    mask_from_scores,
+    private_scores,
+    public_mask,
+)
 
 __all__ = [
     "build_mask",
     "mask_agreement",
+    "mask_from_private_data",
+    "mask_from_scores",
+    "private_scores",
+    "public_mask",
     "random_jaccard_expected",
     "random_mask",
     "score_rank_correlation",
