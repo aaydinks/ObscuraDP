@@ -60,7 +60,7 @@ S4 (packaging, tooling, CI) is the session in progress.
 ### Baseline reproduction
 
 Environment: Python 3.11.18, Linux x86_64, 4 CPU cores, packages exactly as pinned in
-`Trial 07/27/requirements.txt`. The full resolved list is in `docs/legacy-environment.txt`; S4 turns it into
+`Trial 07/27/requirements.txt`. The full resolved list is in `constraints/legacy-py311.txt`; S4 turns it into
 the lockfile for the comparison tests. Everything ran in a scratch copy, so no committed result file was
 touched.
 
@@ -99,7 +99,7 @@ independently and passed.
 - TenSEAL 0.3.16, Opacus 1.6.0 and `dp-accounting 0.6.0` all installed from PyPI without problems on
   Python 3.11 and 3.12. `dp-accounting` forces `attrs` 23.2.0.
 - The reference environment and the scratch copy lived in the session scratchpad and are gone. Rebuild from
-  `docs/legacy-environment.txt`.
+  `constraints/legacy-py311.txt`.
 
 ### Dependency versions (PyPI, 2026-11-10)
 

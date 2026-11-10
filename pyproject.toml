@@ -1,0 +1,142 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "obscuradp"
+version = "0.1.0.dev0"
+description = "Federated learning with a total privacy budget, secure sums and a checkable privacy report."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Obscura DP contributors" }]
+keywords = ["differential privacy", "federated learning", "secure aggregation", "homomorphic encryption"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Security :: Cryptography",
+  "Typing :: Typed",
+]
+# Core dependencies stay small. Everything else is an optional extra.
+dependencies = [
+  "numpy>=2.0",
+  "torch>=2.3",
+]
+
+[project.optional-dependencies]
+# Encryption backend (BFV, and CKKS for research use).
+he = ["tenseal>=0.3.16"]
+# Later optional backend. Its wheel is not portable yet, so it is never required.
+openfhe = ["openfhe>=1.6; python_version >= '3.12'"]
+# Adapter for real multi-machine deployments.
+flower = ["flwr>=1.43,<2", "flwr-datasets>=0.6"]
+# Attack tests.
+audit = ["scikit-learn>=1.5", "scipy>=1.13"]
+# Overhead benchmarks and larger models.
+bench = ["torchvision>=0.18", "matplotlib>=3.9"]
+# What the old research code needs. Used only by the comparison tests.
+legacy = [
+  "opacus>=1.6,<2",
+  "tenseal>=0.3.16",
+  "imbalanced-learn>=0.14",
+  "scikit-learn>=1.5",
+  "pandas>=2.2",
+  "scipy>=1.13",
+]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26"]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=5.0",
+  "pytest-socket>=0.7",
+  "hypothesis>=6.112",
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "pre-commit>=4.0",
+  "build>=1.2",
+  "twine>=6.0",
+]
+
+[project.urls]
+Homepage = "https://obscuradp.org"
+Repository = "https://github.com/aaydinks/ObscuraDP"
+Issues = "https://github.com/aaydinks/ObscuraDP/issues"
+Changelog = "https://github.com/aaydinks/ObscuraDP/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obscuradp"]
+
+[tool.hatch.build.targets.sdist]
+# Ship the library and its tests only. Datasets, experiments, results and the website never go into a release.
+include = [
+  "/src",
+  "/tests",
+  "/README.md",
+  "/CHANGELOG.md",
+  "/CITATION.cff",
+  "/LICENSE",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  # The library promises to send nothing anywhere. Any test that opens a network connection fails.
+  "--disable-socket",
+  "--allow-unix-socket",
+]
+markers = [
+  "slow: takes more than a few seconds; runs in the nightly job",
+  "integration: needs optional extras or the old research code",
+]
+filterwarnings = ["error"]
+xfail_strict = true
+
+[tool.coverage.run]
+source = ["obscuradp"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "tools"]
+# The research folders are frozen references. They are never linted or reformatted.
+extend-exclude = ["Experiment 1", "Experiment 2", "Experiment 3", "Trial 07", "website"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PT", "PTH", "TID", "S"]
+ignore = [
+  "S101", # assert is the point of a test, and guards internal invariants elsewhere
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S603", "S607"]
+"tools/**" = ["S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# The package must stand alone. The old research code is only a reference for comparison tests.
+"obscura".msg = "The library must not import the Trial 07/27 research package."
+"stroke_fl".msg = "The library must not import the Experiment 1 research package."
+"credit_fl".msg = "The library must not import the Experiment 2 research package."
+"fedml_he".msg = "The library must not import the Experiment 3 research package."
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["obscuradp"]
+mypy_path = "src"
+strict = true
+warn_unreachable = true

@@ -1,0 +1,57 @@
+name: Release dry run
+
+# Builds the package exactly as a release would and, if asked, uploads it to TestPyPI.
+# Started by hand only. Nothing here can publish to the real PyPI.
+#
+# Uploading needs a one-time setup by the repository owner: a "trusted publisher" for this
+# workflow on test.pypi.org and a GitHub environment named "testpypi". Until then, run it with
+# upload switched off.
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: "Upload to TestPyPI (needs the one-time setup)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and check
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+          python tools/check_release_contents.py dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    name: Upload to TestPyPI
+    if: ${{ inputs.upload }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

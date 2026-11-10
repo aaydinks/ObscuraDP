@@ -227,17 +227,20 @@ research/                (later) the original experiments, unchanged, linked fro
 ```python
 import obscuradp as odp
 
-policy = odp.PrivacyPolicy(epsilon=1.0, delta=1e-5, unit="record")      # total budget for the whole run
+policy = odp.PrivacyPolicy(epsilon=1.0, delta=1e-5, unit="record")  # total budget for the whole run
 plan = odp.Plan(
-    dp=odp.dp.LocalDPSGD(clip=1.0),                                      # or DistributedDPSGD(max_colluding=1), ClientLevelDP(...)
-    secure_sum=odp.crypto.PairwiseMasking(value_bits=8),                 # or odp.crypto.BFV(key_holder="committee")
-    selection=None,                                                      # SPE only with an encryption backend, local mode
+    dp=odp.dp.LocalDPSGD(clip=1.0),  # or DistributedDPSGD(max_colluding=1), ClientLevelDP(...)
+    # or odp.crypto.BFV(key_holder="committee")
+    secure_sum=odp.crypto.PairwiseMasking(value_bits=8),
+    selection=None,  # SPE only with an encryption backend, local mode
     imbalance=odp.imbalance.ClassWeighted(),
 )
-sim = odp.Simulation(model_fn=make_model, clients=client_datasets, plan=plan, policy=policy, rounds=20)
+sim = odp.Simulation(
+    model_fn=make_model, clients=client_datasets, plan=plan, policy=policy, rounds=20
+)
 result = sim.run(seed=42)
 
-print(result.report.summary())            # total epsilon spent, unit, mechanisms, threat model, unsafe flags
+print(result.report.summary())  # total epsilon spent, unit, mechanisms, threat model, unsafe flags
 result.report.to_json("privacy_report.json")
 audit = odp.audit.membership(result, attack="one_run", n_canaries=1000)
 print(audit.advantage, audit.theoretical_ceiling)
