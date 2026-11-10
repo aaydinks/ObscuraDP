@@ -102,9 +102,18 @@ manifest). No gate is open.
 
 ### Open items
 
-- `tools/bootstrap.sh` on the cloud machine: still downloading through the fallback path when this session
-  ended its work on S5. The same install steps pass in CI.
-- The cloud environment proposal (S4) is still to be made.
+- `tools/bootstrap.sh` finished on the cloud machine with exit code 0 after 23 minutes 39 seconds, almost all
+  of it downloading GPU libraries through the fallback path (the environment is 5.6 GB). In that
+  environment (Python 3.13, newest dependencies, no optional extras) the unit tests pass, the comparison
+  tests are skipped as designed, and lint, format and strict types pass. It surfaced one type error that
+  only appears with the newest numpy; it is fixed.
+- GitHub Actions on aaydinks/ObscuraDP#21 at `87c6155`: all 10 checks green. The comparison job ran 52 tests
+  with skips turned into failures.
+- The dependency bot configured in S4 opened 11 pull requests when S4 merged, four of them against the
+  frozen research folders. Its configuration now excludes those folders and groups updates. The owner
+  decides what to do with the pull requests already open (aaydinks/ObscuraDP#10 to #20).
+- The cloud environment proposal (S4) is still to be made. It would cut the 23-minute setup to about a
+  minute.
 
 ## S4 log (2026-11-10)
 
@@ -148,8 +157,8 @@ manifest). No gate is open.
 
 ### Open items
 
-- `tools/bootstrap.sh` was started on this machine and takes the fallback path (the CPU-only download host
-  is blocked here), which downloads several gigabytes. Its outcome is recorded in the pull request.
+- `tools/bootstrap.sh` works on this machine but takes the fallback path (the CPU-only download host is
+  blocked here): 23 minutes 39 seconds, 5.6 GB. See the S5 log.
 - A cloud environment for this repository (allowing the CPU-only PyTorch host and running the bootstrap
   script at start) is proposed to the owner separately. It needs the owner's approval.
 - TestPyPI: the owner needs to register the name `obscuradp` on test.pypi.org with this repository's

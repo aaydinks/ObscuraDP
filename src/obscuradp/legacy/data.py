@@ -249,7 +249,7 @@ def smote_resample(
     if seed is None:
         seed = cfg.seed
 
-    n_min = int(np.bincount(y).min())
+    n_min = int(np.min(np.bincount(y)))
     k = max(1, min(5, n_min - 1))
     smt = SMOTETomek(
         random_state=seed,
