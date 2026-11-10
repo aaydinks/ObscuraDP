@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from obscuradp.accounting import SubsampledGaussianEvent, calibrate_noise_multiplier, total_steps
-from obscuradp.client import RoundStats, train_private_round
+from obscuradp.client import RoundStats, train_plain_round, train_private_round
 from obscuradp.ledger import BudgetExceeded, PrivacyLedger
 from obscuradp.mechanisms import clipped_sum, per_record_gradients
 from obscuradp.models import TabularMLP
@@ -312,3 +312,121 @@ def test_a_round_of_zero_steps_does_nothing() -> None:
     assert _round(model, x, y, ledger=ledger, steps=0) == RoundStats(0, 0, 0)
     assert ledger.scopes == ()
     assert all(torch.equal(before[name], value) for name, value in get_state(model).items())
+
+
+# --------------------------------------------------------------------------- per-record limits
+
+
+def test_the_trainer_applies_per_record_clipping_factors() -> None:
+    x, y = _table(n=24)
+    x = x * 100.0  # long gradients, so every record is cut to its own limit
+    factors = {1.0: 1.0, 0.0: 0.25}
+    seen: list[tuple[list[int], dict[str, torch.Tensor]]] = []
+    model, shadow = _model(), _model()
+    _round(
+        model,
+        x,
+        y,
+        steps=1,
+        sampling_rate=1.0,
+        clip_norm=0.5,
+        noise_multiplier=1.0,
+        clip_scale=lambda targets: torch.where(targets > 0.5, 1.0, 0.25),
+        on_step=lambda step, indices, noisy: seen.append((indices.tolist(), noisy)),
+    )
+    indices, noisy = seen[0]
+    scale = torch.tensor([factors[float(v)] for v in y[indices]])
+    total = clipped_sum(
+        per_record_gradients(shadow, nn.BCELoss(), x[indices], y[indices]), 0.5, scale
+    )
+    noise = _generator(2)
+    for name, parameter in shadow.named_parameters():
+        draw = torch.normal(0.0, 1.0 * 0.5, size=parameter.shape, generator=noise)
+        assert torch.allclose(noisy[name], (total[name] + draw) / 24.0, atol=1e-6), name
+
+
+# --------------------------------------------------------------------------- the plain trainer
+
+
+def _plain(model: nn.Module, x: torch.Tensor, y: torch.Tensor, **overrides: object) -> int:
+    arguments: dict[str, object] = {
+        "loss_fn": nn.BCELoss(reduction="none"),
+        "optimizer": torch.optim.SGD(model.parameters(), lr=0.5),
+        "epochs": 1.0,
+        "batch_size": 16,
+        "generator": _generator(1),
+        **overrides,
+    }
+    return train_plain_round(model, x, y, **arguments)  # type: ignore[arg-type]
+
+
+def test_plain_training_takes_the_stated_number_of_steps_and_learns() -> None:
+    x, y = _table(n=600, seed=3)
+    model = _model(seed=1)
+    assert _plain(model, x, y, epochs=1.0, batch_size=16) == 38  # ceil(600 / 16)
+    assert _plain(model, x, y, epochs=0.5, batch_size=100) == 3
+    assert _plain(model, x, y, epochs=2.0, batch_size=600) == 2
+    _plain(model, x, y, epochs=5.0)
+    model.eval()
+    with torch.no_grad():
+        accuracy = float(((model(x) > 0.5).float() == y).float().mean())
+    assert accuracy > 0.95
+
+
+def test_plain_training_visits_every_row_once_per_pass() -> None:
+    x, _ = _table(n=10)
+    seen: list[int] = []
+
+    def recording_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        seen.extend(target.int().tolist())
+        return nn.BCELoss(reduction="none")(output, target)
+
+    marked = torch.arange(10, dtype=torch.float32) % 2  # targets double as row markers here
+    _plain(_model(), x, marked, loss_fn=recording_loss, epochs=2.0, batch_size=4)
+    assert len(seen) == 20  # 3 batches per pass: 4 + 4 + 2 rows, twice
+    assert sum(seen) == 10  # each of the five rows marked 1 was seen exactly twice
+
+
+def test_plain_training_is_repeatable_and_supports_the_proximal_term() -> None:
+    x, y = _table()
+    first, second = _model(), _model()
+    _plain(first, x, y)
+    _plain(second, x, y)
+    assert all(torch.equal(v, get_state(second)[n]) for n, v in get_state(first).items())
+
+    # One full-batch step with the reference one unit above the start: the term adds lr * mu.
+    lr, mu = 0.1, 0.5
+    plain, pulled = _model(), _model()
+    reference = {name: value + 1.0 for name, value in get_state(plain).items()}
+    one_step = {"epochs": 1.0, "batch_size": 40}
+    _plain(plain, x, y, optimizer=torch.optim.SGD(plain.parameters(), lr=lr), **one_step)
+    _plain(
+        pulled,
+        x,
+        y,
+        optimizer=torch.optim.SGD(pulled.parameters(), lr=lr),
+        proximal_mu=mu,
+        reference=reference,
+        **one_step,
+    )
+    for name, value in get_state(pulled).items():
+        assert torch.allclose(value, get_state(plain)[name] + lr * mu, atol=1e-6), name
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"epochs": 0.0}, "epochs"),
+        ({"batch_size": 0}, "batch_size"),
+        ({"proximal_mu": -1.0}, "proximal_mu"),
+        ({"proximal_mu": 1.0}, "reference weights are required"),
+    ],
+)
+def test_plain_training_refuses_bad_settings(overrides: dict[str, object], message: str) -> None:
+    x, y = _table()
+    with pytest.raises(ValueError, match=message):
+        _plain(_model(), x, y, **overrides)
+    with pytest.raises(ValueError, match="at least one record"):
+        _plain(_model(), x[:0], y[:0])
+    with pytest.raises(ValueError, match="same number of records"):
+        _plain(_model(), x, y[:3])

@@ -48,6 +48,53 @@ server, and installs the package with its development tools. To do it by hand:
 python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
 ```
 
+## A first example
+
+Three participants with made-up data train one shared model under a single privacy budget for the whole
+run. Nothing here needs real data or a network connection.
+
+```python
+import numpy as np
+
+import obscuradp as odp
+from obscuradp.models import TabularMLP
+
+# Made-up tables: 6 numeric columns and a yes/no outcome that is "yes" for about one row in five.
+rng = np.random.default_rng(0)
+clients = []
+for name, rows in [("north", 900), ("south", 600), ("east", 400)]:
+    x = rng.normal(size=(rows, 6)).astype(np.float32)
+    y = (x[:, 0] + 0.6 * x[:, 1] + rng.normal(scale=0.5, size=rows) > 1.0).astype(np.float32)
+    # Each participant keeps its own training, validation and test rows.
+    clients.append(odp.tables.make_client_data(name, x, y, seed=0))
+
+simulation = odp.Simulation(
+    model_fn=lambda: TabularMLP(6, hidden=(16,)),
+    clients=clients,
+    plan=odp.Plan(
+        dp=odp.LocalDPSGD(clip_norm=1.0),  # every participant adds its own noise
+        imbalance=odp.imbalance.ClassWeighted(positive_prior=0.2),  # a public figure, not a count
+    ),
+    policy=odp.PrivacyPolicy(epsilon=1.0, delta=1e-5),  # one budget for the whole run
+    rounds=5,
+    learning_rate=0.1,
+)
+result = simulation.run(seed=0)
+
+print(result.report.summary())  # what was promised, what was spent, what is not covered
+print(result.test)  # scores on rows that were never trained on
+result.report.to_json("privacy_report.json")
+```
+
+The report stores every noisy release that was made, so anyone can recompute its total:
+
+```bash
+obscuradp report verify privacy_report.json
+```
+
+Settings that would quietly break the promise (for example making synthetic rows from real ones before
+private training) are refused unless you pass `allow_unsafe=True`, and are then named in the report.
+
 ## Check that it works
 
 ```bash

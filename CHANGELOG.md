@@ -45,6 +45,14 @@ public interface.
   whole round charged to the ledger before any data is used.
 - `obscuradp.audit.bounds`: lower limits on the true privacy budget from the results of an attack, used by
   tests that attack the trainer and catch planted defects.
+- `obscuradp.Simulation` with `obscuradp.Plan` and `obscuradp.LocalDPSGD`: a whole federation on one
+  machine under one total privacy budget, scored on validation rows, with a privacy report for every run.
+- `obscuradp.tables`: encoding from declared ranges and categories, and each participant's own training,
+  validation and test rows.
+- `obscuradp.imbalance.ClassWeighted`: weights from a public figure that keep working under clipping.
+- `obscuradp.unsafe`: settings that weaken the guarantee are refused unless `allow_unsafe=True`, and are
+  then named in the privacy report.
+- A first worked example in the README, run by the tests.
 
 ### Changed
 

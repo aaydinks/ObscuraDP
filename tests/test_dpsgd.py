@@ -215,6 +215,27 @@ def test_one_record_never_moves_the_sum_by_more_than_the_clipping_norm(
         assert _length(alone) <= clip_norm
 
 
+@settings(max_examples=25, deadline=None)
+@given(n=st.integers(1, 10), seed=st.integers(0, 10_000), drop=st.integers(0, 9))
+def test_per_record_limits_never_raise_the_influence_of_a_record(
+    n: int, seed: int, drop: int
+) -> None:
+    """With factors in (0, 1], one record still moves the sum by at most the clipping norm."""
+    model = _model(seed=seed)
+    x, y = _data(n, 5, seed=seed + 1)
+    x = x * 30.0
+    scale = torch.rand(n, generator=_generator(seed + 2)).clamp_min(0.01)
+    gradients = per_record_gradients(model, nn.BCELoss(), x, y)
+    with_all = clipped_sum(gradients, 0.7, scale)
+    keep = [i for i in range(n) if i != drop % n]
+    without_one = clipped_sum(
+        {name: value[keep] for name, value in gradients.items()}, 0.7, scale[keep]
+    )
+    moved = _length({name: with_all[name] - without_one[name] for name in with_all})
+    assert moved <= 0.7 * float(scale[drop % n]) * (1.0 + 1e-5)
+    assert moved <= 0.7
+
+
 # --------------------------------------------------------------------------- the noisy step
 
 

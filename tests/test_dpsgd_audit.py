@@ -132,7 +132,11 @@ def test_unclipped_gradients_are_caught(monkeypatch: pytest.MonkeyPatch) -> None
     """Second mutation: clip to three times the reported norm."""
     honest = dpsgd_module.clipped_sum
     monkeypatch.setattr(
-        dpsgd_module, "clipped_sum", lambda gradients, clip_norm: honest(gradients, 3.0 * clip_norm)
+        dpsgd_module,
+        "clipped_sum",
+        lambda gradients, clip_norm, clip_scale=None: honest(
+            gradients, 3.0 * clip_norm, clip_scale
+        ),
     )
     without, spent = _full_batch_scores(False, TRIALS, SIGMA, STEPS, seed=10)
     with_canary, _ = _full_batch_scores(True, TRIALS, SIGMA, STEPS, seed=20)

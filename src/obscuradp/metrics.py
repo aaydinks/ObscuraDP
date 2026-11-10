@@ -122,6 +122,26 @@ def evaluate(
     return binary_metrics(probabilities, labels, threshold=threshold)
 
 
+def best_threshold(
+    probabilities: npt.ArrayLike, labels: npt.ArrayLike, *, metric: str = "f1"
+) -> float:
+    """The decision threshold that maximizes ``metric`` on the given rows.
+
+    Use validation rows, never test rows. Every distinct predicted value is tried as a
+    threshold; ties go to the lowest threshold. ``metric`` is any threshold-dependent key of
+    ``binary_metrics``: ``f1``, ``accuracy``, ``recall`` or ``precision``.
+    """
+    if metric not in ("f1", "accuracy", "recall", "precision"):
+        raise ValueError("metric must be one of f1, accuracy, recall, precision")
+    p = np.asarray(probabilities, dtype=np.float64).ravel()
+    best_value, best_cut = -1.0, 0.5
+    for cut in np.unique(p):
+        value = binary_metrics(p, labels, threshold=float(cut))[metric]
+        if value > best_value:
+            best_value, best_cut = value, float(cut)
+    return best_cut
+
+
 def summarize(runs: Iterable[Mapping[str, object]]) -> dict[str, dict[str, float]]:
     """Mean and spread of each numeric measure across runs.
 
