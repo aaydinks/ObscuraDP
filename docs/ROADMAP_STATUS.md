@@ -112,8 +112,13 @@ manifest). No gate is open.
 - The dependency bot configured in S4 opened 11 pull requests when S4 merged, four of them against the
   frozen research folders. Its configuration now excludes those folders and groups updates. The owner
   decides what to do with the pull requests already open (aaydinks/ObscuraDP#10 to #20).
-- The cloud environment proposal (S4) is still to be made. It would cut the 23-minute setup to about a
-  minute.
+- **Cloud environment "ObscuraDP" created (owner approved, 2026-11-10).** It allows the two hosts the
+  CPU-only PyTorch build is served from (`download.pytorch.org` for the index, `download-r2.pytorch.org` for
+  the files) and runs `tools/bootstrap.sh` when a session starts. Measured in a fresh clone on this machine
+  with both hosts allowed: 1 minute 12 seconds and 1.2 GB, against 23 minutes 39 seconds and 5.6 GB before.
+  The setup script has not yet been exercised by a fresh session starting on that environment. The saved
+  Cloudflare deploy token stays on the Default environment and must be added again to "ObscuraDP" if the
+  website is ever deployed from a session there.
 
 ## S4 log (2026-11-10)
 
@@ -159,8 +164,7 @@ manifest). No gate is open.
 
 - `tools/bootstrap.sh` works on this machine but takes the fallback path (the CPU-only download host is
   blocked here): 23 minutes 39 seconds, 5.6 GB. See the S5 log.
-- A cloud environment for this repository (allowing the CPU-only PyTorch host and running the bootstrap
-  script at start) is proposed to the owner separately. It needs the owner's approval.
+- The cloud environment for this repository now exists. See the S5 log.
 - TestPyPI: the owner needs to register the name `obscuradp` on test.pypi.org with this repository's
   `release-dry-run.yml` as a trusted publisher, and create a GitHub environment named `testpypi`, before the
   upload option of the dry run can work.
@@ -223,8 +227,9 @@ independently and passed.
 
 ### Environment notes for later sessions
 
-- **The CPU-only torch download host (`download.pytorch.org`) is blocked** by this cloud environment's
-  network rules (HTTP 403 from the proxy). `pip install torch` from PyPI works but pulls GPU libraries: the
+- (Resolved on 2026-11-10 by the "ObscuraDP" cloud environment, see the S5 log.) **The CPU-only torch
+  download host (`download.pytorch.org`) was blocked** by the Default cloud environment's network rules
+  (HTTP 403 from the proxy). `pip install torch` from PyPI works but pulls GPU libraries: the
   environment is 5.1 GB and takes several minutes to build. S4 should propose either allowing that host or a
   setup script that prepares the environment once. This is a request for the owner to approve, not something
   a session should work around.
