@@ -4,8 +4,8 @@ const steps = [
   { title: 'Device data', text: 'Raw data stays on the device', icon: 'device' },
   { title: 'Clip + noise (DP-SGD)', text: "Each person's influence is bounded", icon: 'clip' },
   { title: 'Encrypt (CKKS)', text: 'Updates are encrypted', icon: 'lock' },
-  { title: 'Server', text: 'Adds encrypted updates together', icon: 'server' },
-  { title: 'Model update', text: 'The shared model learns, privately', icon: 'model' },
+  { title: 'Server', text: 'Adds encrypted updates together, but cannot read them', icon: 'server' },
+  { title: 'Model update', text: 'Only the combined total is ever decrypted, and the shared model learns from it', icon: 'model' },
 ];
 const icons: Record<string, string> = {
   device: '<rect x="5" y="3" width="14" height="18" rx="2"/><line x1="10" y1="18" x2="14" y2="18"/>',
@@ -36,6 +36,10 @@ const icons: Record<string, string> = {
     ))
   }
 </div>
+<p class="caption pipeline-note">
+  Decrypting means turning the total back into readable numbers with a secret key. In the design, the server
+  never holds that key. Keeping the key away from the server is still being built.
+</p>
 
 <style>
   .pipeline {
@@ -87,7 +91,13 @@ const icons: Record<string, string> = {
     color: var(--muted);
     font-size: var(--fs-caption);
   }
+  .pipeline-note {
+    margin-top: var(--s-3);
+  }
   @media (min-width: 900px) {
+    .pipeline-note {
+      margin-top: var(--s-6);
+    }
     .pipeline {
       grid-template-columns: repeat(3, minmax(0, 1fr)) 28px repeat(2, minmax(0, 1fr));
       gap: var(--s-3);

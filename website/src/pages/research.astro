@@ -89,8 +89,8 @@ const toc = [
       </p>
       <p class="caption">
         Means and standard deviations are over five seeds (42 to 46). The reported std is the population standard
-        deviation. Research design:
-        {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">pre-registration</a> : <span>pre-registration link to be added.</span>}
+        deviation. Research plan for the next benchmark:{' '}
+        {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">read it here</a> : <span>written before the benchmark runs, to be published (not public yet).</span>}
       </p>
     </header>
 
@@ -481,7 +481,7 @@ python aggregate_seeds.py && python plot_multiseed.py</code></pre>
                 <tr><th scope="row">Datasets</th><td>FEMNIST (handwritten characters split by writer), Shakespeare (next-character prediction split by role) and synthetic health data.</td></tr>
                 <tr><th scope="row">Conditions</th><td>Non-IID client splits, several ε values, five seeds each.</td></tr>
                 <tr><th scope="row">Output</th><td>The first ε-versus-accuracy curve for DP + FL + HE, with code, data and a replication guide.</td></tr>
-                <tr><th scope="row">Design</th><td>{SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Pre-registered</a> : 'Pre-registered (link to be added).'}</td></tr>
+                <tr><th scope="row">Design</th><td>{SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Research plan, written before the benchmark runs</a> : 'Research plan written before the benchmark runs. To be published; not public yet.'}</td></tr>
               </tbody>
             </table>
           </div>
