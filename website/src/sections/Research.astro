@@ -54,7 +54,7 @@ const accRows = [
             </li>
           </ul>
           <p class="refs">
-            Replication of: <a href={PAPERS.exp2.href} rel="noopener">{PAPERS.exp2.label}</a>.
+            Replication of: <a href={PAPERS.exp2.href} rel="noopener">{PAPERS.exp2.label}</a>.<br />
             <a href={EXPERIMENT_FOLDERS.exp2} rel="noopener">Experiment 2 on GitHub</a>.
           </p>
         </div>
@@ -79,7 +79,7 @@ const accRows = [
             </li>
           </ul>
           <p class="refs">
-            Replication of: <a href={PAPERS.exp3.href} rel="noopener">{PAPERS.exp3.label}</a>.
+            Replication of: <a href={PAPERS.exp3.href} rel="noopener">{PAPERS.exp3.label}</a>.<br />
             <a href={EXPERIMENT_FOLDERS.exp3} rel="noopener">Experiment 3 on GitHub</a>.
           </p>
         </div>
@@ -104,7 +104,7 @@ const accRows = [
             </li>
           </ul>
           <p class="refs">
-            Replication of: <a href={PAPERS.exp1.href} rel="noopener">{PAPERS.exp1.label}</a>.
+            Replication of: <a href={PAPERS.exp1.href} rel="noopener">{PAPERS.exp1.label}</a>.<br />
             <a href={EXPERIMENT_FOLDERS.exp1} rel="noopener">Experiment 1 on GitHub</a>.
           </p>
         </div>
@@ -149,7 +149,7 @@ const accRows = [
     align-content: start;
   }
   .setup {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .mini {
     font-size: var(--fs-caption);
@@ -162,7 +162,7 @@ const accRows = [
     padding-top: var(--s-2);
   }
   .findings li {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     padding-bottom: var(--s-2);
     border-bottom: 1px solid var(--line);
   }
@@ -171,8 +171,7 @@ const accRows = [
     color: var(--muted);
   }
   .refs a {
-    display: inline-block;
-    margin-right: 0.5rem;
+    display: inline;
   }
   .next {
     margin-top: var(--s-10, var(--s-9));

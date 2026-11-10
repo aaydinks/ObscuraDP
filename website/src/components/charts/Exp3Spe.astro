@@ -21,7 +21,9 @@ const yT = scaleLinear().domain([0, Math.ceil(maxTime / 5) * 5]).range([f.innerH
 const yB = scaleLinear().domain([0, Math.ceil(maxBytes / 500) * 500]).range([f.innerH, 0]);
 const tTicks = yT.ticks(4);
 const bTicks = yB.ticks(4);
-const styles: Record<string, string> = { LSTM: 'muted', 'ResNet-18': 'blue', 'ResNet-50': 'ink' };
+// Lines and dots use these; LSTM's line is light gray, but its text label stays dark.
+const styles: Record<string, string> = { LSTM: 'gray', 'ResNet-18': 'blue', 'ResNet-50': 'ink' };
+const labelStyle = (n: string) => (styles[n] === 'gray' ? 'muted' : styles[n]);
 
 const table = dataTable({
   caption: 'Selective encryption cost by encrypted share',
@@ -81,7 +83,7 @@ const r18 = models['ResNet-18'].sweep;
                 {models[n].sweep.map((s, i) => (
                   <circle class={`draw-fade fill-${styles[n]}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="3.5" stroke="#fff" stroke-width="1.5" data-tip={`${n}, ${Math.round(s.p * 100)}% encrypted: ${panel.fmt(panel.pick(s))}`} />
                 ))}
-                <text class={`tick fill-${styles[n]}`} x={r2(last[0]) + 8} y={r2(last[1])} dy="0.32em">
+                <text class={`tick fill-${labelStyle(n)}`} x={r2(last[0]) + 8} y={r2(last[1])} dy="0.32em">
                   {n}
                 </text>
               </g>

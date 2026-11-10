@@ -75,7 +75,7 @@ const table = dataTable({
             y0: y(Math.max(0, get(m.key, e).mean - get(m.key, e).std)),
             y1: y(Math.min(1, get(m.key, e).mean + get(m.key, e).std)),
           }));
-          return <path class={`draw-fade fill-${m.cls === 'blue' ? 'soft' : 'muted'}`} d={bandPath(band)} opacity={m.cls === 'blue' ? 0.35 : 0.18} />;
+          return <path class={`draw-fade fill-${m.cls === 'blue' ? 'soft' : 'gray'}`} d={bandPath(band)} opacity={m.cls === 'blue' ? 0.35 : 0.3} />;
         })
       }
       <line class="stroke-muted" x1="0" x2={f.innerW} y1={r2(y(baseline))} y2={r2(y(baseline))} stroke-dasharray="2 4" stroke-width="1.5" />
