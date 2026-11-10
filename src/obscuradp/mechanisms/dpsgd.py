@@ -101,17 +101,36 @@ def record_norms(gradients: Mapping[str, torch.Tensor]) -> torch.Tensor:
     return torch.stack(squares).sum(dim=0).sqrt()
 
 
-def clipped_sum(gradients: Mapping[str, torch.Tensor], clip_norm: float) -> Gradients:
+def clipped_sum(
+    gradients: Mapping[str, torch.Tensor],
+    clip_norm: float,
+    clip_scale: torch.Tensor | None = None,
+) -> Gradients:
     """Shrink each record's gradient to length at most ``clip_norm`` and add them up.
 
     A record whose gradient is not a finite number contributes nothing. Whatever the data,
     adding or removing one record changes the result by at most ``clip_norm`` in length.
+
+    Args:
+        gradients: Per-record gradients, see ``per_record_gradients``.
+        clip_norm: The clipping norm $C$.
+        clip_scale: Optional factor in (0, 1] for each record. Record $i$ is then limited to
+            $C \\cdot s_i$ instead of $C$. No record can exceed $C$, so the guarantee is
+            unchanged; this only lets some records count less than others (see
+            ``obscuradp.imbalance.ClassWeighted``).
     """
     if not clip_norm > 0.0:
         raise ValueError("clip_norm must be positive")
     norms = record_norms(gradients)
     finite = torch.isfinite(norms)
-    limit = clip_norm * (1.0 - CLIP_MARGIN)
+    limit: torch.Tensor | float = clip_norm * (1.0 - CLIP_MARGIN)
+    if clip_scale is not None:
+        scale = clip_scale.detach().double().flatten().to(norms.device)
+        if scale.shape != norms.shape:
+            raise ValueError("clip_scale needs exactly one factor per record")
+        if scale.numel() > 0 and not bool(((scale > 0.0) & (scale <= 1.0)).all()):
+            raise ValueError("every clip_scale factor must be in (0, 1]")
+        limit = limit * scale
     factors = torch.where(finite, (limit / norms.clamp_min(1e-300)).clamp(max=1.0), 0.0)
     total: Gradients = {}
     for name, value in gradients.items():
@@ -131,6 +150,7 @@ def private_gradient(
     noise_multiplier: float,
     expected_batch_size: float,
     generator: torch.Generator,
+    clip_scale: torch.Tensor | None = None,
 ) -> Gradients:
     """The noisy average gradient of one step.
 
@@ -146,12 +166,16 @@ def private_gradient(
         noise_multiplier: $\\sigma$. Must be positive: a step without noise is not private.
         expected_batch_size: $q \\cdot n$, the same real number at every step.
         generator: The random stream of the noise.
+        clip_scale: Optional per-record factors in (0, 1], see ``clipped_sum``. The noise is
+            always sized for the full clipping norm.
     """
     if not noise_multiplier > 0.0:
         raise ValueError("noise_multiplier must be positive")
     if not expected_batch_size > 0.0:
         raise ValueError("expected_batch_size must be positive")
-    total = clipped_sum(per_record_gradients(model, loss_fn, features, targets), clip_norm)
+    total = clipped_sum(
+        per_record_gradients(model, loss_fn, features, targets), clip_norm, clip_scale
+    )
     noisy: Gradients = {}
     for name, value in total.items():
         noise = gaussian_noise(

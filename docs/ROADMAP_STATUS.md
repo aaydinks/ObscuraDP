@@ -2,10 +2,10 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1 and S3 to S8 are done (Phase 0 and Phase 1 complete, Phase 2 under way). The
-next session is S9** (validation split, preprocessing from declared bounds, class weighting, unsafe flags
-and the new `Simulation`). No gate is open. Each step's pull request is merged by the agent once all its
-checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
+**Current state (2026-11-10): S1 and S3 to S9 are done (Phase 0 and Phase 1 complete, Phase 2 under way). The
+next session is S10** (secure-sum interface, pairwise masking, quantizer, key roles, masks). No gate is
+open. Each step's pull request is merged by the agent once all its checks are green (owner's decision,
+2026-11-10); work stops at the S11 gate.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -33,8 +33,9 @@ checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
       results manifest. aaydinks/ObscuraDP#23, merged as `b62ad69`
 - [x] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`. aaydinks/ObscuraDP#24,
       merged as `249308b`
-- [x] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
-- [ ] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
+- [x] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests. aaydinks/ObscuraDP#25, merged
+      as `77071f1`
+- [x] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
 - [ ] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks
 - [ ] S11, Phase 2: corrected re-runs, old against new. **GATE**
 - [ ] S12, Phase 3: distributed and central modes
@@ -48,6 +49,85 @@ checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S9 log (2026-11-10)
+
+### What was done
+
+- **`obscuradp.unsafe`**: settings that weaken the privacy guarantee are refused with
+  `UnsafeConfiguration`. With `allow_unsafe=True` they run, and the reason is written into the privacy
+  report in plain words. Four reasons so far: synthetic rows made before private training, class weights
+  taken from private labels, a failure probability $\delta$ that is not below one over the number of
+  records, and statistics taken from private data.
+- **`obscuradp.data`**: `TableSchema` encodes a table from declared ranges and category lists, row by row,
+  with no statistic taken from the data (closes G12 for new code). `make_client_data` cuts each
+  participant's rows into training, validation and test parts, class by class (closes G13 for new code).
+- **`obscuradp.imbalance`**: `ClassWeighted` (weights from a public prevalence figure), `NoRebalancing`,
+  and `UnsafeOversampling` for SMOTE-style methods, which a private run refuses (closes G3 for new code).
+- **`obscuradp.Plan`, `obscuradp.LocalDPSGD` and `obscuradp.Simulation`**: the new loop. The noise of each
+  participant is worked out once for the whole run from the total budget; the whole run is reserved in
+  the ledger before any data is touched; every round is charged before it happens; scores during
+  training come from validation rows and test rows are scored once at the end; results become records
+  with code version, machine, settings fingerprint and seed. Participants can have stricter budgets of
+  their own (G21).
+- `train_plain_round` (the unprotected baseline), `metrics.best_threshold` (decision threshold chosen on
+  validation rows), a first worked example in `README.md`, and the public names at the top level of the
+  package.
+- **Tests**: 63 more, for 487 in total.
+
+### What was verified and how
+
+- 484 tests pass in the pull-request selection with the pinned versions (Python 3.11), coverage of
+  `src/obscuradp` 98%. With the newest versions (Python 3.13) the unit tests pass and the comparison tests
+  skip.
+- **One budget for the whole run**: for three participants (630, 420 and 280 training rows, 4 rounds) the
+  simulation's noise multipliers equal an independent calibration over all rounds, each ledger holds
+  exactly the steps that were run, each participant spends between 0.99 and 1.0 of a budget of 1, and the
+  stored report passes `verify_report`.
+- **A budget that cannot be met stops before training** (no round is run), and a participant with half
+  the budget gets more than 1.5 times the noise.
+- **Unsafe settings**: oversampling, weights from private labels and a too-large $\delta$ each raise by
+  default; when forced, the run completes, the report is marked unsafe and names the reason.
+- **Clean evaluation**: the last history entry equals the final validation score, the threshold equals
+  the best one on validation rows, and test rows are scored once.
+- **Encoding is row by row**: changing or removing other rows never changes a row's encoding (property
+  test, extreme values included); every row lands in exactly one part of the split.
+- **Class weights work under clipping**: on a toy task with one positive row in five, recall at
+  threshold 0.5 is 0.0 without weights and 1.0 with them at the same noise level; at the threshold chosen
+  on validation rows the private run reaches F1 0.75 against 0.77 without privacy.
+- The README example is run as printed by a test, and its report verifies through the command line.
+- The tests can fail: removing the unsafe check from the simulation broke 4 tests; sizing the noise for
+  one round only (the old mistake) broke the calibration test. Both changes were reverted.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- **Per-record clipping limits (new).** Clipping every record's gradient to the same length cancels class
+  weights: in the first trial the weighted private run had recall 0.27 where the unprotected one had
+  0.97. `clipped_sum` now accepts one factor in (0, 1] per record, and `ClassWeighted` gives the heavier
+  class the full clipping norm $C$ and the lighter class $C \cdot w_{\text{light}} / w_{\text{heavy}}$.
+  No record can exceed $C$, the noise stays sized for $C$, so the guarantee is unchanged (property test:
+  one record still moves the sum by at most its own limit).
+- The plan's `sim/` folder holds only the new loop. The old loop stays in `obscuradp.legacy.loop`.
+- Each participant uses its own sampling rate $q_i = \min(1, B / n_i)$ and its own noise level, as in
+  table 1 of `docs/KPI_MAPPING.md`, in place of one shared rate.
+- In the unprotected trainer one pass is $\lceil n / B \rceil$ batches, so whole passes see every row.
+
+### Pull requests handled around this step (2026-11-10)
+
+| PR | What | Outcome |
+|---|---|---|
+| aaydinks/ObscuraDP#25 | Step 8 | Merged as `77071f1`. Its first run failed on macOS only: on GitHub's virtual Macs torch prints a one-time notice ("Skipping device Apple Paravirtual device") the first time `torch.func` runs a backward pass, and the test settings turn warnings into errors. A filter for exactly that message was added; every other warning is still an error. |
+| aaydinks/ObscuraDP#22 | Bot: `mpmath` 1.3.0 to 1.4.1 in `constraints/dev.txt` | Not merged. Six of its nine checks fail at the install step. A helper agent confirmed the cause from the job log and a local reproduction: `torch` 2.15.0 requires `sympy>=1.13.3`, and both `sympy` 1.13.3 and 1.14.0 (the newest, no pre-release beyond it) declare `mpmath<1.4`, so the pinned set cannot be installed with `mpmath` 1.4.1. No fix exists without forcing an unsupported combination, and nothing was changed on that branch. The bot configuration now ignores `mpmath` 1.4 and later; the rule should be removed once a released `sympy` accepts it. The pull request is left open for the bot to close on its next run, or for the owner to close. |
+
+### Open items
+
+- The simulation sends updates in the clear (protected by each participant's own noise). Hiding
+  individual updates from the server is S10.
+- `Simulation` handles yes/no outcomes only (its scoring uses `binary_metrics`).
+- Carried forward: the start-up script of the "ObscuraDP" cloud environment is untested by a fresh session;
+  TestPyPI setup by the owner.
 
 ## S8 log (2026-11-10)
 

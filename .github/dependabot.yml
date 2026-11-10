@@ -20,6 +20,11 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    ignore:
+      # sympy, which torch needs, requires mpmath below 1.4 (true of sympy 1.14.0, the newest
+      # release on 2026-11-10). Remove this rule once a released sympy accepts mpmath 1.4.
+      - dependency-name: mpmath
+        versions: [">=1.4"]
 
   - package-ecosystem: github-actions
     directory: "/"

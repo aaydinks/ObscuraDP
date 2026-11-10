@@ -6,7 +6,14 @@ import numpy as np
 import pytest
 import torch
 
-from obscuradp.metrics import average_precision, binary_metrics, evaluate, roc_auc, summarize
+from obscuradp.metrics import (
+    average_precision,
+    best_threshold,
+    binary_metrics,
+    evaluate,
+    roc_auc,
+    summarize,
+)
 from obscuradp.models import TabularMLP
 
 
@@ -106,3 +113,30 @@ def test_summarize_handles_nan_and_single_runs() -> None:
     assert math.isnan(s["auc"]["std"])
     assert math.isnan(s["acc"]["std"])
     assert summarize([]) == {}
+
+
+def test_best_threshold_by_hand() -> None:
+    scores = [0.1, 0.4, 0.35, 0.8]
+    labels = [0, 0, 1, 1]
+    # At 0.35 both positives are found with one false alarm (F1 0.8); at 0.8 one is missed (0.67).
+    assert best_threshold(scores, labels) == 0.35
+    assert best_threshold(scores, labels, metric="precision") == 0.8
+    assert best_threshold(scores, labels, metric="recall") == 0.1  # ties go to the lowest
+    assert best_threshold(scores, labels, metric="accuracy") == 0.35
+    chosen = best_threshold(scores, labels)
+    assert binary_metrics(scores, labels, threshold=chosen)["f1"] == pytest.approx(0.8)
+    with pytest.raises(ValueError, match="metric must be one of"):
+        best_threshold(scores, labels, metric="auc")
+
+
+def test_best_threshold_is_never_worse_than_one_half() -> None:
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        labels = (rng.random(200) < 0.1).astype(int)
+        labels[0] = 1
+        scores = np.clip(rng.normal(0.2 + 0.2 * labels, 0.1), 0.01, 0.99)
+        chosen = best_threshold(scores, labels)
+        assert (
+            binary_metrics(scores, labels, threshold=chosen)["f1"]
+            >= binary_metrics(scores, labels, threshold=0.5)["f1"]
+        )
