@@ -2,9 +2,8 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): the Phase 0 gate is closed.** All eight decisions are answered (below). S3
-(website statements that are false today, plus the license file) is being handled in its own pull request.
-S4 (packaging, tooling, CI) is the session in progress.
+**Current state (2026-11-10): S1, S3 and S4 are done. The next session is S5** (comparison harness against
+the old code, then porting config, models, data, metrics and aggregation). No gate is open.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -16,7 +15,7 @@ S4 (packaging, tooling, CI) is the session in progress.
 | 4 | Class imbalance | SMOTE refused inside private training unless forced; class weighting instead (`adr/0004-imbalance-without-smote.md`) |
 | 5 | Dataset files in the repository | Stay for now; add source and license notes if they can be found; never shipped in the package |
 | 6 | Wording of the attacker-advantage and bytes targets | As proposed in `KPI_MAPPING.md`: a measured target beside two ceilings; bytes counted against 32-bit plain messages |
-| 7 | The 12 website statements that are false today | Fixed now, in a separate pull request that is merged automatically once its checks pass |
+| 7 | The 12 website statements that are false today | Fixed now, in a separate pull request merged automatically once its checks passed (aaydinks/ObscuraDP#9) |
 | 8 | Release label for v0.1 | "Prerun + novel research action" (owner's wording) |
 
 ## Session checklist
@@ -24,8 +23,8 @@ S4 (packaging, tooling, CI) is the session in progress.
 - [x] **S1, Phase 0.** Audit, baseline reproduction, threat model, target definitions, website wording
       list, risk list, decision records, roadmap. Draft PR aaydinks/ObscuraDP#8. Gate closed 2026-11-10.
 - [ ] S2, spare for changes requested at the gate
-- [ ] S3, Phase 0.5: `LICENSE` and website items 1 to 12. In progress in its own pull request
-- [ ] S4, Phase 1: packaging, tooling, CI
+- [x] S3, Phase 0.5: `LICENSE` and website items 1 to 12. aaydinks/ObscuraDP#9, merged as `37b924c`
+- [x] S4, Phase 1: packaging, tooling, CI. In aaydinks/ObscuraDP#8
 - [ ] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation
 - [ ] S6, Phase 1: port the rest; `sim/legacy.py`; smoke checks as tests; results manifest
 - [ ] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
@@ -44,6 +43,68 @@ S4 (packaging, tooling, CI) is the session in progress.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S4 log (2026-11-10)
+
+### What was done
+
+- `pyproject.toml` (hatchling, Python 3.11 or newer, core dependencies numpy and torch, extras `he`,
+  `openfhe`, `flower`, `audit`, `bench`, `legacy`, `docs`, `dev`) and a typed `src/obscuradp` skeleton at
+  version `0.1.0.dev0`.
+- Tests in `tests/`: version and import; network access switched off for every test (`--disable-socket`),
+  with a test that the guard is active; ignore-rule guard; the library never imports the research folders;
+  no em dashes in library, tests or documents.
+- `tools/`: `bootstrap.sh` (one-command setup), `check_gitignore.py`, `check_release_contents.py` (a release
+  holds no data, experiments, results, documents or website), `update_constraints.sh`.
+- Root `.gitignore`: 21 directory rules anchored to the repository root.
+- CI: `python-ci.yml` (lint, format, types, ignore rules; tests on Python 3.11, 3.12, 3.13 on Linux and 3.12
+  on macOS and Windows; package build and content check), `python-nightly.yml` (slow and integration tests
+  with the old code's pins, tests against the newest dependencies, `pip-audit`), `release-dry-run.yml`
+  (manual; TestPyPI upload needs a one-time setup by the owner), `dependabot.yml`.
+- `README.md` finished; `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CHANGELOG.md`,
+  `CITATION.cff`, `.pre-commit-config.yaml`.
+- `constraints/dev.txt` (pinned development versions, resolved for every supported Python) and
+  `constraints/legacy-py311.txt` (the environment that reproduced the Trial 07/27 results in S1).
+
+### What was verified and how
+
+- Locally on Python 3.11, 3.12 and 3.13: 9 tests pass; `ruff check`, `ruff format --check`, `mypy` (strict)
+  and `tools/check_gitignore.py` pass. Locally the package was installed without its heavy dependencies to
+  save time; the full install is covered by CI.
+- Package build: sdist and wheel build, `twine check --strict` passes, and the content check passes (the
+  wheel holds the package and its metadata only).
+- GitHub Actions on aaydinks/ObscuraDP#8 at commit `0800854`: all 8 checks green, including the full
+  install with CPU-only PyTorch and the tests on Linux, macOS and Windows.
+- `tools/bootstrap.sh`: see "Open items" below.
+
+### Deviations from the plan
+
+- The planned "legacy and current lockfiles" are constraint files, not hash-pinned lockfiles. Hash pinning
+  is deferred to the release step (S22), where it matters for supply-chain checks.
+- `LICENSE` came from S3 and was merged into this branch from `main`.
+- Coverage is not enforced yet: the package has six lines. The 80% bar applies from S6.
+
+### Open items
+
+- `tools/bootstrap.sh` was started on this machine and takes the fallback path (the CPU-only download host
+  is blocked here), which downloads several gigabytes. Its outcome is recorded in the pull request.
+- A cloud environment for this repository (allowing the CPU-only PyTorch host and running the bootstrap
+  script at start) is proposed to the owner separately. It needs the owner's approval.
+- TestPyPI: the owner needs to register the name `obscuradp` on test.pypi.org with this repository's
+  `release-dry-run.yml` as a trusted publisher, and create a GitHub environment named `testpypi`, before the
+  upload option of the dry run can work.
+
+## S3 log (2026-11-10)
+
+Done by a separate agent in aaydinks/ObscuraDP#9, merged as `37b924c` after its checks passed.
+
+- `LICENSE`: the unmodified Apache License 2.0 text.
+- Website items 1 to 12 of `WEBSITE_MISMATCHES.md`. Final wording is listed in the pull request.
+- Checks reported: website build (0 errors), copy lint, contrast (17 pairs), 42 behaviour checks against the
+  local preview, screenshots at desktop and phone width, and the hosted "Website CI" job.
+- Left for S22: two missing spaces in rendered text and a sideways-scrolling table on phones (items 27 and
+  28 of `WEBSITE_MISMATCHES.md`); the per-round note for Experiment 1 says the total is "several times
+  larger" without a computed figure.
 
 ## S1 log (2026-11-10)
 

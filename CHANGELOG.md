@@ -13,6 +13,7 @@ public interface.
 - Tests that run with network access switched off, an ignore-rule guard, and a check that the library never
   imports the research folders.
 - Tooling: ruff, mypy, pytest, pre-commit; continuous integration on Python 3.11 to 3.13.
+- `LICENSE`: Apache License 2.0.
 - Project documents: roadmap, audit of the research code, threat model, target definitions, decision
   records.
 

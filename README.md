@@ -94,7 +94,7 @@ No telemetry. The library never contacts a server of ours, and there is no count
 
 ## License
 
-Apache License 2.0. See `LICENSE`.
+Apache License 2.0. See [`LICENSE`](LICENSE).
 
 ## Citing
 

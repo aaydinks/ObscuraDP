@@ -1,13 +1,16 @@
 # Website wording that disagrees with the math or the code (Phase 0)
 
-Baseline: `main` at `34071be`. **No website file is changed in Phase 0.** This table is the proposal; edits
-happen in session S3 (the items marked "now") only if the owner approves at the gate, and in S22 (the items
-marked "release") once the library and audits exist.
+Baseline: `main` at `34071be`. Line numbers and "current wording" below describe that commit.
+
+**Status (2026-11-10):** items 1 to 12 were applied in aaydinks/ObscuraDP#9 (merged as `37b924c`), together
+with the `LICENSE` file. The final wording differs slightly from the proposals below where the copy lint or
+the layout required it; the pull request lists old and new wording for each item. Items 13 to 28 wait for
+session S22, once the library and audits exist.
 
 Proposed wording follows the site's own rules: no em dashes, everyday words, and it must pass
 `npm run lint:copy`.
 
-## Fix now (the current wording is false or contradicts another page)
+## Fixed in aaydinks/ObscuraDP#9 (the wording was false or contradicted another page)
 
 | # | Where | Current wording | Problem | Proposed wording |
 |---|---|---|---|---|
@@ -41,6 +44,8 @@ Proposed wording follows the site's own rules: no em dashes, everyday words, and
 | 23 | `website/src/pages/research.astro:91` | "The reported std is the population standard deviation." | With five runs this understates the spread by about 11%. | Report the sample standard deviation and 95% intervals from S20 on; keep old tables labelled as they are. |
 | 24 | `website/src/pages/research.astro:135` | "only the mean is decrypted" | Does not say by whom. In the code it is the same process. | "only the mean is decrypted. In this replication one program played every role; the library separates them." |
 | 25 | `website/src/sections/Contact.astro:13` | "Add provable privacy to your training pipeline. Watch the repository for the first release." | Fine as a promise; needs the install line at release. | At release: "Install with `pip install obscuradp`." |
+| 27 | Experiment 1 tab on the home page; the opening paragraph of `/research` | "FedAvgon average", "theGitHub repository" | A space is missing in the rendered page. Astro drops the space before an expression that starts on the next line. Found while checking screenshots for the fixes above. | Add an explicit space (`{' '}`) in both places. |
+| 28 | Roadmap "Workstreams" table at phone width | The table scrolls sideways inside its own box | Not wrong, but easy to miss on a phone. The page itself does not scroll sideways. | Consider a stacked layout for narrow screens. |
 | 26 | `website/src/lib/laplace.ts:16` | Ceiling formula ignores $\delta$ | The site states $\delta = 10^{-5}$ for experiments (`website/src/sections/Framework.astro:56`). The effect on the shown percentage is far below rounding. | Leave the number; add a code comment that the tiny extra term is omitted. |
 
 ## Checks to run after any edit
