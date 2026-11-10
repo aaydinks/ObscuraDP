@@ -1,0 +1,16 @@
+# Run once: pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: check-gitignore
+        name: ignore rules hide no source
+        entry: python tools/check_gitignore.py
+        language: system
+        pass_filenames: false
+        files: ^\.gitignore$|^src/|^tests/|^docs/|^tools/

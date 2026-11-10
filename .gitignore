@@ -8,19 +8,23 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
+# The directory rules below are anchored to the repository root on purpose.
+# Unanchored, rules such as lib/ or build/ silently hide source folders with
+# the same name anywhere in the tree (this happened to website/src/lib).
+# tools/check_gitignore.py and CI guard against that.
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
+/share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -49,7 +53,7 @@ coverage.xml
 *.py.cover
 .hypothesis/
 .pytest_cache/
-cover/
+/cover/
 
 # Translations
 *.mo
@@ -62,7 +66,7 @@ db.sqlite3
 db.sqlite3-journal
 
 # Flask stuff:
-instance/
+/instance/
 .webassets-cache
 
 # Scrapy stuff:
@@ -73,7 +77,7 @@ docs/_build/
 
 # PyBuilder
 .pybuilder/
-target/
+/target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -151,11 +155,11 @@ activemq-data/
 .env
 .envrc
 .venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+/env/
+/venv/
+/ENV/
+/env.bak/
+/venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -224,3 +228,12 @@ results/*.log
 # Trial 07/27 virtualenv and job logs
 obscura_env/
 Trial 07/27/logs/*.log
+
+
+# Local virtual environments and tool caches
+/.venv*/
+.coverage*
+htmlcov/
+.hypothesis/
+# Scratch worktrees created by coding agents
+/.claude/worktrees/

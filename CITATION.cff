@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software or its research results, please cite it as below."
+title: "Obscura DP: federated learning with a total privacy budget and a checkable privacy report"
+type: software
+authors:
+  - family-names: Dinker
+    given-names: Aayush
+repository-code: "https://github.com/aaydinks/ObscuraDP"
+url: "https://obscuradp.org"
+license: Apache-2.0
+version: 0.1.0.dev0
+keywords:
+  - differential privacy
+  - federated learning
+  - secure aggregation
+  - homomorphic encryption
