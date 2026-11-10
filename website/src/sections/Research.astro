@@ -23,8 +23,8 @@ const accRows = [
   <h2 id="research-title">Reproducible from day one.</h2>
   <p class="lede intro">
     Before building anything new, we replicated three published studies end to end, with code, data, five-seed
-    results and replication guides. Our research design is pre-registered.
-    {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Read the pre-registration</a> : <span class="muted">(Pre-registration link to be added.)</span>}
+    results and replication guides. The research plan for the next benchmark is written before the benchmark runs.{' '}
+    {SITE.preregistrationUrl ? <a href={SITE.preregistrationUrl} rel="noopener">Read the research plan</a> : <span class="muted">(It will be published; it is not public yet.)</span>}
   </p>
 
   <div class="tabs-block">
@@ -90,14 +90,15 @@ const accRows = [
         <div class="panel-copy">
           <p class="setup">
             <strong>Setup:</strong> stroke prediction on uneven, hospital-style data split across 5 clients. Recall is
-            the share of real stroke cases the model catches.
+            the share of real stroke cases the model catches. Here ε is the budget for each of the 20 training rounds;
+            the total over the whole run is several times larger.
           </p>
           <ul class="findings">
             <li>
               <strong>With rebalancing (SMOTETomek), FedProx caught slightly more true stroke cases than FedAvg</strong>
               on average at every ε tested, and never fewer in any paired run.
             </li>
-            <li><strong>Without rebalancing, the model caught none</strong> (recall 0.0 at ε = 9, all five seeds).</li>
+            <li><strong>Without rebalancing, the model caught none</strong> (recall 0.0 at a per-round ε of 9, all five seeds).</li>
             <li>
               <strong>An honest note:</strong> in this setup, recall falls as ε rises because the model flags fewer
               patients as positive. Precision stays roughly flat. <a href="/research#experiment-1">See the full results</a>.

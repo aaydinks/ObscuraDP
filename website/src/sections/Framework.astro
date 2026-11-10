@@ -81,7 +81,8 @@ const compare = [
           <h3>Federated learning</h3>
           <p>
             The model goes to the data. Training happens on each device or at each site, and only model updates come
-            back. We never receive raw data, so it can't be stolen from us or intercepted on the way.
+            back. Whoever runs the training never receives raw data, so it can't be stolen from them or intercepted on
+            the way.
           </p>
         </div>
       </li>
@@ -106,13 +107,15 @@ const compare = [
           <h3>Homomorphic encryption (CKKS)</h3>
           <p>
             CKKS is an encryption scheme that can do arithmetic on encrypted decimal numbers. Updates are encrypted on
-            the device. The server adds them together while they stay encrypted and never sees the unencrypted values.
+            the device. The server adds them together while they stay encrypted. In our design, the key that turns the
+            total back into readable numbers is kept away from the server. That separation is still being built: in
+            today's research code, one program holds the key and also does the adding.
           </p>
         </div>
       </li>
     </ul>
     <p class="together">
-      <strong>Together:</strong> the data can't be read in transit, isn't sitting on our servers to steal, and the
+      <strong>Together:</strong> the updates can't be read in transit, the raw data never sits on a central server, and the
       trained model reveals almost nothing about any one person, with ε setting exactly how little.
     </p>
   </div>
