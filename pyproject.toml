@@ -32,6 +32,8 @@ dependencies = [
   "torch>=2.3",
   # Privacy accountants (PLD and RDP). Pure Python apart from its small dm-tree dependency.
   "dp-accounting>=0.6",
+  # Exact confidence limits for the attack-based checks. Already required by dp-accounting.
+  "scipy>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -149,6 +151,14 @@ warn_unreachable = true
 
 [[tool.mypy.overrides]]
 # Optional libraries without type information. They are imported lazily, only by the
-# comparison code in obscuradp.legacy and by optional backends.
-module = ["pandas.*", "sklearn.*", "imblearn.*", "tenseal.*", "opacus.*", "dp_accounting.*"]
+# comparison code in obscuradp.legacy and by optional backends. scipy ships no type information.
+module = [
+  "pandas.*",
+  "sklearn.*",
+  "imblearn.*",
+  "tenseal.*",
+  "opacus.*",
+  "dp_accounting.*",
+  "scipy.*",
+]
 ignore_missing_imports = true

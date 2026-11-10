@@ -40,6 +40,11 @@ public interface.
 - Command `obscuradp report verify FILE` (also `python -m obscuradp`), which recomputes a stored report
   from its recorded releases and exits with status 1 if anything disagrees.
 - New dependency: `dp-accounting`.
+- The library's own private training step (`obscuradp.mechanisms`, `obscuradp.client.train_private_round`):
+  exact Poisson sampling, one joint clipping norm, noise on every step including empty batches, and the
+  whole round charged to the ledger before any data is used.
+- `obscuradp.audit.bounds`: lower limits on the true privacy budget from the results of an attack, used by
+  tests that attack the trainer and catch planted defects.
 
 ### Changed
 

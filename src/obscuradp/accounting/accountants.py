@@ -111,11 +111,18 @@ def epsilon_pld(events: Sequence[Event], delta: float, *, pessimistic: bool = Tr
     high side. With ``pessimistic=False`` it errs on the low side; the truth lies between.
     """
     _check_delta(delta)
-    if not merge_events(events):
+    merged = merge_events(events)
+    if not merged:
         return 0.0
-    if _beyond_meaning(events, delta):
+    return _epsilon_pld(merged, delta, pessimistic)
+
+
+@lru_cache(maxsize=1024)
+def _epsilon_pld(merged: tuple[Event, ...], delta: float, pessimistic: bool) -> float:
+    """Cached by the merged releases: many participants and rounds repeat the same settings."""
+    if _beyond_meaning(merged, delta):
         return math.inf
-    total = _pld(events, pessimistic)
+    total = _pld(merged, pessimistic)
     with _quiet_library_logging():
         return float(total.get_epsilon_for_delta(delta))
 
@@ -144,13 +151,18 @@ def _beyond_meaning(events: Sequence[Event], delta: float) -> bool:
 
 def epsilon_rdp(events: Sequence[Event], delta: float) -> float:
     """Budget of ``events`` at ``delta`` by Renyi differential privacy (an upper limit)."""
-    import dp_accounting as dpa
-    from dp_accounting import rdp
-
     _check_delta(delta)
     merged = merge_events(events)
     if not merged:
         return 0.0
+    return _epsilon_rdp(merged, delta)
+
+
+@lru_cache(maxsize=1024)
+def _epsilon_rdp(merged: tuple[Event, ...], delta: float) -> float:
+    import dp_accounting as dpa
+    from dp_accounting import rdp
+
     with _quiet_library_logging():
         accountant = rdp.RdpAccountant()
         for event in merged:
