@@ -27,6 +27,15 @@ UNSAFE_REASONS: dict[str, str] = {
         "Preprocessing statistics (for example means, medians or category lists) were computed "
         "from private data and not charged to the budget."
     ),
+    "mask_from_private_data": (
+        "The choice of which numbers to encrypt was computed from private data without noise. "
+        "That choice is visible to the server and was not charged to the budget."
+    ),
+    "ckks_research_only": (
+        "CKKS encryption gives approximate results, and decrypted approximate results can help "
+        "an attacker recover the key. This backend is for research with all roles under one "
+        "roof, not for protecting real data."
+    ),
 }
 
 

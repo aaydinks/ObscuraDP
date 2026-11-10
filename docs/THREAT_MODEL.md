@@ -75,6 +75,17 @@ Secure-sum backends:
 Selective encryption (SPE) is only allowed together with `LocalDPSGD`, where the clear part of each update is
 already fully noised. The report states the clear fraction and that it is protected by the noise alone.
 
+What the pairwise-masking backend assumes, as built in S10 (`obscuradp.crypto.pairwise_masking`):
+
+- The server follows the protocol and passes the participants' public keys on unchanged. Keys are not
+  authenticated in this version, so a server that swaps keys could read updates.
+- Up to $N - 2$ participants may work with the server. With two participants, each can work out the
+  other's update from the sum, as with any sum of two.
+- Every participant's message is needed to open a sum. A missing one means the round is repeated with a
+  new sum index; masks are never reused.
+- It hides individual updates. It adds no privacy budget of its own: what the sum reveals about a record
+  is limited only by the noise the participants added.
+
 ## What every privacy report will state
 
 1. Unit and neighbouring rule ("one record, add or remove; declared dataset sizes are public").

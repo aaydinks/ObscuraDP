@@ -140,6 +140,7 @@ def test_the_result_record_carries_its_origin(
         "imbalance": "ClassWeighted",
         "positive_prior": 0.2,
         "proximal_mu": 0.0,
+        "secure_sum": None,
     }
     assert record["config"]["clients"] == {"site-0": 630, "site-1": 420, "site-2": 280}
     assert record["data"]["privacy_report"]["schema"] == "obscuradp.privacy_report/1"
@@ -365,3 +366,96 @@ def test_bad_participants_are_refused(clients: list[ClientData]) -> None:
         odp.LocalDPSGD(clip_norm=0.0)
     with pytest.raises(ValueError, match="proximal_mu"):
         odp.Plan(proximal_mu=-1.0)
+
+
+# --------------------------------------------------------------------------- the secure sum
+
+
+def _masked_plan(private: bool, **kwargs: Any) -> odp.Plan:
+    return odp.Plan(
+        dp=odp.LocalDPSGD(clip_norm=1.0) if private else None,
+        imbalance=ClassWeighted(0.2),
+        secure_sum=odp.crypto.PairwiseMasking(**kwargs),
+    )
+
+
+def test_the_secure_sum_gives_the_same_model_up_to_rounding(clients: list[ClientData]) -> None:
+    plain = _baseline(clients).run(seed=1)
+    masked = _baseline(clients, plan=_masked_plan(False, value_bits=20, value_range=1.0)).run(
+        seed=1
+    )
+    step = 2.0 / (2**20 - 1)
+    for name, value in plain.state.items():
+        # Each round every participant's rounding is off by less than one step.
+        assert float((value - masked.state[name]).abs().max()) < 50 * ROUNDS * len(clients) * step
+    assert masked.test["auc"] == pytest.approx(plain.test["auc"], abs=1e-3)
+    assert masked.communication["saturated_share"] == 0.0
+
+
+def test_the_secure_sum_is_repeatable_although_its_keys_are_fresh(
+    clients: list[ClientData],
+) -> None:
+    """The masks cancel exactly, so the random keys leave no trace in the result."""
+    first = _baseline(clients, plan=_masked_plan(False)).run(seed=1)
+    second = _baseline(clients, plan=_masked_plan(False)).run(seed=1)
+    assert all(torch.equal(value, second.state[name]) for name, value in first.state.items())
+
+
+def test_upload_sizes_are_measured_and_meet_the_bytes_target(
+    clients: list[ClientData], private_result: odp.SimulationResult
+) -> None:
+    numbers = 6 * 16 + 16 + 16 + 1  # the model has 129 numbers
+    assert private_result.communication == {
+        "upload_bytes_per_round": 4.0 * numbers,
+        "plain_bytes_per_round": 4.0 * numbers,
+        "ratio": 1.0,
+        "bits_per_value": 32.0,
+        "setup_bytes": 0.0,
+        "saturated_share": 0.0,
+    }
+    masked = _baseline(clients, plan=_masked_plan(False, value_bits=12)).run(seed=1)
+    communication = masked.communication
+    assert communication["bits_per_value"] == 14.0  # 12 bits plus 2 for three participants
+    assert communication["upload_bytes_per_round"] == 226.0  # ceil(129 * 14 / 8)
+    assert communication["plain_bytes_per_round"] == 516.0
+    assert communication["ratio"] == pytest.approx(0.438, abs=0.001)
+    assert communication["ratio"] < 0.5
+    assert communication["setup_bytes"] == 96.0
+    record = masked.to_record()
+    assert record["data"]["communication"] == communication
+    assert record["config"]["plan"]["secure_sum"] == {
+        "kind": "PairwiseMasking",
+        "value_bits": 12,
+        "value_range": 1.0,
+    }
+    assert _baseline(clients).config()["plan"]["secure_sum"] is None
+
+
+def test_the_report_says_who_can_see_what(
+    clients: list[ClientData], private_result: odp.SimulationResult
+) -> None:
+    assert private_result.report is not None
+    assert "travel in the clear" in private_result.report.summary()
+    policy = odp.PrivacyPolicy(1.0, DELTA)
+    masked = _simulation(clients, plan=_masked_plan(True), policy=policy).run(seed=1)
+    assert masked.report is not None
+    text = masked.report.summary()
+    assert "travel in the clear" not in text
+    assert "It can read the sum of all updates and no single one" in text
+    assert "up to 1 of the 3 participants" in text
+    assert "adds its own noise before anything leaves its machine" in text
+    assert masked.report.is_safe
+    assert odp.verify_report(masked.report.to_dict()) == []
+    # Same privacy cost, nearly the same model: hiding the updates is free in accuracy terms.
+    assert masked.noise_multipliers == private_result.noise_multipliers
+    assert masked.test["auc"] == pytest.approx(private_result.test["auc"], abs=0.02)
+
+
+def test_values_outside_the_declared_range_are_reported(clients: list[ClientData]) -> None:
+    tiny = _baseline(clients, plan=_masked_plan(False, value_range=1e-6)).run(seed=1)
+    assert tiny.communication["saturated_share"] > 0.5
+
+
+def test_a_secure_sum_needs_two_participants(clients: list[ClientData]) -> None:
+    with pytest.raises(ValueError, match="at least two participants"):
+        _baseline(clients[:1], plan=_masked_plan(False))

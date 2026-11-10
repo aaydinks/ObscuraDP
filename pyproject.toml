@@ -31,9 +31,13 @@ dependencies = [
   "numpy>=2.0",
   "torch>=2.3",
   # Privacy accountants (PLD and RDP). Pure Python apart from its small dm-tree dependency.
-  "dp-accounting>=0.6",
+  # Version 0.7.0 requires typing-extensions 4.9.x, which forces torch back to 2.5. Lift the
+  # upper limit once a release drops that requirement.
+  "dp-accounting>=0.6,<0.7",
   # Exact confidence limits for the attack-based checks. Already required by dp-accounting.
   "scipy>=1.13",
+  # Key agreement and keystream for the default secure sum (pairwise masking).
+  "cryptography>=42",
 ]
 
 [project.optional-dependencies]

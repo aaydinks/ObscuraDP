@@ -25,6 +25,14 @@ updates:
       # release on 2026-11-10). Remove this rule once a released sympy accepts mpmath 1.4.
       - dependency-name: mpmath
         versions: [">=1.4"]
+      # dp-accounting (every release from 0.5 to 0.7) requires attrs below 24. Remove this rule
+      # once a released dp-accounting accepts newer attrs.
+      - dependency-name: attrs
+        versions: [">=24"]
+      # dp-accounting 0.7.0 requires typing-extensions 4.9.x, which forces torch back to 2.5, so
+      # pyproject.toml limits it to below 0.7. Remove this rule together with that limit.
+      - dependency-name: dp-accounting
+        versions: [">=0.7"]
 
   - package-ecosystem: github-actions
     directory: "/"
