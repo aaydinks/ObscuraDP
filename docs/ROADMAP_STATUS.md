@@ -59,7 +59,7 @@ open. Each step's pull request is merged by the agent once all its checks are gr
   report in plain words. Four reasons so far: synthetic rows made before private training, class weights
   taken from private labels, a failure probability $\delta$ that is not below one over the number of
   records, and statistics taken from private data.
-- **`obscuradp.data`**: `TableSchema` encodes a table from declared ranges and category lists, row by row,
+- **`obscuradp.tables`**: `TableSchema` encodes a table from declared ranges and category lists, row by row,
   with no statistic taken from the data (closes G12 for new code). `make_client_data` cuts each
   participant's rows into training, validation and test parts, class by class (closes G13 for new code).
 - **`obscuradp.imbalance`**: `ClassWeighted` (weights from a public prevalence figure), `NoRebalancing`,
@@ -110,6 +110,8 @@ open. Each step's pull request is merged by the agent once all its checks are gr
   No record can exceed $C$, the noise stays sized for $C$, so the guarantee is unchanged (property test:
   one record still moves the sum by at most its own limit).
 - The plan's `sim/` folder holds only the new loop. The old loop stays in `obscuradp.legacy.loop`.
+- The data-preparation module is called `obscuradp.tables`, not `data`: the release check forbids any
+  folder named `data` in the package (so that no dataset can ever ship), and that rule was left as it is.
 - Each participant uses its own sampling rate $q_i = \min(1, B / n_i)$ and its own noise level, as in
   table 1 of `docs/KPI_MAPPING.md`, in place of one shared rate.
 - In the unprotected trainer one pass is $\lceil n / B \rceil$ batches, so whole passes see every row.

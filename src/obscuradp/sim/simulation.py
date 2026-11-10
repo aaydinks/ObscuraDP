@@ -29,7 +29,6 @@ from torch import nn
 from obscuradp.accounting.calibrate import Calibration, calibrate_noise_multiplier, steps_per_round
 from obscuradp.aggregation.fedavg import aggregate_states
 from obscuradp.client.trainer import train_plain_round, train_private_round
-from obscuradp.data.split import ClientData
 from obscuradp.imbalance import UnsafeOversampling
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.noise import entropy_generator
@@ -40,6 +39,7 @@ from obscuradp.report import PrivacyReport
 from obscuradp.results import make_result
 from obscuradp.seeding import derive_seed, torch_generator
 from obscuradp.state import State, get_state, set_state
+from obscuradp.tables.split import ClientData
 from obscuradp.unsafe import UnsafeFlags
 
 OPTIMIZERS = ("sgd", "adam")
@@ -102,7 +102,7 @@ class Simulation:
         model_fn: Builds a fresh model. It is called once per run; every participant starts
             each round from the shared weights.
         clients: The participants' data, already encoded and cut into training, validation
-            and test rows (see ``obscuradp.data``).
+            and test rows (see ``obscuradp.tables``).
         plan: The means of protection (see ``obscuradp.plan``).
         policy: The total privacy budget. Required for a private plan; must be ``None`` for
             a plan without protection.

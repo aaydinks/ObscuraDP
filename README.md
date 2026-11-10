@@ -66,7 +66,7 @@ for name, rows in [("north", 900), ("south", 600), ("east", 400)]:
     x = rng.normal(size=(rows, 6)).astype(np.float32)
     y = (x[:, 0] + 0.6 * x[:, 1] + rng.normal(scale=0.5, size=rows) > 1.0).astype(np.float32)
     # Each participant keeps its own training, validation and test rows.
-    clients.append(odp.data.make_client_data(name, x, y, seed=0))
+    clients.append(odp.tables.make_client_data(name, x, y, seed=0))
 
 simulation = odp.Simulation(
     model_fn=lambda: TabularMLP(6, hidden=(16,)),

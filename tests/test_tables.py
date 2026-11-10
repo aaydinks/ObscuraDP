@@ -5,7 +5,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from obscuradp.data import (
+from obscuradp.tables import (
     CategoricalFeature,
     ClientData,
     NumericFeature,

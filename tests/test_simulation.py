@@ -12,12 +12,12 @@ from obscuradp.accounting import (
     calibrate_noise_multiplier,
     steps_per_round,
 )
-from obscuradp.data import ClientData, make_client_data
 from obscuradp.imbalance import ClassWeighted, NoRebalancing, UnsafeOversampling
 from obscuradp.metrics import best_threshold
 from obscuradp.models import TabularMLP
 from obscuradp.results import validate_result
 from obscuradp.state import set_state
+from obscuradp.tables import ClientData, make_client_data
 from obscuradp.unsafe import UnsafeConfiguration
 
 DELTA = 1e-5
