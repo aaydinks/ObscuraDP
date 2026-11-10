@@ -3,7 +3,7 @@
 # Use with: pip install -c constraints/dev.txt -e ".[dev]"
 absl-py==2.5.1
 ast-serialize==0.13.1
-attrs==23.2.0
+attrs==26.1.0
 backports-tarfile==1.2.0 ; python_full_version < '3.12' and platform_machine != 'ppc64le' and platform_machine != 's390x'
 build==1.6.1
 certifi==2026.10.23
