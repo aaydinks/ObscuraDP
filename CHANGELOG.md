@@ -32,6 +32,14 @@ public interface.
 - `obscuradp.legacy` now holds the complete Trial 07/27 pipeline (accounting, local training, encrypted
   aggregation, mask scoring, the training loop and the benchmarks), compared against the research code:
   bit for bit without encryption, within stated tolerances with it.
+- Privacy bookkeeping: `PrivacyPolicy` (one total budget for a whole run), `PrivacyLedger` (every noisy
+  release is charged before it happens and refused if it would exceed the budget) and `PrivacyReport`
+  (what was promised, what was spent, and the stored releases so anyone can recompute it).
+- `obscuradp.accounting`: budgets computed three independent ways and cross-checked, noise calibrated to a
+  total budget, and worst-case limits on an attacker's advantage.
+- Command `obscuradp report verify FILE` (also `python -m obscuradp`), which recomputes a stored report
+  from its recorded releases and exits with status 1 if anything disagrees.
+- New dependency: `dp-accounting`.
 
 ### Changed
 

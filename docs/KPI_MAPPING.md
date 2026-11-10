@@ -23,13 +23,15 @@ $\delta = 10^{-5}$, counted per record, unless stated otherwise.
 
 Today the code solves the noise level for one round and reuses it for 20 rounds (finding G2). The table
 shows the noise multiplier $\sigma$ needed when the budget covers the whole run: 20 rounds, 3 local epochs,
-batch 32, Poisson sampling, $\delta = 10^{-5}$. Computed in this session with `dp-accounting 0.6.0`. Each
-cell is "PLD accountant / RDP accountant"; PLD is the tighter of the two.
+batch 32, Poisson sampling, $\delta = 10^{-5}$. Computed with `dp-accounting 0.6.0`. Each
+cell is "PLD accountant / RDP accountant"; PLD is the tighter of the two. Since S7 the library reproduces
+every PLD cell (`tests/test_accounting.py`); one cell moved by 0.02 when the library's own search replaced
+the Phase 0 script (stroke, 393 rows, $\varepsilon = 0.5$: 15.67 became 15.65, still within budget).
 
 | Participant (real rows) | Sampling rate $q$ | Steps $T$ | $\varepsilon = 0.5$ | $\varepsilon = 1$ | $\varepsilon = 2$ | $\varepsilon = 4$ | $\varepsilon = 8$ |
 |---|---|---|---|---|---|---|---|
 | Stroke, 220 rows | 0.1455 | 420 | 21.05 / 22.98 | 11.22 / 12.17 | 6.05 / 6.53 | 3.36 / 3.59 | 1.96 / 2.08 |
-| Stroke, 393 rows | 0.0814 | 740 | 15.67 / 17.08 | 8.35 / 9.06 | 4.53 / 4.88 | 2.54 / 2.72 | 1.53 / 1.62 |
+| Stroke, 393 rows | 0.0814 | 740 | 15.65 / 17.07 | 8.35 / 9.06 | 4.53 / 4.88 | 2.54 / 2.72 | 1.53 / 1.62 |
 | Stroke, 2,482 rows | 0.0129 | 4,660 | 6.26 / 6.82 | 3.38 / 3.66 | 1.91 / 2.04 | 1.18 / 1.25 | 0.83 / 0.87 |
 | Loan, 683 rows | 0.0469 | 1,300 | 11.94 / 13.04 | 6.39 / 6.93 | 3.49 / 3.75 | 1.99 / 2.12 | 1.24 / 1.31 |
 

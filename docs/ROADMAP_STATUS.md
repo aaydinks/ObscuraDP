@@ -2,9 +2,10 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1 and S3 to S6 are done (Phase 0 and Phase 1 complete). The next session is
-S7** (privacy policy, ledger, report and accountants). No gate is open. Each step's pull request is merged
-by the agent once all its checks are green (owner's decision, 2026-11-10); work stops at the S11 gate.
+**Current state (2026-11-10): S1 and S3 to S7 are done (Phase 0 and Phase 1 complete, Phase 2 started). The
+next session is S8** (the library's own private training step and its safety tests). No gate is open. Each
+step's pull request is merged by the agent once all its checks are green (owner's decision, 2026-11-10);
+work stops at the S11 gate.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -29,8 +30,8 @@ by the agent once all its checks are green (owner's decision, 2026-11-10); work 
 - [x] S5, Phase 1: comparison harness against the old code; port config, models, data, metrics, aggregation.
       aaydinks/ObscuraDP#21, merged as `544ffba`
 - [x] S6, Phase 1: port the rest; old loop kept verbatim in `obscuradp.legacy`; smoke checks as tests;
-      results manifest
-- [ ] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
+      results manifest. aaydinks/ObscuraDP#23, merged as `b62ad69`
+- [x] S7, Phase 2: policy, ledger, report, accountants, `obscuradp report verify`
 - [ ] S8, Phase 2: own DP-SGD step with exact sampling and its safety tests
 - [ ] S9, Phase 2: validation split, declared-bounds preprocessing, class weighting, unsafe flags, `Simulation`
 - [ ] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks
@@ -46,6 +47,83 @@ by the agent once all its checks are green (owner's decision, 2026-11-10); work 
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S7 log (2026-11-10)
+
+### What was done
+
+- **`obscuradp.accounting`**: a record of each noisy release (`GaussianEvent`, `SubsampledGaussianEvent`),
+  three independent ways to turn a list of releases into a budget (PLD upper and lower estimates and RDP,
+  all on Google's `dp-accounting`, plus the exact formula for plain Gaussian noise), noise calibration to a
+  **total** budget ($S = \lceil E / q \rceil$ steps per round, $T = R \cdot S$ for the run; closes G2 and G6
+  for new code), the two attacker-advantage ceilings of `docs/KPI_MAPPING.md`, and a cross-check that stops
+  a run when the three budget figures contradict each other.
+- **`PrivacyPolicy`** (one total budget, what it protects, optional stricter budgets per participant),
+  **`PrivacyLedger`** (every release is charged before it happens; a release that would exceed the budget
+  raises `BudgetExceeded` and is not recorded; a whole run can be planned in advance so later charges cost
+  nothing to check) and **`PrivacyReport`** (plain-words summary, the stored releases, the three budget
+  figures, both ceilings, unsafe flags and a fixed list of what no report covers; schema
+  `obscuradp.privacy_report/1`).
+- **Command line**: `obscuradp report verify FILE` recomputes a stored report from its recorded releases
+  (exit status 0 consistent, 1 not, 2 unreadable) and `obscuradp report show FILE`. `python -m obscuradp`
+  works too.
+- New core dependency `dp-accounting>=0.6` (it brings `absl-py`, `attrs<24` and `dm-tree`).
+  Both pin files gained those entries; no earlier pin changed.
+- **Tests**: 95 more, for 348 in total.
+
+### What was verified and how
+
+- 348 tests pass with the pinned versions (Python 3.11), coverage of `src/obscuradp` 97%. With the newest
+  versions (Python 3.13) 206 pass and the 119 comparison tests skip.
+- **Exact answer reproduced**: without subsampling the PLD upper estimate matches the closed formula within
+  0.1% at four noise levels, and the formula itself is checked by hand at one point
+  ($\delta(\varepsilon = 1, \sigma = 1) = \Phi(-0.5) - e\,\Phi(-1.5) = 0.126937$).
+- **The three accountants agree** on a grid of 12 settings (noise multiplier 1 and 3; sampling rate 0.01,
+  0.145 and 1; 60 and 412 steps): lower estimate at most upper estimate, both at most the RDP limit, upper
+  and lower close.
+- **Table 1 of `docs/KPI_MAPPING.md` reproduced**: all 20 PLD cells within 0.02 (slow test, 54 s), and
+  three of them on every run. A total budget of 1 for the loan setting needs a noise multiplier of 6.39
+  (6.93 with RDP).
+- **Table 3 reproduced**: at a total budget of 1 the ceiling for any method is 46.2% and the ceiling for
+  these exact releases is 10.6%.
+- **Ledger**: a run calibrated to a budget of 1 over 10 rounds spends between 0.99 and 1.0; an eleventh
+  round is refused and leaves no trace; scopes are independent; a planned run is charged without a single
+  recomputation (counted); the looser RDP accountant refuses a run that PLD accepts.
+- **Report**: a stored report verifies; editing the headline, a scope figure, the stored noise level, the
+  budget or the within-budget flag is detected, each with its own message.
+- The tests can fail: counting the budget for one round only (the old defect) broke 4 tests; letting the
+  ledger accept ten times its budget broke 4 tests. Both changes were reverted.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass. The wheel registers the `obscuradp` command.
+
+### Deviations from the plan
+
+- The planned files `accounting/pld.py` and `accounting/rdp.py` are one file, `accounting/accountants.py`,
+  because they share the event handling.
+- **"RDP inside a band above PLD" is a warning, not an error.** The band (RDP at most 1.35 times PLD) holds
+  for the long calibrated runs the library plans (measured 1.08 to 1.24), and a test keeps it there. It is
+  not a law: for a short run (60 steps, sampling rate 0.01, noise multiplier 1) RDP is 1.88 times PLD with
+  both correct. Raising an error there would have stopped honest runs, so `CrossCheck.warnings()` reports
+  it and the report summary prints it as a note. The rules that do raise are the ones that cannot break if
+  every accountant is right.
+- **Budgets above 200 are reported as unbounded.** The PLD method needs memory in proportion to the budget
+  (47 GiB in one trial at a tiny noise level). A budget that large protects nothing, so it is returned as
+  infinite without being computed, and any ledger refuses it.
+- The lower PLD estimate uses a finer grid for long runs (down to $2 \cdot 10^{-6}$). At the coarse grid its
+  error grew with the number of steps and the gap rule failed for 4,660 steps.
+- One cell of table 1 changed by 0.02 (stroke, 393 rows, budget 0.5: 15.67 became 15.65). The library's
+  search stops closer to the budget than the Phase 0 script did; both values keep the run within budget.
+  The document was corrected.
+- Calibration searches with RDP first, then PLD. This keeps the PLD method away from tiny noise levels.
+
+### Open items
+
+- The ledger is not yet called by any training code. S8 (the private step) and S9 (the simulation) wire it
+  in; until then nothing in the library releases anything.
+- A report cannot be written for an unbounded budget (strict JSON has no infinity). No ledger can reach
+  that state through `charge`; a ledger rebuilt from stored data could.
+- Carried forward: the start-up script of the "ObscuraDP" cloud environment is untested by a fresh session;
+  TestPyPI setup by the owner.
 
 ## S6 log (2026-11-10)
 
