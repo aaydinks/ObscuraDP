@@ -217,8 +217,8 @@ datasets (S17 downloads with checksums).
 
 ### G11. The planned benchmark does not fit a CPU budget as written. Confirmed (C)
 
-Measured in this session on 4 CPU cores: see `docs/ROADMAP_STATUS.md`, "Baseline reproduction". The earlier
-105-run stroke campaign took about 1.6 hours. A full FEMNIST and Shakespeare grid with encryption in the
+Measured in this session on 4 CPU cores: the 20-run arm matrix on two small tabular models took 7 minutes
+53 seconds (`docs/ROADMAP_STATUS.md`). The earlier 105-run stroke campaign took about 1.6 hours. A full FEMNIST and Shakespeare grid with encryption in the
 loop would take days. `docs/ROADMAP.md` sizes the benchmark at about 17 CPU hours with an explicit cut order.
 
 ## New findings
@@ -344,8 +344,9 @@ natural-prevalence test set beside it and state intervals (S11).
 `Trial 07/27/results/arms.json` has no `wire_payload_ratio` field in its crypto block, but the current
 `orchestrator.py` writes one, so the committed numbers were produced by an earlier version of the code. The
 `meta` block records no commit hash, package versions or hardware. The outcome of regenerating the results in
-this session is recorded in `docs/ROADMAP_STATUS.md`. Fix: a reproducibility manifest in every result file
-(S6).
+this session: all 8 unencrypted runs reproduce bit for bit and the 12 encrypted runs agree within
+$7 \times 10^{-6}$ (details in `docs/ROADMAP_STATUS.md`). So the numbers are reproducible, but the files
+themselves cannot prove where they came from. Fix: a reproducibility manifest in every result file (S6).
 
 ### G27. Empty sampled batches are skipped; pins are behind (A)
 
