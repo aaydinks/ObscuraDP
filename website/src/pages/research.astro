@@ -102,7 +102,7 @@ const toc = [
             toc.map((t) => (
               <li>
                 <a href={`#${t.id}`}>
-                  <span class="toc-meta mono">{t.meta}</span>
+                  <span class="toc-meta">{t.meta}</span>
                   <span>{t.label}</span>
                 </a>
               </li>
@@ -528,8 +528,6 @@ python aggregate_seeds.py && python plot_multiseed.py</code></pre>
   .toc-meta {
     font-size: var(--fs-label);
     color: var(--muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
   }
   .content {
     display: grid;
@@ -552,7 +550,7 @@ python aggregate_seeds.py && python plot_multiseed.py</code></pre>
     border-bottom: 1px solid var(--line);
   }
   .paper {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     color: var(--muted);
   }
   .table-wrap {
@@ -575,7 +573,7 @@ python aggregate_seeds.py && python plot_multiseed.py</code></pre>
   .dev li {
     padding-left: 1.25rem;
     position: relative;
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .dev li::before {
     content: '';

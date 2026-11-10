@@ -5,16 +5,19 @@
   --surface: #f6f8fb;
   --ink: #101828;
   --text: #344054;
-  --muted: #667085;
+  /* Secondary wording uses the same color as body text. */
+  --muted: #344054;
   --line: #e4e7ec;
   --blue: #1a5cf4;
   --blue-deep: #0b3fd6;
   --blue-soft: #8fc0f8;
   --blue-tint: #eef4ff;
   --error: #b42318;
-  /* Neutral grays for text on the one dark section (muted on ink fails AA) */
+  /* Text on the one dark section */
   --ink-text: #f6f8fb;
-  --ink-muted: #98a2b3;
+  --ink-muted: #f6f8fb;
+  /* Light gray for non-text chart marks only (lines, dots), never for words */
+  --chart-gray: #98a2b3;
 
   /* Type */
   --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
@@ -22,8 +25,9 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --fs-body: 1.0625rem; /* 17px */
   --fs-small: 0.9375rem; /* 15px */
-  --fs-caption: 0.8125rem; /* 13px */
-  --fs-label: 0.75rem; /* 12px */
+  /* Captions, labels and meta lines use the body size, like paragraphs. */
+  --fs-caption: var(--fs-body);
+  --fs-label: var(--fs-body);
   --fs-h3: 1.25rem;
   --fs-h2: clamp(1.9rem, 3.2vw, 2.75rem);
   --fs-h1: clamp(2.5rem, 5vw, 4rem);

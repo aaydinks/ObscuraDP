@@ -92,7 +92,7 @@ const browser = await chromium.launch();
       const el = document.activeElement;
       if (!el || el === document.body) return null;
       const cs = getComputedStyle(el);
-      const key = `${el.tagName}#${el.id}.${el.className}`;
+      const key = `${el.tagName}#${el.id}.${el.className}|${el.getAttribute('href') ?? ''}|${(el.textContent ?? '').trim().slice(0, 40)}`;
       const ring = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2;
       const shadow = cs.boxShadow && cs.boxShadow !== 'none';
       return { key, ring: ring || shadow || el.tagName === 'INPUT' && el.type === 'range' };

@@ -1,0 +1,46 @@
+name: Website CI
+
+# Checks every pull request and every push to main. Builds and verifies the
+# site without deploying it (deploys stay with Cloudflare Workers Builds), so
+# no secrets are needed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: website-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and check the website
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: website/.node-version
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Copy rules (no em dashes, no banned words)
+        run: npm run lint:copy
+
+      - name: Color contrast (WCAG AA)
+        run: npm run check:contrast
+
+      - name: Cloudflare deploy dry run
+        run: npx wrangler deploy --dry-run

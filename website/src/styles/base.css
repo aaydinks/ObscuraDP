@@ -154,7 +154,7 @@ tbody tr:nth-child(even) {
 td.num,
 th.num {
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -218,30 +218,30 @@ figcaption a:hover {
 }
 
 .label {
-  font-family: var(--font-mono);
-  font-size: var(--fs-label);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--text);
 }
 
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--fs-caption);
-  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  color: var(--text);
   margin-bottom: var(--s-2);
 }
 
 .caption,
 .source {
-  font-size: var(--fs-caption);
-  color: var(--muted);
-  line-height: 1.5;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  color: var(--text);
+  line-height: var(--lh-body);
   max-width: var(--measure);
 }
 
 .source a {
-  color: var(--muted);
+  color: var(--text);
   text-decoration: underline;
 }
 
@@ -381,7 +381,7 @@ figcaption a:hover {
 .chart {
   width: 100%;
   height: auto;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--muted);
@@ -452,6 +452,14 @@ figcaption a:hover {
   stroke: var(--muted);
 }
 
+.chart .stroke-gray {
+  stroke: var(--chart-gray);
+}
+
+.chart .fill-gray {
+  fill: var(--chart-gray);
+}
+
 /* One-time draw-in when the figure scrolls into view */
 @media (prefers-reduced-motion: no-preference) {
   .chart[data-animate] .draw-bar {
@@ -513,8 +521,8 @@ figcaption a:hover {
   background: var(--ink);
   visibility: hidden;
   color: #fff;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   line-height: 1.4;
   padding: 0.375rem 0.5rem;
   border-radius: 4px;

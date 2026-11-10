@@ -24,6 +24,6 @@ export const CREDITS: Credit[] = [
   {
     where: 'About section (founder portrait)',
     file: 'src/assets/brand/founder.png',
-    description: 'Portrait of Aayush Dinker, supplied by the founder.',
+    description: 'Portrait of Aayush Dinker, to be supplied by the founder.',
   },
 ];

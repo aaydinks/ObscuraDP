@@ -86,7 +86,7 @@ const table = dataTable({
               const pts = eps.map((e) => [x(e), y(stat(e).mean)] as [number, number]);
               return (
                 <g>
-                  <path class={`draw-fade fill-${me.cls === 'blue' ? 'soft' : 'muted'}`} d={bandPath(band)} opacity={me.cls === 'blue' ? 0.35 : 0.18} />
+                  <path class={`draw-fade fill-${me.cls === 'blue' ? 'soft' : 'gray'}`} d={bandPath(band)} opacity={me.cls === 'blue' ? 0.35 : 0.3} />
                   <path class={`draw-line stroke-${me.cls}`} d={linePath(pts)} fill="none" stroke-width={me.cls === 'blue' ? 2 : 1.5} />
                   {eps.map((e, i) => (
                     <circle class={`draw-fade fill-${me.cls}`} cx={r2(pts[i][0])} cy={r2(pts[i][1])} r="3" stroke="#fff" stroke-width="1.25" data-tip={`${me.label}, ${m.label}, ε = ${e}: ${stat(e).mean.toFixed(3)} ± ${stat(e).std.toFixed(3)}`} />

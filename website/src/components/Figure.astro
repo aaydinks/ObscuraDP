@@ -34,7 +34,7 @@ const { id, title, caption, source, table, class: cls } = Astro.props;
   .figure-title {
     font-weight: 600;
     color: var(--ink);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     margin-bottom: var(--s-2);
   }
   .figure-body {
@@ -59,7 +59,7 @@ const { id, title, caption, source, table, class: cls } = Astro.props;
   .figure-hint {
     font-size: var(--fs-label);
     color: var(--muted);
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
   }
   figcaption {
     margin-top: var(--s-2);
@@ -77,10 +77,8 @@ const { id, title, caption, source, table, class: cls } = Astro.props;
     border: 0;
     padding: 0;
     color: var(--muted);
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: var(--fs-label);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     cursor: pointer;
     text-decoration: underline;
     text-underline-offset: 3px;

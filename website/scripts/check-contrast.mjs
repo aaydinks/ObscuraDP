@@ -4,14 +4,14 @@ const tokens = {
   surface: '#f6f8fb',
   ink: '#101828',
   text: '#344054',
-  muted: '#667085',
+  muted: '#344054',
   blue: '#1a5cf4',
   blueDeep: '#0b3fd6',
   blueSoft: '#8fc0f8',
   blueTint: '#eef4ff',
   error: '#b42318',
   inkText: '#f6f8fb',
-  inkMuted: '#98a2b3',
+  inkMuted: '#f6f8fb',
   white: '#ffffff',
 };
 

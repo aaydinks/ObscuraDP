@@ -54,7 +54,7 @@ const sdgs = [
         {
           sdgs.map(([n, name]) => (
             <li>
-              <span class="mono sdg-num">{n}</span> {name}
+              <span class="sdg-num">{n}</span> {name}
             </li>
           ))
         }
@@ -94,7 +94,7 @@ const sdgs = [
     font-weight: 500;
   }
   .target-explain {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .lower {
     margin-top: var(--s-12);
@@ -105,7 +105,7 @@ const sdgs = [
     margin-bottom: var(--s-3);
   }
   .lower .rows li {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .sdg-num {
     color: var(--blue-soft);

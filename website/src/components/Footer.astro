@@ -21,8 +21,8 @@ const mailHref = mail.startsWith('[') ? '#contact' : `mailto:${mail}`;
       </ul>
     </nav>
     <div class="footer-meta">
-      <a href={mailHref} class="mono">{mail}</a>
-      <span class="mono">© {year} Obscura DP</span>
+      <a href={mailHref}>{mail}</a>
+      <span>© {year} Obscura DP</span>
     </div>
   </div>
 </footer>
@@ -45,7 +45,7 @@ const mailHref = mail.startsWith('[') ? '#contact' : `mailto:${mail}`;
   }
   .footer-brand p {
     color: var(--muted);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .footer-links ul {
     list-style: none;

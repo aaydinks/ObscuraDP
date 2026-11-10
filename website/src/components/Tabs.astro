@@ -20,9 +20,9 @@ const { id, tabs } = Astro.props;
           tabindex={i === 0 ? 0 : -1}
           class="tab"
         >
-          <span class="tab-index mono">{String(i + 1).padStart(2, '0')}</span>
+          <span class="tab-index">{String(i + 1).padStart(2, '0')}</span>
           <span class="tab-label">{t.label}</span>
-          {t.meta && <span class="tab-meta mono">{t.meta}</span>}
+          {t.meta && <span class="tab-meta">{t.meta}</span>}
         </button>
       ))
     }
@@ -67,7 +67,6 @@ const { id, tabs } = Astro.props;
   .tab-index {
     font-size: var(--fs-label);
     color: var(--muted);
-    letter-spacing: 0.08em;
   }
   .tab-label {
     font-weight: 600;

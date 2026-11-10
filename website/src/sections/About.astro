@@ -44,18 +44,14 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
     />
   </div>
 
-  <div class="founder">
-    <div class="portrait">
-      {
-        founder ? (
+  <div class:list={['founder', { 'has-portrait': founder }]}>
+    {
+      founder && (
+        <div class="portrait">
           <Image src={founder} alt="Portrait of Aayush Dinker" width={220} height={Math.round((founder.height / founder.width) * 220)} densities={[1, 2]} class="portrait-img" loading="lazy" />
-        ) : (
-          <div class="portrait-placeholder" role="img" aria-label="Placeholder for a portrait of Aayush Dinker">
-            <span class="label">Portrait</span>
-          </div>
-        )
-      }
-    </div>
+        </div>
+      )
+    }
     <div class="founder-copy">
       <p class="label">Founder</p>
       <h3>Aayush Dinker</h3>
@@ -77,7 +73,7 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
           <p>4th out of 800 in Stanford's annual national math tournament.</p>
         </li>
       </ul>
-      <p class="skills mono">{skills.join(' · ')}</p>
+      <p class="skills">{skills.join(' · ')}</p>
       {
         SITE.founderLinks.length > 0 ? (
           <ul class="founder-links">
@@ -134,7 +130,7 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
   }
   .under {
     color: var(--muted);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .founder {
     margin-top: var(--s-12);
@@ -146,18 +142,9 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
   .portrait {
     max-width: 220px;
   }
-  .portrait-img,
-  .portrait-placeholder {
+  .portrait-img {
     border-radius: var(--r-panel);
     width: 100%;
-  }
-  .portrait-placeholder {
-    aspect-ratio: 408 / 454;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    display: flex;
-    align-items: flex-end;
-    padding: var(--s-2);
   }
   .founder-copy {
     display: grid;
@@ -173,7 +160,7 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
     margin-top: -0.5rem;
   }
   .founder-rows li p {
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   .skills {
     font-size: var(--fs-caption);
@@ -184,14 +171,14 @@ const skills = ['Python', 'C++', 'JavaScript', 'Machine learning', 'Web apps', '
     display: flex;
     flex-wrap: wrap;
     gap: var(--s-2) var(--s-3);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
   }
   @media (min-width: 900px) {
     .gen {
       grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
       gap: var(--s-8);
     }
-    .founder {
+    .founder.has-portrait {
       grid-template-columns: 220px minmax(0, 1fr);
       gap: var(--s-8);
       align-items: start;

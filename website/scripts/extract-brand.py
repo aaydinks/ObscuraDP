@@ -2,12 +2,12 @@
 """Extract the logo, mark and founder photo from the slide deck PDF.
 
 Usage:
-    python3 scripts/extract-brand.py path/to/deck.pdf
+    python3 scripts/extract-brand.py path/to/deck.pdf [--portrait]
 
 Requires `pdfimages` (poppler-utils) and Pillow. Writes:
     src/assets/brand/logo.png   (full logo with alpha, cropped; Astro makes the web sizes)
     src/assets/brand/mark.png   (logo mark with alpha, cropped)
-    src/assets/brand/founder.png
+    src/assets/brand/founder.png   (only with --portrait)
     public/favicon.ico, public/favicon.svg (kept), public/apple-touch-icon.png
 
 The image indices below follow the brief: img-000 + img-001 (mask) is the
@@ -72,9 +72,10 @@ def main() -> None:
             out = with_alpha(Path(tmp) / img, Path(tmp) / mask)
             out.save(BRAND / f"{name}.png", optimize=True)
             print(f"{name}: {out.size} -> {BRAND / (name + '.png')}")
-        portrait = Image.open(Path(tmp) / PORTRAIT).convert("RGB")
-        portrait.save(BRAND / "founder.png", optimize=True)
-        print(f"founder: {portrait.size} -> {BRAND / 'founder.png'}")
+        if "--portrait" in sys.argv:
+            portrait = Image.open(Path(tmp) / PORTRAIT).convert("RGB")
+            portrait.save(BRAND / "founder.png", optimize=True)
+            print(f"founder: {portrait.size} -> {BRAND / 'founder.png'}")
 
         mark = Image.open(BRAND / "mark.png")
         square = max(mark.size)

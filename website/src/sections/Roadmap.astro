@@ -72,7 +72,7 @@ const statusClass = (s: string) => (s === 'Done' ? 'done' : s === 'In progress' 
       phases.map((p) => (
         <li class="phase">
           <div class="phase-head">
-            <span class="mono when">{p.when}</span>
+            <span class="when">{p.when}</span>
             <span class:list={['status', statusClass(p.status)]}>
               <i aria-hidden="true"></i>
               {p.status}
@@ -106,7 +106,7 @@ const statusClass = (s: string) => (s === 'Done' ? 'done' : s === 'In progress' 
             workstreams.map((w, i) => (
               <tr>
                 <th scope="row">
-                  <span class="mono ws-num">{String(i + 1).padStart(2, '0')}</span> {w.name}
+                  <span class="ws-num">{String(i + 1).padStart(2, '0')}</span> {w.name}
                 </th>
                 <td>{w.what}</td>
                 <td>
@@ -159,16 +159,15 @@ const statusClass = (s: string) => (s === 'Done' ? 'done' : s === 'In progress' 
   }
   .when {
     color: var(--blue);
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     font-weight: 500;
   }
   .status {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: var(--fs-label);
-    letter-spacing: 0.04em;
     color: var(--muted);
     white-space: nowrap;
   }
@@ -193,7 +192,7 @@ const statusClass = (s: string) => (s === 'Done' ? 'done' : s === 'In progress' 
     list-style: none;
     display: grid;
     gap: 0.5rem;
-    font-size: var(--fs-small);
+    font-size: var(--fs-body);
     color: var(--text);
   }
   .phase-items li {
