@@ -17,6 +17,15 @@ public interface.
 - Project documents: roadmap, audit of the research code, threat model, target definitions, decision
   records.
 
+- First library modules: `obscuradp.state` (a model's state as one flat vector, buffers included),
+  `obscuradp.models.TabularMLP`, `obscuradp.partition` (even and uneven splits among simulated
+  participants), `obscuradp.aggregation` (averaging in the clear) and `obscuradp.metrics` (yes/no measures
+  with numpy only; run summaries use the sample standard deviation).
+- `obscuradp.legacy`: a faithful copy of the Trial 07/27 settings, data preparation, model construction and
+  evaluation, kept only so tests can compare old and new code number for number. Not for real data.
+- Comparison tests (`tests/golden/`) that run the research code and the library side by side and require
+  bit-for-bit equal results, and a fingerprint list that keeps the research folders frozen.
+
 ### Changed
 
 - Root `.gitignore` rules are anchored to the repository root so they can no longer hide source folders.

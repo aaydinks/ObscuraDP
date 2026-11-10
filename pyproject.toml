@@ -141,3 +141,9 @@ packages = ["obscuradp"]
 mypy_path = "src"
 strict = true
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Optional libraries without type information. They are imported lazily, only by the
+# comparison code in obscuradp.legacy and by optional backends.
+module = ["pandas.*", "sklearn.*", "imblearn.*", "tenseal.*", "opacus.*"]
+ignore_missing_imports = true

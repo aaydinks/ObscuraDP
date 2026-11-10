@@ -73,6 +73,29 @@ jobs:
       - name: Tests
         run: pytest -m "not slow and not integration" --cov --cov-report=term-missing
 
+  golden:
+    name: Comparison with the research code
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # In this job a skipped comparison test is a failure.
+      OBSCURADP_REQUIRE_GOLDEN: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/legacy-py311.txt
+      - name: Install with the research code's pinned versions
+        run: python -m pip install -c constraints/legacy-py311.txt -e ".[dev,legacy]"
+      - name: Research folders are unchanged
+        run: python tools/freeze_research.py --check
+      - name: Old and new code give identical results
+        run: pytest -m integration -rs
+
   build:
     name: Build and check the package
     runs-on: ubuntu-latest
