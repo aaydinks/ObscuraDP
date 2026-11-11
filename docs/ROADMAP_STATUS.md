@@ -54,7 +54,8 @@ are a record of what was run and are not rewritten.
       aaydinks/ObscuraDP#28, merged as `c3d713e`
 - [x] S11, Phase 2: corrected re-runs, old against new. aaydinks/ObscuraDP#29, merged as `3a1b0c3`.
       Gate closed 2026-11-10
-- [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note. PRNUMBER
+- [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
+      aaydinks/ObscuraDP#31
 - [ ] S13, Phase 3: integer noise path
 - [ ] S14, Phase 3: equal-budget comparison, measured bytes, default plan
 - [ ] S15, Phase 4: membership audit and nightly check
