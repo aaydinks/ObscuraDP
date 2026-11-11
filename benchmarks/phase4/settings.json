@@ -1,0 +1,28 @@
+{
+ "guess_share": {
+  "final model": 0.05,
+  "updates": 0.05
+ },
+ "mean_lower_limit_by_share": {
+  "final model": {
+   "0.02": 0.0,
+   "0.05": 0.005456533359790683,
+   "0.1": 0.0,
+   "0.2": 0.0,
+   "0.5": 0.0,
+   "1": 0.0
+  },
+  "updates": {
+   "0.02": 0.24744821604309664,
+   "0.05": 0.27131899159780914,
+   "0.1": 0.19381325225242563,
+   "0.2": 0.1235253854759435,
+   "0.5": 0.09190464190521652,
+   "1": 0.04334781119626996
+  }
+ },
+ "note": "Chosen on the pilot runs (seeds 90 to 94), which are not part of any reported number.",
+ "pilot_cells": 16,
+ "pilot_runs": 120,
+ "pilot_seconds": 3962
+}
