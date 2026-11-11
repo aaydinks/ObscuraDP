@@ -2,12 +2,21 @@
 
 import pytest
 import torch
+from hypothesis import given, settings
+from hypothesis import strategies as st
 from torch import nn
 
 from obscuradp.accounting import SubsampledGaussianEvent, calibrate_noise_multiplier, total_steps
-from obscuradp.client import RoundStats, train_plain_round, train_private_round
+from obscuradp.client import (
+    RoundStats,
+    clipped_sum_step,
+    flatten_gradients,
+    private_sum_step,
+    train_plain_round,
+    train_private_round,
+)
 from obscuradp.ledger import BudgetExceeded, PrivacyLedger
-from obscuradp.mechanisms import clipped_sum, per_record_gradients
+from obscuradp.mechanisms import clipped_sum, gaussian_noise, per_record_gradients, poisson_sample
 from obscuradp.models import TabularMLP
 from obscuradp.policy import PrivacyPolicy
 from obscuradp.state import get_state
@@ -430,3 +439,147 @@ def test_plain_training_refuses_bad_settings(overrides: dict[str, object], messa
         _plain(_model(), x[:0], y[:0])
     with pytest.raises(ValueError, match="same number of records"):
         _plain(_model(), x, y[:3])
+
+
+# --------------------------------------------------------------------------- one shared step
+
+
+def _share(model: nn.Module, x: torch.Tensor, y: torch.Tensor, **overrides: object) -> torch.Tensor:
+    arguments: dict[str, object] = {
+        "loss_fn": nn.BCELoss(),
+        "ledger": _ledger(),
+        "scope": "client-0",
+        "sampling_rate": 0.5,
+        "clip_norm": 1.0,
+        "noise_multiplier": 2.0,
+        "share_std": 1.0,
+        "sampling_generator": _generator(1),
+        "noise_generator": _generator(2),
+        **overrides,
+    }
+    return private_sum_step(model, x, y, **arguments)  # type: ignore[arg-type]
+
+
+def test_the_shared_step_is_charged_before_any_data_is_used() -> None:
+    x, y = _table()
+    model = _model()
+    sampling, noise = _generator(1), _generator(2)
+    untouched = (sampling.get_state().clone(), noise.get_state().clone())
+    tight = PrivacyLedger(PrivacyPolicy(0.01, DELTA, accountant="rdp"))
+    with pytest.raises(BudgetExceeded):
+        _share(model, x, y, ledger=tight, sampling_generator=sampling, noise_generator=noise)
+    assert tight.scopes == ()
+    assert torch.equal(sampling.get_state(), untouched[0])
+    assert torch.equal(noise.get_state(), untouched[1])
+
+    ledger = _ledger()
+    _share(model, x, y, ledger=ledger)
+    # One release at the noise of all honest slices together, not at this slice's size.
+    assert ledger.events("client-0") == (SubsampledGaussianEvent(2.0, 0.5, 1),)
+
+
+def test_the_shared_step_is_the_clipped_sum_plus_one_slice() -> None:
+    x, y = _table()
+    model = _model()
+    before = get_state(model)
+    message = _share(model, x, y, share_std=0.7)
+    assert message.dtype == torch.float64
+    assert message.shape == (sum(p.numel() for p in model.parameters()),)
+    # Replay the draws: the same rows, the same slice.
+    rows = poisson_sample(x.shape[0], 0.5, _generator(1))
+    clean = flatten_gradients(
+        clipped_sum(per_record_gradients(model, nn.BCELoss(), x[rows], y[rows]), 1.0)
+    )
+    noise = gaussian_noise(clean.shape, 0.7, _generator(2), dtype=torch.float64)
+    assert torch.allclose(message, clean + noise, atol=1e-12)
+    assert torch.equal(
+        clipped_sum_step(
+            model,
+            x,
+            y,
+            loss_fn=nn.BCELoss(),
+            sampling_rate=0.5,
+            clip_norm=1.0,
+            sampling_generator=_generator(1),
+        ),
+        clean,
+    )
+    # The participant only reports; the shared model is moved by the server.
+    for name, value in get_state(model).items():
+        assert torch.equal(value, before[name])
+
+
+def test_a_shared_step_without_rows_still_sends_its_slice() -> None:
+    x, y = _table(n=3)
+    message = _share(_model(), x, y, sampling_rate=1e-9, share_std=1.5)
+    assert float(message.abs().max()) > 0.0
+    noise = gaussian_noise(message.shape, 1.5, _generator(2), dtype=torch.float64)
+    assert torch.equal(message, noise)
+
+
+def test_a_shared_step_needs_noise_and_rows() -> None:
+    x, y = _table()
+    with pytest.raises(ValueError, match="without noise is not private"):
+        _share(_model(), x, y, share_std=0.0)
+    with pytest.raises(ValueError, match="at least one record"):
+        _share(_model(), x[:0], y[:0])
+    with pytest.raises(ValueError, match="same number of records"):
+        clipped_sum_step(
+            _model(),
+            x,
+            y[:-1],
+            loss_fn=nn.BCELoss(),
+            sampling_rate=1.0,
+            clip_norm=1.0,
+            sampling_generator=_generator(1),
+        )
+    with pytest.raises(ValueError, match="sum_bound must be positive"):
+        _share(_model(), x, y, sum_bound=0.0)
+    with pytest.raises(ValueError, match="no trainable parameter"):
+        flatten_gradients({})
+
+
+def test_the_limit_on_the_sum_is_applied_before_the_noise() -> None:
+    x, y = _table()
+    model = _model()
+    clean = clipped_sum_step(
+        model,
+        x,
+        y,
+        loss_fn=nn.BCELoss(),
+        sampling_rate=1.0,
+        clip_norm=1.0,
+        sampling_generator=_generator(1),
+    )
+    bound = float(clean.abs().max()) / 2
+    limited = clipped_sum_step(
+        model,
+        x,
+        y,
+        loss_fn=nn.BCELoss(),
+        sampling_rate=1.0,
+        clip_norm=1.0,
+        sampling_generator=_generator(1),
+        sum_bound=bound,
+    )
+    assert torch.equal(limited, clean.clamp(-bound, bound))
+    message = _share(model, x, y, sampling_rate=1.0, share_std=0.3, sum_bound=bound)
+    noise = gaussian_noise(clean.shape, 0.3, _generator(2), dtype=torch.float64)
+    assert torch.allclose(message, limited + noise, atol=1e-12)
+
+
+@settings(max_examples=100, deadline=None)
+@given(
+    first=st.lists(st.floats(-50, 50), min_size=4, max_size=4),
+    second=st.lists(st.floats(-50, 50), min_size=4, max_size=4),
+    bound=st.floats(0.1, 60),
+)
+def test_limiting_each_number_never_moves_two_sums_apart(
+    first: list[float], second: list[float], bound: float
+) -> None:
+    """So one record still changes a limited sum by at most the clipping norm."""
+    a = torch.tensor(first, dtype=torch.float64)
+    b = torch.tensor(second, dtype=torch.float64)
+    before = float((a - b).norm())
+    after = float((a.clamp(-bound, bound) - b.clamp(-bound, bound)).norm())
+    assert after <= before + 1e-12

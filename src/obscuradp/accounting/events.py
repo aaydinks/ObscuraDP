@@ -44,6 +44,10 @@ class GaussianEvent:
     def with_repetitions(self, count: int) -> GaussianEvent:
         return GaussianEvent(self.noise_multiplier, count)
 
+    def with_noise_multiplier(self, noise_multiplier: float) -> GaussianEvent:
+        """The same releases at another noise level (for "what if" tables in a report)."""
+        return GaussianEvent(noise_multiplier, self.count)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "mechanism": MECHANISM_GAUSSIAN,
@@ -79,6 +83,10 @@ class SubsampledGaussianEvent:
 
     def with_repetitions(self, count: int) -> SubsampledGaussianEvent:
         return SubsampledGaussianEvent(self.noise_multiplier, self.sampling_rate, count)
+
+    def with_noise_multiplier(self, noise_multiplier: float) -> SubsampledGaussianEvent:
+        """The same releases at another noise level (for "what if" tables in a report)."""
+        return SubsampledGaussianEvent(noise_multiplier, self.sampling_rate, self.steps)
 
     def to_dict(self) -> dict[str, Any]:
         return {

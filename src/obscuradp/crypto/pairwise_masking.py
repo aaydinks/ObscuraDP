@@ -112,7 +112,7 @@ class MaskingClient:
             raise ValueError(f"sum index {sum_index} was already used; masks are never reused")
         numbers = np.asarray(values, dtype=np.uint64).ravel()
         modulus = np.uint64(2**self.modulus_bits - 1)
-        if numbers.size and int(numbers.max()) >> self.modulus_bits:
+        if numbers.size and int(np.max(numbers)) >> self.modulus_bits:
             raise ValueError(f"a value does not fit in {self.modulus_bits} bits")
         total = numbers.copy()
         for other, key in self._pair_keys.items():

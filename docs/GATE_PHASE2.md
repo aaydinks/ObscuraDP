@@ -1,7 +1,7 @@
 # Phase 2 gate: what correct privacy counting does to the results
 
-Date: 2026-11-10. Status: **waiting for the owner's review.** No Phase 3 work starts before the
-decisions at the end of this memo are answered.
+Date: 2026-11-10. Status: **answered by the owner on 2026-11-10.** The answers are in the last section.
+Phase 3 started with step S12.
 
 Every number below comes from `benchmarks/results/phase2/summary.json`, which is built from 200 stored
 runs by `python -m benchmarks.phase2.report`. The full tables are in
@@ -158,3 +158,17 @@ of Phase 3, and step S14 compares the two modes at equal budgets.
 5. **The two dataset files.** They are still in the repository under the frozen research folder. The
    earlier decision was "stay for now". Nothing in Phase 2 changes that, and the package still ships no
    data.
+
+## Answers (owner, 2026-11-10)
+
+| # | Decision | Answer |
+|---|---|---|
+| 1 | Reversed and withdrawn claims | **Accepted** as written above. The website wording is fixed in step S22 (items 29 to 32 of `docs/WEBSITE_MISMATCHES.md`), not earlier |
+| 2 | Headline measure for stroke | **AUC and average precision** on held-out rows at their natural mix. Recall is reported only at a cut-off chosen on validation rows. Recall at a fixed 0.5 cut-off is dropped |
+| 3 | Model for small tables | The documentation says **logistic regression is the better protected choice** for tables of a few thousand rows. The network stays as a comparison |
+| 4 | Phase 3 | **As planned**: S12 shared noise, S13 whole-number noise, S14 comparison at equal budgets |
+| 5 | The two dataset files | **Stay in the repository.** A note gives each file's source and license as far as they can be found (`docs/DATASETS.md`). Still never shipped in the package |
+| 6 | How far a working session may go | **Same rules as before**: one pull request per step, merged by the session when every check is green, step after step until the next review stop (S22) |
+
+Answers 2 and 3 change wording and report columns when steps S14 and S21 reach them. The stored Phase 2
+results are a record of what was run and are not rewritten.

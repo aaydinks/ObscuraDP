@@ -31,7 +31,7 @@ def pack_bits(values: npt.ArrayLike, bits: int) -> bytes:
     """Pack whole numbers below $2^{bits}$ into ``packed_size`` bytes."""
     _check_bits(bits)
     numbers = np.asarray(values, dtype=np.uint64).ravel()
-    if numbers.size and int(numbers.max()) >> bits:
+    if numbers.size and int(np.max(numbers)) >> bits:
         raise ValueError(f"a value does not fit in {bits} bits")
     shifts = np.arange(bits, dtype=np.uint64)
     table = ((numbers[:, None] >> shifts) & np.uint64(1)).astype(np.uint8)

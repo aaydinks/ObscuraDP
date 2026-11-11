@@ -10,6 +10,11 @@ every batch itself with Poisson sampling, because the privacy accounting is only
 that way of drawing batches.
 
 ``train_plain_round`` is the ordinary, unprotected counterpart, used for baselines.
+
+``private_sum_step`` is one participant's part of a round in the shared-noise mode: one
+clipped gradient sum at the shared model plus this participant's slice of the noise. Its
+result is only safe inside a secure sum. ``clipped_sum_step`` is the same without any noise,
+for a server that is trusted to add the noise itself.
 """
 
 from __future__ import annotations
@@ -27,8 +32,11 @@ from obscuradp.mechanisms.dpsgd import (
     Gradients,
     LossFunction,
     check_per_record_model,
+    clipped_sum,
+    per_record_gradients,
     private_gradient,
 )
+from obscuradp.mechanisms.noise import gaussian_noise
 from obscuradp.mechanisms.sampling import poisson_sample
 
 StepObserver = Callable[[int, torch.Tensor, Gradients], None]
@@ -159,6 +167,145 @@ def train_private_round(
                 value.grad = update
         optimizer.step()
     return RoundStats(steps=steps, empty_batches=empty, records_drawn=drawn)
+
+
+def flatten_gradients(gradients: Mapping[str, torch.Tensor]) -> torch.Tensor:
+    """All gradients as one 64-bit vector, in the order of the mapping."""
+    if not gradients:
+        raise ValueError("the model has no trainable parameter")
+    return torch.cat([value.detach().double().flatten() for value in gradients.values()])
+
+
+def clipped_sum_step(
+    model: nn.Module,
+    features: torch.Tensor,
+    targets: torch.Tensor,
+    *,
+    loss_fn: LossFunction,
+    sampling_rate: float,
+    clip_norm: float,
+    sampling_generator: torch.Generator,
+    clip_scale: ClipScale | None = None,
+    sum_bound: float | None = None,
+) -> torch.Tensor:
+    """One participant's clipped gradient sum at the model's current weights. **No noise.**
+
+    Each record joins with probability ``sampling_rate``; the gradients of the drawn records
+    are clipped and added up. The result is not private. It may only be handed to a party
+    that is trusted to add the noise (``CentralDPSGD``), or be noised first
+    (``private_sum_step``). The model is not changed.
+
+    Args:
+        model: The model at the shared weights.
+        features: All of the participant's training records, one per row.
+        targets: Their targets.
+        loss_fn: Per-record loss, called as ``loss_fn(output, target)`` on one record.
+        sampling_rate: Probability $q$ with which each record joins.
+        clip_norm: Clipping norm $C$.
+        sampling_generator: Random stream for drawing the records.
+        clip_scale: Optional function from the drawn targets to one factor in (0, 1] per
+            record, see ``train_private_round``.
+        sum_bound: If given, every number of the sum is limited to plus or minus this value.
+            Limiting each number can only bring two sums closer together, so one record
+            still moves the result by at most $C$.
+
+    Returns:
+        The sum as one 64-bit vector over the trainable parameters, in the order of
+        ``model.named_parameters()``.
+    """
+    n_records = int(features.shape[0])
+    if n_records < 1:
+        raise ValueError("a participant needs at least one record")
+    if targets.shape[0] != n_records:
+        raise ValueError("features and targets must have the same number of records")
+    if sum_bound is not None and not sum_bound > 0.0:
+        raise ValueError("sum_bound must be positive")
+    check_per_record_model(model)
+    model.train()
+    indices = poisson_sample(n_records, sampling_rate, sampling_generator)
+    chosen = indices.to(features.device)
+    total = clipped_sum(
+        per_record_gradients(model, loss_fn, features[chosen], targets[chosen]),
+        clip_norm,
+        None if clip_scale is None else clip_scale(targets[chosen]),
+    )
+    flat = flatten_gradients(total)
+    if sum_bound is not None:
+        flat = flat.clamp(min=-sum_bound, max=sum_bound)
+    return flat
+
+
+def private_sum_step(
+    model: nn.Module,
+    features: torch.Tensor,
+    targets: torch.Tensor,
+    *,
+    loss_fn: LossFunction,
+    ledger: PrivacyLedger,
+    scope: str,
+    sampling_rate: float,
+    clip_norm: float,
+    noise_multiplier: float,
+    share_std: float,
+    sampling_generator: torch.Generator,
+    noise_generator: torch.Generator,
+    clip_scale: ClipScale | None = None,
+    sum_bound: float | None = None,
+) -> torch.Tensor:
+    """One participant's message in the shared-noise mode: clipped sum plus its noise slice.
+
+    The release is charged to the ledger **before** any data is used: one step at
+    ``noise_multiplier``, the noise that all honest slices give together. This participant
+    only adds ``share_std`` of it. **The result is therefore only protected inside a secure
+    sum** that hides single messages; sent in the clear it would be protected by one slice
+    alone, far less than the ledger says.
+
+    Args:
+        model: The model at the shared weights. It is not changed.
+        features: All of the participant's training records, one per row.
+        targets: Their targets.
+        loss_fn: Per-record loss, called as ``loss_fn(output, target)`` on one record.
+        ledger: The privacy ledger.
+        scope: The ledger scope to charge, normally the participant's name.
+        sampling_rate: Probability $q$ with which each record joins.
+        clip_norm: Clipping norm $C$.
+        noise_multiplier: $\\sigma$, what the ledger is charged with.
+        share_std: Standard deviation of this participant's slice, normally
+            $\\sigma C / \\sqrt{N - t - d}$ (see ``obscuradp.mechanisms.shared_noise``).
+        sampling_generator: Random stream for drawing the records.
+        noise_generator: Random stream for the noise. For real data use
+            ``obscuradp.mechanisms.entropy_generator()``.
+        clip_scale: Optional per-record clip factors, see ``train_private_round``.
+        sum_bound: Optional limit for every number of the clipped sum, applied before the
+            noise is added.
+
+    Raises:
+        BudgetExceeded: If the release does not fit the scope's remaining budget. No data is
+            used in that case.
+    """
+    if not share_std > 0.0:
+        raise ValueError("share_std must be positive: a message without noise is not private")
+    if int(features.shape[0]) < 1:
+        raise ValueError("a participant needs at least one record")
+    check_per_record_model(model)
+    event = SubsampledGaussianEvent(noise_multiplier, sampling_rate, 1)
+
+    # The charge comes first. If it is refused, no data has been touched.
+    ledger.charge(scope, event)
+
+    total = clipped_sum_step(
+        model,
+        features,
+        targets,
+        loss_fn=loss_fn,
+        sampling_rate=sampling_rate,
+        clip_norm=clip_norm,
+        sampling_generator=sampling_generator,
+        clip_scale=clip_scale,
+        sum_bound=sum_bound,
+    )
+    noise = gaussian_noise(total.shape, share_std, noise_generator, dtype=torch.float64)
+    return total + noise.to(total.device)
 
 
 def train_plain_round(

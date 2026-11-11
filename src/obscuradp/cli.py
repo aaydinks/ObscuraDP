@@ -95,6 +95,21 @@ def _show(path: str) -> int:
             print(
                 f"  {scope.get('scope')}: epsilon = {scope.get('epsilon')} of {scope.get('budget')}"
             )
+    mode = data.get("mode")
+    if isinstance(mode, dict):
+        print(
+            f"mode: {mode.get('mode')}, {mode.get('participants')} participants, "
+            f"{mode.get('completed_rounds')} of {mode.get('attempts')} rounds completed"
+        )
+        rows = mode.get("collusion_table")
+        if isinstance(rows, list):
+            print(
+                f"  assumed: at most {mode.get('max_colluding')} colluding, "
+                f"at most {mode.get('max_dropouts')} missing"
+            )
+            for row in rows:
+                budget = "no protection" if row.get("unbounded") else row.get("epsilon")
+                print(f"  {row.get('colluding')} colluding: epsilon = {budget}")
     print("These are the stored figures. Run 'obscuradp report verify' to recompute them.")
     return 0
 

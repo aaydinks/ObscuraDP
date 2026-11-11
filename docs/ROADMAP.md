@@ -134,8 +134,10 @@ Gate decisions: see `docs/ROADMAP_STATUS.md`, "Decisions needed".
 - **S12** `DistributedDPSGD(max_colluding=t, max_dropouts=d)` and `CentralDPSGD` on the same engine. Each
   participant's noise share has standard deviation $\sigma C / \sqrt{N - t - d}$. `t` must be given; the
   report prints how the budget degrades with the real number of colluders. Distributed mode with SPE is
-  refused. In v0.1 a round with a dropout is retried with fresh randomness and charged only if a sum was
-  released.
+  refused. In v0.1 a round with a dropout fails and the next round uses fresh randomness. Corrected in S12:
+  every participant whose message left is charged, also when the sum could not be opened, because a
+  missing participant that works with the server can strip the masks from the other messages
+  (`docs/SHARED_NOISE.md`).
 - **S13 integer path.** Randomized rounding with an exact integer norm check; Skellam noise shares; a
   modulus-headroom planner; Skellam accounting for full-batch rounds only. The Skellam bound is implemented
   from the paper (Agarwal, Kairouz, Liu 2021) and checked against a brute-force computation from

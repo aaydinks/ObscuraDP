@@ -215,6 +215,9 @@ The full list with proposed wording is in `docs/WEBSITE_MISMATCHES.md`. The main
 Decision needed at the gate: may these files stay in the repository? The library itself will never ship
 datasets (S17 downloads with checksums).
 
+Decided (owner, 2026-11-10): the files stay. `docs/DATASETS.md` records what is known about their source
+and says "not found" where a source address or a license could not be established.
+
 ### G11. The planned benchmark does not fit a CPU budget as written. Confirmed (C)
 
 Measured in this session on 4 CPU cores: the 20-run arm matrix on two small tabular models took 7 minutes
