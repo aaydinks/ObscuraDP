@@ -180,11 +180,11 @@ def test_partial_encryption_cannot_be_combined_with_a_plan() -> None:
         ({"plan": _central(), "allow_unsafe": True, "local_epochs": 2.0}, "one step per round"),
         (
             {"plan": _central(), "allow_unsafe": True, "dropouts": {0: ["site-0"]}},
-            "only be played with DistributedDPSGD",
+            "only be played where the participants share the noise",
         ),
         (
             {"plan": odp.Plan(imbalance=ClassWeighted(0.2)), "dropouts": {0: ["site-0"]}},
-            "only be played with DistributedDPSGD",
+            "only be played where the participants share the noise",
         ),
     ],
 )

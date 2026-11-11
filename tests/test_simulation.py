@@ -333,7 +333,7 @@ def test_a_failure_probability_that_is_too_large_is_refused(clients: list[Client
     [
         ({"policy": None}, "needs a PrivacyPolicy"),
         ({"plan": odp.Plan(dp=None)}, "the plan adds no noise"),
-        ({"policy": odp.PrivacyPolicy(1.0, DELTA, unit="client")}, "only record-level"),
+        ({"policy": odp.PrivacyPolicy(1.0, DELTA, unit="client")}, "goes with ClientLevelDP"),
         ({"rounds": 0}, "rounds"),
         ({"local_epochs": 0.0}, "local_epochs"),
         ({"batch_size": 0}, "batch_size"),
