@@ -2,10 +2,12 @@
 
     obscuradp report verify REPORT.json    recompute a privacy report from its recorded releases
     obscuradp report show REPORT.json      print the stored report's main figures
+    obscuradp audit self-test              check that the attack tests catch a broken pipeline
     obscuradp --version
 
 ``verify`` exits with status 0 if the report is consistent and 1 if anything disagrees, so it
-can be used in scripts and pipelines.
+can be used in scripts and pipelines. ``audit self-test`` exits with status 0 if the auditor
+flags the broken pipelines it is shown and passes the correct ones, and 1 otherwise.
 """
 
 from __future__ import annotations
@@ -41,6 +43,19 @@ def _build_parser() -> argparse.ArgumentParser:
     verify.add_argument("path", help="a privacy report written by this library (JSON)")
     show = actions.add_parser("show", help="print the main figures stored in a report")
     show.add_argument("path", help="a privacy report written by this library (JSON)")
+
+    audit = commands.add_parser("audit", help="attack tests of the privacy the library reports")
+    audit_actions = audit.add_subparsers(dest="action", required=True)
+    self_test = audit_actions.add_parser(
+        "self-test",
+        help="show the auditor a correct and a broken pipeline; it must tell them apart",
+    )
+    self_test.add_argument(
+        "--trials",
+        type=int,
+        default=2000,
+        help="runs per world for the single-step check (default: 2000)",
+    )
     return parser
 
 
@@ -114,6 +129,22 @@ def _show(path: str) -> int:
     return 0
 
 
+def _self_test(trials: int) -> int:
+    # Imported here: the report commands should not have to load the training code.
+    from obscuradp.audit.selftest import passed, self_test
+
+    checks = self_test(trials=trials)
+    for check in checks:
+        wanted = "must be flagged" if check.must_flag else "must not be flagged"
+        print(f"[{'ok' if check.passed else 'FAILED'}] {check.name} ({wanted})")
+        print(f"     {check.detail}")
+    if passed(checks):
+        print("Self-test passed: the auditor catches the broken pipelines and passes the others.")
+        return 0
+    print("Self-test FAILED: the auditor cannot be relied on in this installation.")
+    return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the command line. Returns the exit status."""
     args = _build_parser().parse_args(argv)
@@ -121,6 +152,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _verify(args.path)
     if args.command == "report" and args.action == "show":
         return _show(args.path)
+    if args.command == "audit" and args.action == "self-test":
+        return _self_test(args.trials)
     return 2  # pragma: no cover - argparse refuses unknown commands before this
 
 

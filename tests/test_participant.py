@@ -19,6 +19,7 @@ from torch import nn
 import obscuradp as odp
 from obscuradp.accounting import SubsampledGaussianEvent, calibrate_noise_multiplier
 from obscuradp.audit import gaussian_epsilon_lower_bound
+from obscuradp.audit.mechanism import whole_participant_scores
 from obscuradp.client import clipped_model_change
 from obscuradp.crypto import PairwiseMasking
 from obscuradp.imbalance import ClassWeighted
@@ -428,50 +429,8 @@ def test_who_takes_part_is_not_drawn_from_the_seed_for_real_data(
 def _attack_scores(
     with_target: bool, trials: int, first_seed: int, epsilon: float = 1.0
 ) -> tuple[list[float], float]:
-    """The strongest attacker the plan allows, deciding whether one participant contributed.
-
-    Three participants, the last works with the server. The target's rows all pull the
-    first weight the same way, so its shortened change is exactly the clipping norm in that
-    direction; in the other world its rows pull nowhere. The attacker opens the sum, takes
-    out the colluder's slice and reads the first number.
-    """
-    width, clip = 6, 1.0
-    group = [
-        _rows("site-0", width, 3.0 if with_target else 0.0, 0),
-        _rows("site-1", width, 0.0, 1),
-        _rows("site-2", width, 0.0, 2),
-    ]
-    simulation = odp.Simulation(
-        model_fn=lambda: _Silent(width),
-        clients=group,
-        plan=odp.Plan(
-            dp=odp.ClientLevelDP(sampling_rate=1.0, clip_norm=clip, max_colluding=1),
-            secure_sum=PairwiseMasking(),
-        ),
-        policy=odp.PrivacyPolicy(epsilon, DELTA, unit="client"),
-        rounds=1,
-        learning_rate=5.0,
-        weighted_average=False,
-        evaluate_every=0,
-        outputs="logit",
-    )
-    scores = []
-    spent = 0.0
-    for trial in range(trials):
-        seed = first_seed + trial
-        result = simulation.run(seed=seed)
-        sigma = result.noise_multipliers["all participants"]
-        opened = np.asarray(flatten_state(result.state), dtype=np.float64) * 3
-        known = gaussian_noise(
-            (width,),
-            share_std(sigma, clip, 3, 1, 0),
-            torch_generator(seed, "noise", 0, 2),
-            dtype=torch.float64,
-        ).numpy()
-        scores.append(float((opened - known)[0]))
-        assert result.report is not None
-        spent = result.report.epsilon
-    return scores, spent
+    """The attack itself is public: ``obscuradp.audit.mechanism.whole_participant_scores``."""
+    return whole_participant_scores(with_target, trials, first_seed=first_seed, epsilon=epsilon)
 
 
 def test_a_participant_that_pulls_hard_arrives_shortened_to_the_clipping_norm() -> None:
