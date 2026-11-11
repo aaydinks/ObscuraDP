@@ -31,6 +31,12 @@ UNSAFE_REASONS: dict[str, str] = {
         "The choice of which numbers to encrypt was computed from private data without noise. "
         "That choice is visible to the server and was not charged to the budget."
     ),
+    "trusted_server": (
+        "The server receives every participant's gradient sums without noise and adds the "
+        "noise itself. Records are not protected from the server at all; the stated budget "
+        "only covers those who see nothing but the models. This mode is a baseline for "
+        "comparisons, not a way to protect real data."
+    ),
     "ckks_research_only": (
         "CKKS encryption gives approximate results, and decrypted approximate results can help "
         "an attacker recover the key. This backend is for research with all roles under one "

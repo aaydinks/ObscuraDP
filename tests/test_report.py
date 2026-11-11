@@ -2,6 +2,7 @@
 
 import copy
 import json
+import math
 import subprocess
 import sys
 from importlib import metadata
@@ -23,7 +24,15 @@ from obscuradp.accounting import (
 from obscuradp.cli import main
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.policy import PrivacyPolicy
-from obscuradp.report import NOT_COVERED, SCHEMA, PrivacyReport, load_report, verify_report
+from obscuradp.report import (
+    NOT_COVERED,
+    SCHEMA,
+    ModeReport,
+    PrivacyReport,
+    collusion_table,
+    load_report,
+    verify_report,
+)
 
 DELTA = 1e-5
 RATE = 0.1
@@ -292,3 +301,240 @@ def test_the_command_is_installed_and_runs_as_a_module(
     )
     assert done.returncode == 0, done.stderr
     assert "consistent" in done.stdout
+
+
+# --------------------------------------------------------------------------- shared noise
+
+PARTICIPANTS = 4
+COLLUDING = 1
+
+
+def _shared_mode(ledger: PrivacyLedger, dropouts: int = 0) -> ModeReport:
+    return ModeReport(
+        mode="distributed",
+        participants=PARTICIPANTS,
+        attempts=STEPS,
+        completed_rounds=STEPS - 3,
+        max_colluding=COLLUDING,
+        max_dropouts=dropouts,
+        steps_per_share=4.0,
+        table=collusion_table(
+            {scope: ledger.events(scope) for scope in ledger.scopes},
+            DELTA,
+            PARTICIPANTS,
+            COLLUDING,
+            dropouts,
+        ),
+    )
+
+
+@pytest.fixture(scope="module")
+def shared_report(ledger: PrivacyLedger) -> PrivacyReport:
+    return PrivacyReport.from_ledger(ledger, mode=_shared_mode(ledger))
+
+
+@pytest.fixture
+def shared_stored(shared_report: PrivacyReport) -> dict[str, Any]:
+    return copy.deepcopy(shared_report.to_dict())
+
+
+def test_the_table_recomputes_the_budget_for_every_number_of_colluders(
+    ledger: PrivacyLedger, shared_report: PrivacyReport
+) -> None:
+    assert shared_report.mode is not None
+    rows = shared_report.mode.table
+    assert [row.colluding for row in rows] == [0, 1, 2, 3]
+    assert [row.assumed for row in rows] == [True, True, False, False]
+    sigma = ledger.events("client-0")[0].noise_multiplier
+    for row in rows:
+        factor = math.sqrt((PARTICIPANTS - row.colluding) / (PARTICIPANTS - COLLUDING))
+        assert row.noise_multiplier == pytest.approx(sigma * factor)
+        # The scope with the most releases decides, as for the report's total.
+        expected = epsilon_pld([SubsampledGaussianEvent(sigma * factor, RATE, STEPS)], DELTA)
+        assert row.epsilon == pytest.approx(expected)
+    # The row for the assumed number is the stated budget; fewer colluders is better.
+    assert rows[COLLUDING].epsilon == pytest.approx(shared_report.epsilon)
+    budgets = [row.epsilon for row in rows]
+    assert budgets == sorted(budgets)
+    assert budgets[0] < shared_report.epsilon < budgets[2] < budgets[3]
+
+
+def test_an_allowance_for_missing_participants_makes_every_row_better(
+    ledger: PrivacyLedger, shared_report: PrivacyReport
+) -> None:
+    assert shared_report.mode is not None
+    with_allowance = _shared_mode(ledger, dropouts=1)
+    for plain, better in zip(shared_report.mode.table, with_allowance.table, strict=True):
+        assert better.epsilon < plain.epsilon
+    text = "\n".join(with_allowance.lines())
+    assert "at most 1 are missing from a sum" in text
+    assert "only opens when nobody is missing" in text
+    report = PrivacyReport.from_ledger(ledger, mode=with_allowance)
+    assert verify_report(report.to_dict()) == []
+
+
+def test_the_table_is_part_of_the_summary_and_the_file(
+    shared_report: PrivacyReport, tmp_path: Path
+) -> None:
+    text = shared_report.summary()
+    assert "How the noise was added: shared. Each of the 4 participants adds a slice" in text
+    assert "197 round(s) completed; 3 further round(s) failed" in text
+    assert "Budget by the real number of participants who pool with the server:" in text
+    assert f"  1: epsilon = {shared_report.epsilon:.4g}\n" in text
+    assert "(more than assumed)" in text
+    assert "on a grid 4 times finer than its noise slice" in text
+    assert chr(0x2014) not in text
+    path = tmp_path / "shared.json"
+    shared_report.to_json(path)
+    stored = load_report(path)
+    assert stored["schema"] == SCHEMA
+    assert stored["mode"]["max_colluding"] == COLLUDING
+    assert len(stored["mode"]["collusion_table"]) == PARTICIPANTS
+    assert verify_report(stored) == []
+
+
+def test_reports_of_the_local_mode_keep_exactly_their_keys(report: PrivacyReport) -> None:
+    assert report.mode is None
+    assert set(report.to_dict()) == {
+        "schema",
+        "library_version",
+        "policy",
+        "epsilon",
+        "within_budget",
+        "attacker_advantage_ceiling",
+        "general_attacker_advantage_ceiling",
+        "scopes",
+        "protection",
+        "unsafe_flags",
+        "caveats",
+        "not_covered",
+    }
+    assert "How the noise was added" not in report.summary()
+
+
+def test_rows_without_protection_are_stored_as_null() -> None:
+    ledger = PrivacyLedger(PrivacyPolicy(150.0, DELTA))
+    ledger.charge("a", SubsampledGaussianEvent(1.0, 1.0, 100))
+    table = collusion_table({"a": ledger.events("a")}, DELTA, 3, 0, 0)
+    assert [row.unbounded for row in table] == [False, False, True]
+    mode = ModeReport(
+        mode="distributed",
+        participants=3,
+        attempts=100,
+        completed_rounds=100,
+        max_colluding=0,
+        max_dropouts=0,
+        steps_per_share=4.0,
+        table=table,
+    )
+    report = PrivacyReport.from_ledger(ledger, mode=mode)
+    stored = report.to_dict()
+    assert stored["mode"]["collusion_table"][2]["epsilon"] is None
+    assert stored["mode"]["collusion_table"][2]["unbounded"] is True
+    json.dumps(stored, allow_nan=False)
+    assert "  2: no protection   (more than assumed)" in report.summary()
+    assert verify_report(stored) == []
+    # A row that claims protection where there is none is caught.
+    stored["mode"]["collusion_table"][2].update(epsilon=5.0, unbounded=False)
+    assert any("row for 2 colluding" in problem for problem in verify_report(stored))
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "message"),
+    [
+        (("collusion_table", 2, "epsilon"), 1.0, "row for 2 colluding"),
+        (("collusion_table", 0, "effective_noise_multiplier"), 9.0, "row for 0 colluding"),
+        (("collusion_table", 3, "assumed"), True, "row for 3 colluding"),
+        (("collusion_table", 1, "colluding"), 2, "row for 1 colluding"),
+        (("collusion_table", 1, "unbounded"), True, "row for 1 colluding"),
+        (("max_colluding",), 2, "does not match the recorded releases"),
+        (("max_dropouts",), 1, "does not match the recorded releases"),
+        (("participants",), 5, "has 4 rows, expected 5"),
+        (("participants",), 1, "fewer participants than there are scopes"),
+        (("attempts",), 150, "more than the 150 attempts"),
+        (("completed_rounds",), 500, "round counts are impossible"),
+        (("mode",), "magic", "cannot be read"),
+        (("max_colluding",), 7, "cannot be read"),
+        (("attempts",), "many", "cannot be read"),
+    ],
+)
+def test_verify_notices_an_edited_mode_section(
+    shared_stored: dict[str, Any], path: tuple[Any, ...], value: Any, message: str
+) -> None:
+    target = shared_stored["mode"]
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+    problems = verify_report(shared_stored)
+    assert any(message in problem for problem in problems), problems
+
+
+def test_verify_notices_a_broken_mode_section(shared_stored: dict[str, Any]) -> None:
+    removed = copy.deepcopy(shared_stored)
+    del removed["mode"]["collusion_table"][0]
+    assert any("has 3 rows, expected 4" in problem for problem in verify_report(removed))
+    incomplete = copy.deepcopy(shared_stored)
+    del incomplete["mode"]["collusion_table"][1]["epsilon"]
+    assert any("row for 1 colluding" in problem for problem in verify_report(incomplete))
+    missing = copy.deepcopy(shared_stored)
+    del missing["mode"]["max_colluding"]
+    assert any("cannot be read" in problem for problem in verify_report(missing))
+    nonsense = copy.deepcopy(shared_stored)
+    nonsense["mode"] = "distributed"
+    assert verify_report(nonsense) == ["the mode section cannot be read"]
+    # Shared noise means one noise level; two levels cannot come from an honest run.
+    mixed = copy.deepcopy(shared_stored)
+    mixed["scopes"][1]["events"][0]["noise_multiplier"] *= 1.5
+    assert any("the scopes record several" in problem for problem in verify_report(mixed))
+    # The row for the assumed number is recomputed from the same releases as the total.
+    assert shared_stored["mode"]["collusion_table"][COLLUDING]["epsilon"] == pytest.approx(
+        shared_stored["epsilon"]
+    )
+
+
+def test_a_mode_section_must_be_complete(ledger: PrivacyLedger) -> None:
+    with pytest.raises(ValueError, match="mode must be one of"):
+        ModeReport(mode="local", participants=3, attempts=1, completed_rounds=1)
+    with pytest.raises(ValueError, match="needs max_colluding and max_dropouts"):
+        ModeReport(mode="distributed", participants=3, attempts=1, completed_rounds=1)
+    events = {"client-0": ledger.events("client-0")}
+    with pytest.raises(ValueError, match="nobody is left"):
+        collusion_table(events, DELTA, 3, 2, 1)
+    with pytest.raises(ValueError, match="nothing to tabulate"):
+        collusion_table({}, DELTA, 3, 1, 0)
+    central = ModeReport(mode="central", participants=3, attempts=5, completed_rounds=5)
+    assert central.to_dict() == {
+        "mode": "central",
+        "participants": 3,
+        "attempts": 5,
+        "completed_rounds": 5,
+    }
+    assert "by the server" in central.lines()[0]
+
+
+def test_command_line_shows_and_verifies_a_shared_noise_report(
+    shared_report: PrivacyReport, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = tmp_path / "shared.json"
+    shared_report.to_json(path)
+    assert main(["report", "verify", str(path)]) == 0
+    assert "consistent. epsilon = " in capsys.readouterr().out
+    assert main(["report", "show", str(path)]) == 0
+    out = capsys.readouterr().out
+    assert "mode: distributed, 4 participants, 197 of 200 rounds completed" in out
+    assert "assumed: at most 1 colluding, at most 0 missing" in out
+    assert "  3 colluding: epsilon = " in out
+
+    data = load_report(path)
+    data["mode"]["collusion_table"][3]["epsilon"] = 0.5
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(data), encoding="utf-8")
+    assert main(["report", "verify", str(bad)]) == 1
+    assert "row for 3 colluding" in capsys.readouterr().out
+
+    data = load_report(path)
+    data["mode"]["collusion_table"][3].update(epsilon=None, unbounded=True)
+    odd = tmp_path / "odd.json"
+    odd.write_text(json.dumps(data), encoding="utf-8")
+    assert main(["report", "show", str(odd)]) == 0
+    assert "  3 colluding: epsilon = no protection" in capsys.readouterr().out

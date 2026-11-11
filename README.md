@@ -95,6 +95,21 @@ obscuradp report verify privacy_report.json
 Settings that would quietly break the promise (for example making synthetic rows from real ones before
 private training) are refused unless you pass `allow_unsafe=True`, and are then named in the report.
 
+## Three ways to add the noise
+
+The example above uses `LocalDPSGD`. The `dp` setting of a `Plan` chooses who adds the noise:
+
+| Setting | Who adds the noise | What must be trusted | Use |
+|---|---|---|---|
+| `LocalDPSGD()` | Every participant adds all the noise its own rows need | Nothing beyond the participant itself | The safe default |
+| `DistributedDPSGD(max_colluding=t)` with `secure_sum=PairwiseMasking()` | Every participant adds a slice; the slices add up inside the secure sum | The secure sum, and that at most `t` participants pool what they know with the server | Less noise in total. The report prints the budget for every other number of colluders |
+| `CentralDPSGD()` with `allow_unsafe=True` | The server, which sees every participant's clean sums | The server, completely | A baseline for comparisons only |
+
+`DistributedDPSGD` is refused without a secure sum, because a single message would carry only a slice of
+the noise. The argument for its budget, and the one step that is argued and not yet machine-proven, are
+in [`docs/SHARED_NOISE.md`](docs/SHARED_NOISE.md). Whether sharing the noise gives better models at the
+same budget is measured in a later step; nothing here claims it yet.
+
 ## Check that it works
 
 ```bash
@@ -112,7 +127,7 @@ code tries to.
 
 | Path | What it is |
 |---|---|
-| `src/obscuradp/` | The library (first building blocks; no private training yet) |
+| `src/obscuradp/` | The library: private training under one total budget, three ways to add the noise, a secure sum, the privacy report |
 | `tests/` | Its tests. `tests/golden/` compares the library with the research code, number for number |
 | `docs/` | Roadmap, audit, threat model, target definitions, decision records |
 | `constraints/` | Pinned package versions for repeatable installs |

@@ -70,7 +70,12 @@ What this means:
 - CKKS cannot meet it: measured 14.4 times larger. Exact BFV is expected to be a few times larger, to be
   measured.
 - Whether rounding to 8 bits costs accuracy is an empirical question for S14. Rounding after the noise is
-  added does not weaken the privacy guarantee.
+  added does not weaken the privacy guarantee in the local mode, where every message carries all of its
+  noise. In the shared-noise mode (S12) a message carries only a slice, values must never be cut off, and
+  the rounding step is tied to the size of a slice; see `docs/SHARED_NOISE.md`.
+- Measured in S12 for the shared-noise mode with floating-point noise: 12 bits per number for three
+  participants and 14 bits for the five stroke-sized participants at a total budget of 1 (ratios 0.38 and
+  0.44). The whole-number noise of S13 is still to be measured.
 
 ## Reference table 3: three numbers for the attacker-advantage target
 

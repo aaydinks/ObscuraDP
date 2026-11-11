@@ -2,9 +2,9 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-10): S1 and S3 to S11 are done. Phase 2 is complete and the project is WAITING AT
-THE PHASE 2 GATE.** Read `docs/GATE_PHASE2.md`: it lists the claims that changed and five decisions for the
-owner. No Phase 3 work (S12 onward) starts before those are answered.
+**Current state (2026-11-11): S1 and S3 to S12 are done. The Phase 2 gate is closed** (the owner answered
+every decision on 2026-11-10, second table below). Phase 3 is under way: S13 (whole-number noise) is next.
+The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
 
@@ -18,6 +18,20 @@ owner. No Phase 3 work (S12 onward) starts before those are answered.
 | 6 | Wording of the attacker-advantage and bytes targets | As proposed in `KPI_MAPPING.md`: a measured target beside two ceilings; bytes counted against 32-bit plain messages |
 | 7 | The 12 website statements that are false today | Fixed now, in a separate pull request merged automatically once its checks passed (aaydinks/ObscuraDP#9) |
 | 8 | Release label for v0.1 | "Prerun + novel research action" (owner's wording) |
+
+## Decisions (Phase 2 gate, answered by the owner on 2026-11-10)
+
+| # | Decision | Answer |
+|---|---|---|
+| 1 | Reversed and withdrawn claims | Accepted as written in `docs/GATE_PHASE2.md`. The website wording is fixed in S22 (items 29 to 32 of `WEBSITE_MISMATCHES.md`), not earlier |
+| 2 | Headline measure for stroke | AUC and average precision on held-out rows at their natural mix. Recall only at a cut-off chosen on validation rows. Recall at a fixed 0.5 cut-off is dropped |
+| 3 | Model for small tables | The documentation says logistic regression is the better protected choice for tables of a few thousand rows. The network stays as a comparison |
+| 4 | Phase 3 | As planned: S12 shared noise, S13 whole-number noise, S14 comparison at equal budgets |
+| 5 | The two dataset files | Stay in the repository, with a note on source and license as far as they can be found (`DATASETS.md`). Never shipped in the package |
+| 6 | How far a session may go | Same rules as before: one pull request per step, merged by the session when every check is green, step after step until the next review stop (S22) |
+
+Answers 2 and 3 change wording and report columns when S14 and S21 reach them. The stored Phase 2 results
+are a record of what was run and are not rewritten.
 
 ## Session checklist
 
@@ -38,8 +52,10 @@ owner. No Phase 3 work (S12 onward) starts before those are answered.
       `Simulation`. aaydinks/ObscuraDP#26, merged as `c188641`
 - [x] S10, Phase 2: secure-sum interface, pairwise masking, quantizer, key roles, masks.
       aaydinks/ObscuraDP#28, merged as `c3d713e`
-- [x] S11, Phase 2: corrected re-runs, old against new. **GATE: waiting for the owner**
-- [ ] S12, Phase 3: distributed and central modes
+- [x] S11, Phase 2: corrected re-runs, old against new. aaydinks/ObscuraDP#29, merged as `3a1b0c3`.
+      Gate closed 2026-11-10
+- [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
+      aaydinks/ObscuraDP#31
 - [ ] S13, Phase 3: integer noise path
 - [ ] S14, Phase 3: equal-budget comparison, measured bytes, default plan
 - [ ] S15, Phase 4: membership audit and nightly check
@@ -50,6 +66,129 @@ owner. No Phase 3 work (S12 onward) starts before those are answered.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S12 log (2026-11-11)
+
+### What was done
+
+- **The owner's answers are in the repository**: `docs/GATE_PHASE2.md` (status and an "Answers" section; the
+  result tables are untouched), the second decisions table above, and `docs/DATASETS.md`.
+- **`docs/DATASETS.md`** (answer 5): for both files the paths, sizes, row counts and fingerprints, and the
+  source the research notes name (two Kaggle entries, fetched from a mirror whose address was never
+  recorded). Both licenses are written as **"not found"**: the Kaggle pages cannot be opened from the cloud
+  environment and a web search did not show the license field. The owner chose this over waiting.
+- **`obscuradp.DistributedDPSGD(max_colluding=t, max_dropouts=d)`**: the participants share the noise. Every
+  round is one step. Each participant sends one clipped gradient sum plus a slice of noise with standard
+  deviation $\sigma C / \sqrt{N - t - d}$ through the secure sum; the server sees only the total. `t` has
+  no default.
+- **`obscuradp.CentralDPSGD`**: the same round with a trusted server that adds the noise. Baseline only.
+- **The privacy report has a table** of the budget for every real number of colluding participants (the
+  exit condition of this step), states $t$ and $d$, and `obscuradp report verify` recomputes the table.
+  Reports of the local mode keep exactly their keys; the schema name is unchanged.
+- **Budget arithmetic for one step per round**: the number of noisy releases is the number of rounds. One
+  noise level serves all participants (every row joins with the same probability
+  $q = \min(1, B / n)$, $n$ rows in total) and is sized for the strictest participant budget.
+- **`obscuradp.compression.SumGrid`**: whole numbers for the secure sum that are never cut off.
+- `obscuradp.client.private_sum_step` and `clipped_sum_step`, `obscuradp.mechanisms.shared_noise`,
+  `Simulation(dropouts=...)`, the mode in `obscuradp report show`, `docs/SHARED_NOISE.md`.
+- **Tests**: 92 more, for 627 in total.
+
+### What was verified and how
+
+- 623 tests pass in the pull-request selection with the pinned versions (Python 3.11), coverage of
+  `src/obscuradp` 98%; 461 pass with the newest versions (Python 3.13). The 4 slow tests run nightly.
+- **Refusals**: shared noise without a secure sum is refused when the plan is built, and `allow_unsafe`
+  does not change that; so are non-default rounding settings, an impossible group ($N - t - d < 1$), more
+  than one local pass, the FedProx term, equal weighting, and a trusted server without `allow_unsafe=True`.
+  Partial encryption cannot be reached from a plan at all; a test fails if a field for it is ever added.
+- **The opened sum carries the stated noise.** With a model whose gradients are zero, the sum is backed
+  out of the model after one round (4,000 numbers): its variance is $N$ slices, and after removing the
+  slices of the assumed colluders at least $\sigma^2 C^2$ remains (three settings of $t$ and $d$). The
+  trusted server adds exactly $\sigma C$.
+- **One budget**: every participant's ledger holds exactly $R$ releases at $(\sigma, q)$, spends between
+  0.99 and 1.0 of a budget of 1, and the stored report verifies, also through the command line. With one
+  stricter participant, its budget sets the noise for all.
+- **The table**: the row for the assumed $t$ equals the report's total, budgets grow with the number of
+  colluders, rows without protection are stored as `null` in strict JSON, and 14 different edits of the
+  section are each caught by `verify_report`.
+- **Measured for the stroke-sized group** (5 participants with 95, 1,589, 54, 1,240 and 456 rows, expected
+  batch 160, 100 rounds, total budget 1, $t = 1$): noise multiplier 2.03 for everyone, 14 bits per number
+  on the wire (44% of plain size), and budgets of 0.86, 1.00, 1.22, 1.67 and 3.18 for 0 to 4 colluders.
+  For comparison only: in the local mode of Phase 2 the same participants needed multipliers of 3.5 to
+  28.9, with many steps per round. **Whether this gives better models is not measured yet** (S14).
+- **Dropouts**: a failed round leaves the model untouched and is charged to those who sent; every attempt
+  uses its own masks; a run with failed rounds ends with fewer updates and within budget.
+- **Two attacks with real keys**: a missing participant that works with the server lets the two read the
+  others' sum exactly; a missing honest participant leaves everything hidden.
+- **Attack check** (three participants, one colluding, full batch, 2,000 runs with and 2,000 without the
+  target record): the attack proves no more than the ledger's 1.0 and comes within 30% of it.
+- **Rounding**: in one dimension the sum of separately rounded noisy values has the same distribution as
+  the true noisy sum plus small independent noise, rounded once, to the limit of double precision (below
+  $10^{-10}$) at the planned grid. On a coarse grid the same computation shows a difference above
+  $10^{-3}$.
+- **The local mode is unchanged**: the final weights of three seeded runs (private, private with the
+  secure sum, unprotected) have the same sha256 before and after the change, on Python 3.11 and 3.13.
+- The tests can fail: sizing the slice as if everyone were honest broke 10 tests; letting one participant
+  add no slice broke 3; not charging a failed round broke 3. All three changes were reverted.
+- End to end: a five-participant run with one failed round prints the table, and its report file passes
+  `obscuradp report verify`.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+Six points go beyond the roadmap's wording. An independent review by a helper agent reached the first
+three as well. The argument is in `docs/SHARED_NOISE.md`.
+
+- **A failed round is charged.** The roadmap said "charged only if a sum was released". If the missing
+  participant works with the server, the two can strip the masks from the other messages and read their
+  sum, so that rule is unsafe for $t \ge 1$. Now everyone who sent a message is charged, `rounds` is the
+  number of rounds started, and nothing is repeated for free. `docs/ROADMAP.md` is corrected.
+- **Values are never cut off in the shared-noise mode.** Cutting off a participant's numbers would remove
+  noise that the others count on. The clean sum is limited before the noise is added (which cannot raise
+  what one record can change), and afterwards numbers wrap around the modulus. The grid is planned by the
+  library from public numbers; `PairwiseMasking` must have its default settings in this mode.
+- **Rounding after the noise is argued, not machine-proven.** Every report of this mode says so. S13
+  removes the gap. One claim from the planning stage was corrected by the numerical check: the sum of
+  separately rounded messages is **not** distributed like one rounding of the plain sum (they differ by
+  about $10^{-3}$); it is distributed like one rounding of the sum plus small independent noise.
+- **A participant on its own counts as one colluder**, because it knows its own slice. With $t = 0$ the
+  report says that the table row for 1 applies against a single curious participant.
+- **The trusted-server mode needs `allow_unsafe=True`** and is flagged in the report. The roadmap only
+  said "upper-bound baseline". It takes no secure sum in this step.
+- **`batch_size` means the expected batch of the whole group** in the one-step modes, and equal weighting
+  is refused. S14 must tune settings per mode.
+
+Two further changes:
+
+- **A gap in existing code was closed**: with `secure_noise=True` only the noise came from the operating
+  system; the choice of rows per step was still drawn from the run's seed, although the budget counts on
+  that choice being secret. Both now come from the operating system. Stored results are unaffected.
+- Two lines (`compression/packing.py`, `crypto/pairwise_masking.py`) were rewritten from `x.max()` to
+  `np.max(x)`: the type checker rejected the first form with numpy 2.5 on Python 3.13 (CI checks types on
+  Python 3.11 with numpy 2.4, where both forms pass). No behaviour changed.
+
+### Environment (first session started on the "ObscuraDP" cloud environment)
+
+- **The start-up script works.** `.venv` was ready at the start (Python 3.13, CPU-only torch 2.15.0,
+  `dp-accounting` 0.6.0, the dev tools). Call the tools as `.venv/bin/...`; the bare `python` has no torch.
+- The Python 3.11 environment for the comparison tests is not prepared by the script. It was built by hand
+  in a few minutes as `.venv-legacy` (`python3.11 -m venv`, then the install line of handoff section 8) and is
+  ignored by git.
+- `www.kaggle.com` is outside the environment's network rules.
+- The working branch of this session is `cu/eloquent-bardeen-qlbmdu` (the cloud session assigns it). The
+  earlier branch `cu/trusting-pasteur-sms0ou` is no longer used.
+
+### Open items
+
+- S13: whole-number noise. It also closes the rounding gap above and finding G16.
+- S14: per-mode settings, more than five seeds before any claim about stroke, and the report columns of
+  answer 2.
+- Public keys are still not authenticated. In the shared-noise mode a server that swaps keys voids the
+  budget, not only the hiding. Planned with the Flower adapter (S19).
+- For the owner: read the license field on the two Kaggle pages named in `docs/DATASETS.md` when convenient;
+  delete the merged remote branches `cu/trusting-pasteur-sms0ou-s03-website` and
+  `cu/trusting-pasteur-sms0ou`; TestPyPI setup before S22.
 
 ## S11 log (2026-11-10)
 
@@ -116,7 +255,8 @@ owner. No Phase 3 work (S12 onward) starts before those are answered.
 
 ### Open items for the owner
 
-- The five decisions at the end of `docs/GATE_PHASE2.md`.
+- The five decisions at the end of `docs/GATE_PHASE2.md`. (Answered on 2026-11-10, see the second
+  decisions table at the top.)
 - Carried forward: the start-up script of the "ObscuraDP" cloud environment is untested by a fresh session;
   TestPyPI setup; the merged remote branch `cu/trusting-pasteur-sms0ou-s03-website` can be deleted.
 

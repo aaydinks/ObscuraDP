@@ -64,9 +64,25 @@ public interface.
   with one total privacy budget per run, no synthetic rows and held-out rows at their natural mix. They
   replace the earlier Trial 07/27 numbers, whose budgets were per round.
 
+- `obscuradp.DistributedDPSGD(max_colluding=t, max_dropouts=d)`: the participants share the noise. Each
+  adds a slice of standard deviation $\sigma C / \sqrt{N - t - d}$, one clipped gradient sum per round goes
+  through the secure sum, and the server only sees the total. Refused without a secure sum. The privacy
+  report gains a table of the budget for every real number of colluding participants, which
+  `obscuradp report verify` recomputes.
+- `obscuradp.CentralDPSGD`: a trusted server adds the noise. A baseline for comparisons, refused unless
+  `allow_unsafe=True` and then flagged in the report.
+- `obscuradp.compression.SumGrid`: whole numbers for a secure sum that never cut a value off (values wrap
+  around the modulus), with a grid planned from public numbers.
+- `Simulation(dropouts=...)` plays missing participants in the shared-noise mode. A round that fails is
+  charged to everyone who sent a message.
+- `docs/SHARED_NOISE.md` (the argument behind the shared-noise mode and what is not yet proven) and
+  `docs/DATASETS.md` (source and license of the two dataset files, as far as they could be found).
+
 ### Changed
 
 - Root `.gitignore` rules are anchored to the repository root so they can no longer hide source folders.
+- With `secure_noise=True` the choice of rows for every private step now comes from the operating system
+  too, not only the noise. Runs with seeded noise are unchanged.
 
 ### Security
 

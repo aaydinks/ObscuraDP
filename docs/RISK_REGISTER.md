@@ -15,7 +15,7 @@ the mitigation. Review this file at every gate.
 | 8 | A website target cannot be met as worded (attacker advantage, bytes) | High | Medium | Definitions fixed at the Phase 0 gate; measured values shown beside targets | S1, S14, S15 |
 | 9 | Context is lost between sessions | Medium | Medium | Status file; short decision records; bootstrap script; small pull requests | every session |
 | 10 | No independent security review before release | High | High | Release label "Prerun + novel research action" (owner's wording); README and docs state that there has been no independent audit; `SECURITY.md`; ask for outside review after release | S22 |
-| 11 | Dataset licenses are unclear | Medium | Low | Owner decision at the gate; the wheel never ships data; downloaders with checksums | S1, S17 |
+| 11 | Dataset licenses are unclear | Medium | Low | Owner decision at the gate (the files stay; `docs/DATASETS.md` says what is known and that both licenses are "not found"); the wheel never ships data; downloaders with checksums | S1, S12, S17 |
 | 12 | The cloud environment cannot reach the CPU-only torch download host, so each session downloads several gigabytes of GPU libraries | High | Low | Propose a setup script or an allowed host; cache wheels | S4 |
 | 13 | The one-run audit is too weak on tables of about 4,000 rows to say anything useful | Medium | Medium | Pilot first; report the audit's own detection power; shadow-model attack as a second opinion | S15, S16 |
 | 14 | A partner misreads the report and deploys an unsafe configuration | Medium | High | Unsafe flags in plain words; "what this does not protect against" page; `obscuradp doctor` | S9, S21 |

@@ -60,8 +60,8 @@ maximum number that drop out.
 |---|---|---|---|---|---|
 | `LocalDPSGD` | record | Yes, total budget | Yes, same budget | Yes, same budget | Nothing beyond the participant's own noise |
 | `LocalDPSGD` + secure sum | record | Yes | Yes, and the server also cannot see individual updates | Yes | Secure sum that hides individual messages |
-| `DistributedDPSGD(t, d)` + secure sum | record | Yes, total budget | Yes, if at most $t$ collude | Yes, if at most $t$ collude; the budget degrades in a stated way beyond that | Secure sum; one step per round; refuses SPE |
-| `CentralDPSGD` | record | Yes | **No** (the server sees clean updates and adds the noise itself) | Yes | A trusted server. Shipped as an upper-bound baseline only |
+| `DistributedDPSGD(t, d)` + secure sum | record | Yes, total budget | Yes, if at most $t$ collude | Yes, if at most $t$ collude and $t \ge 1$ (a participant always knows its own slice of the noise); the budget degrades in a stated way beyond that | Secure sum; one step per round; refuses SPE |
+| `CentralDPSGD` | record | Yes | **No** (the server sees clean updates and adds the noise itself) | Yes | A trusted server. Shipped as an upper-bound baseline only, behind `allow_unsafe=True` |
 | `ClientLevelDP` | participant | Yes | Only with a secure sum | Yes | Thousands of participants; warns otherwise |
 
 Secure-sum backends:
@@ -85,6 +85,27 @@ What the pairwise-masking backend assumes, as built in S10 (`obscuradp.crypto.pa
   new sum index; masks are never reused.
 - It hides individual updates. It adds no privacy budget of its own: what the sum reveals about a record
   is limited only by the noise the participants added.
+
+What the shared-noise mode assumes, as built in S12 (`obscuradp.DistributedDPSGD`, argument in
+`docs/SHARED_NOISE.md`):
+
+- Each participant adds a slice of the noise with standard deviation $\sigma C / \sqrt{N - t - d}$. A single
+  message is protected by that slice alone, so the mode is refused without a secure sum and no setting can
+  force it.
+- The stated budget holds against the server, against anyone who sees a model, and against groups of up to
+  $t$ participants working with the server. A participant on its own counts as one: with $t = 0$ the budget
+  against a single curious participant is the report's table row for 1.
+- A server that swaps public keys could read single messages. In the local mode that exposes a fully noised
+  update; here it exposes a message with one slice of noise, and the stated budget no longer holds. Keys
+  are still not authenticated (planned with the Flower adapter, S19).
+- A round in which a participant is missing fails, and **everyone who sent a message is charged for it**.
+  If the missing participant works with the server, the two can strip the masks from the other messages
+  and read their sum, which carries at least the full noise but is a release all the same.
+- $d$ only makes every slice larger in this version, because this secure sum cannot open with anyone
+  missing.
+- Values are never cut off before the secure sum. They are rounded on a grid a quarter of a slice wide and
+  wrap around the modulus. That the rounding leaves the budget unchanged is argued and checked numerically,
+  not machine-proven; the whole-number noise of S13 removes that gap.
 
 ## What every privacy report will state
 

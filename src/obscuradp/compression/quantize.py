@@ -5,8 +5,11 @@ smaller messages. ``Quantizer`` cuts each value off at a declared range and roun
 of $2^b$ levels. The rounding is random in such a way that it is right on average, so the
 sum of many rounded updates is an unbiased estimate of the true sum.
 
-Rounding happens after any privacy noise has been added. It is post-processing and cannot
-weaken a privacy guarantee.
+Rounding happens after any privacy noise has been added. When every message already carries
+all the noise its records need (``LocalDPSGD``), cutting off and rounding are post-processing
+and cannot weaken the privacy guarantee. When the noise is shared among the participants
+(``DistributedDPSGD``) that is no longer true, because cutting a value off removes noise the
+other participants count on. That mode uses ``obscuradp.compression.grid.SumGrid`` instead.
 """
 
 from __future__ import annotations

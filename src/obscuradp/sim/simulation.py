@@ -4,6 +4,12 @@
 the server, which averages what they send. It is the tool for research and for trying a
 configuration before a real deployment.
 
+Two kinds of round exist. With ``LocalDPSGD`` (and without privacy) every participant
+trains for a while on its own rows and the server averages the resulting models. With
+``DistributedDPSGD`` and ``CentralDPSGD`` a round is a single step: every participant sends
+one clipped gradient sum computed at the shared model, and the server applies the noisy
+total.
+
 What it guarantees for a private plan:
 
 - The noise each participant needs is worked out once, for the **whole run**, from the
@@ -18,7 +24,7 @@ What it guarantees for a private plan:
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -27,18 +33,39 @@ import torch
 from torch import nn
 
 from obscuradp.accounting.calibrate import Calibration, calibrate_noise_multiplier, steps_per_round
+from obscuradp.accounting.events import SubsampledGaussianEvent
 from obscuradp.aggregation.fedavg import aggregate_states, fedavg_weights
-from obscuradp.client.trainer import train_plain_round, train_private_round
+from obscuradp.client.trainer import (
+    clipped_sum_step,
+    private_sum_step,
+    train_plain_round,
+    train_private_round,
+)
+from obscuradp.compression.grid import SumGrid, plan_sum_grid
 from obscuradp.compression.packing import float32_size
 from obscuradp.compression.quantize import Quantizer
-from obscuradp.crypto.pairwise_masking import MaskingAggregator, MaskingClient
+from obscuradp.crypto.pairwise_masking import (
+    PUBLIC_KEY_BYTES,
+    MaskingAggregator,
+    MaskingClient,
+    setup_pairwise_masking,
+)
+from obscuradp.crypto.roles import MissingParticipants
 from obscuradp.imbalance import UnsafeOversampling
 from obscuradp.ledger import PrivacyLedger
-from obscuradp.mechanisms.noise import entropy_generator
+from obscuradp.mechanisms.dpsgd import check_per_record_model
+from obscuradp.mechanisms.noise import entropy_generator, gaussian_noise
+from obscuradp.mechanisms.shared_noise import default_sum_bound
 from obscuradp.metrics import best_threshold, binary_metrics
-from obscuradp.plan import Plan
+from obscuradp.plan import CentralDPSGD, DistributedDPSGD, LocalDPSGD, Plan
 from obscuradp.policy import PrivacyPolicy
-from obscuradp.report import PrivacyReport
+from obscuradp.report import (
+    MODE_CENTRAL,
+    MODE_DISTRIBUTED,
+    ModeReport,
+    PrivacyReport,
+    collusion_table,
+)
 from obscuradp.results import make_result
 from obscuradp.seeding import derive_seed, numpy_generator, torch_generator
 from obscuradp.state import (
@@ -72,7 +99,8 @@ class SimulationResult:
         communication: What one participant uploads per round: ``upload_bytes_per_round``,
             the same update as 32-bit numbers (``plain_bytes_per_round``), their ``ratio``,
             ``bits_per_value``, one-time ``setup_bytes``, and ``saturated_share`` (the largest
-            share of numbers in any update that had to be cut off before rounding).
+            share of numbers in any update that fell outside the planned range: cut off
+            before rounding in the local mode, wrapped around in the shared-noise mode).
         state: The final shared model.
         seed: The run's seed.
         config: The settings of the run.
@@ -122,27 +150,39 @@ class Simulation:
         plan: The means of protection (see ``obscuradp.plan``).
         policy: The total privacy budget. Required for a private plan; must be ``None`` for
             a plan without protection.
-        rounds: Number of rounds $R$.
+        rounds: Number of rounds $R$. With ``DistributedDPSGD`` it is the number of rounds
+            that are started: a round that fails because a participant is missing still
+            counts against the budget and is not repeated for free.
         local_epochs: Passes over a participant's rows per round, $E$. In a private run each
-            participant takes $\\lceil E / q \\rceil$ steps per round.
+            participant takes $\\lceil E / q \\rceil$ steps per round. The one-step modes
+            (``DistributedDPSGD``, ``CentralDPSGD``) only accept 1.
         batch_size: Batch size $B$. In a private run it is the expected batch size: each row
-            joins each step with probability $q = \\min(1, B / n)$.
+            joins each step with probability $q = \\min(1, B / n)$ for a participant with
+            $n$ rows. In the one-step modes there is one batch per round for the whole
+            group: $n$ is the number of rows of all participants together and every row
+            joins with the same probability.
         learning_rate: Step size of the local optimizer.
         optimizer: ``"sgd"`` or ``"adam"``. A fresh optimizer is made for every participant
             in every round.
         weighted_average: Average the participants' models by their number of training rows
-            (true) or equally (false).
+            (true) or equally (false). The one-step modes treat every row alike, which is
+            the weighted average, and refuse ``False``.
         evaluate_every: Score the shared model on validation rows every this many rounds
             (the last round is always scored). 0 scores only the final model.
         choose_threshold: Also choose the decision threshold that maximizes F1 on the
             validation rows, and report test measures at it.
         allow_unsafe: Run settings that weaken the privacy guarantee, and flag them in the
             report, instead of refusing them.
-        secure_noise: Draw the noise from the operating system instead of from the run's
-            seed. The run is then not repeatable. Use this for anything but experiments.
+        secure_noise: Draw the noise, and the choice of rows for every private step, from
+            the operating system instead of from the run's seed. The run is then not
+            repeatable. Use this for anything but experiments.
         outputs: ``"probability"`` if the model returns probabilities, ``"logit"`` if it
             returns raw scores. By default this is read from the model's
             ``probability_output`` attribute (probabilities if it has none).
+        dropouts: For ``DistributedDPSGD`` only: which participants are missing in which
+            round, as a mapping from the round's number (counted from 0) to their names.
+            Such a round fails: the secure sum cannot be opened, the model does not move,
+            and everyone who sent a message is still charged.
     """
 
     model_fn: Callable[[], nn.Module]
@@ -160,7 +200,9 @@ class Simulation:
     allow_unsafe: bool = False
     secure_noise: bool = False
     outputs: str | None = None
+    dropouts: Mapping[int, Collection[str]] | None = None
     _flags: UnsafeFlags = field(init=False, repr=False)
+    _missing: dict[int, frozenset[str]] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.clients = tuple(self.clients)
@@ -196,6 +238,21 @@ class Simulation:
             raise ValueError("only record-level privacy is implemented so far")
         if self.plan.secure_sum is not None and len(self.clients) < 2:
             raise ValueError("a secure sum needs at least two participants")
+        if self.plan.single_step:
+            if self.local_epochs != 1.0:
+                raise ValueError(
+                    "this plan takes one step per round at the shared model; leave "
+                    "local_epochs at 1 and use more rounds"
+                )
+            if not self.weighted_average:
+                raise ValueError(
+                    "this plan draws every row of every participant with the same "
+                    "probability, which is the weighted average; weighted_average=False is "
+                    "not available"
+                )
+        if isinstance(self.plan.dp, DistributedDPSGD):
+            self.plan.dp.honest_shares(len(self.clients))
+        self._missing = self._check_dropouts(names)
         self._flags = UnsafeFlags(self.allow_unsafe)
         self._check_unsafe()
 
@@ -206,9 +263,31 @@ class Simulation:
         """True if the run adds privacy noise."""
         return self.plan.dp is not None
 
+    def _check_dropouts(self, names: Sequence[str]) -> dict[int, frozenset[str]]:
+        if self.dropouts is None:
+            return {}
+        if not isinstance(self.plan.dp, DistributedDPSGD):
+            raise ValueError("dropouts can only be played with DistributedDPSGD")
+        missing: dict[int, frozenset[str]] = {}
+        for attempt, absent in self.dropouts.items():
+            if isinstance(attempt, bool) or not isinstance(attempt, int):
+                raise ValueError("dropouts must map round numbers to participant names")
+            if not 0 <= attempt < self.rounds:
+                raise ValueError(f"dropouts names round {attempt}, outside 0 to {self.rounds - 1}")
+            if isinstance(absent, str):
+                raise ValueError("dropouts must map each round to a collection of names")
+            unknown = sorted(set(absent) - set(names))
+            if unknown:
+                raise ValueError(f"dropouts names unknown participants: {unknown}")
+            if absent:
+                missing[attempt] = frozenset(absent)
+        return missing
+
     def _check_unsafe(self) -> None:
         if self.policy is None:
             return
+        if isinstance(self.plan.dp, CentralDPSGD):
+            self._flags.raise_or_record("trusted_server")
         code = self.plan.imbalance.unsafe_code
         if code is not None:
             self._flags.raise_or_record(code)
@@ -221,7 +300,10 @@ class Simulation:
     # ------------------------------------------------------------------ planning
 
     def sampling_rate(self, n_train: int) -> float:
-        """The probability with which each of a participant's rows joins each step."""
+        """The probability with which each of a participant's rows joins each step.
+
+        In the one-step modes ``n_train`` is the number of rows of all participants.
+        """
         return min(1.0, self.batch_size / n_train)
 
     def calibrations(self) -> dict[str, Calibration]:
@@ -234,6 +316,17 @@ class Simulation:
     def _calibrate(self, sizes: Sequence[int]) -> dict[str, Calibration]:
         if self.policy is None:
             return {}
+        if self.plan.single_step:
+            # One release per round, one noise level for everybody: the strictest budget
+            # among the participants decides.
+            shared = calibrate_noise_multiplier(
+                min(self.policy.epsilon_for(client.name) for client in self.clients),
+                self.policy.delta,
+                self.sampling_rate(sum(sizes)),
+                self.rounds,
+                accountant=self.policy.accountant,
+            )
+            return {client.name: shared for client in self.clients}
         result = {}
         for client, rows in zip(self.clients, sizes, strict=True):
             rate = self.sampling_rate(rows)
@@ -266,6 +359,20 @@ class Simulation:
             )
         return tables
 
+    def _dp_config(self) -> dict[str, Any] | None:
+        dp = self.plan.dp
+        if dp is None:
+            return None
+        if isinstance(dp, LocalDPSGD):
+            return {"clip_norm": dp.clip_norm}
+        settings: dict[str, Any] = {"kind": type(dp).__name__, "clip_norm": dp.clip_norm}
+        if isinstance(dp, DistributedDPSGD):
+            settings.update(max_colluding=dp.max_colluding, max_dropouts=dp.max_dropouts)
+            settings["dropouts"] = {
+                str(attempt): sorted(absent) for attempt, absent in sorted(self._missing.items())
+            }
+        return settings
+
     def config(self) -> dict[str, Any]:
         """The settings of this simulation, for result records."""
         return {
@@ -279,7 +386,7 @@ class Simulation:
             "secure_noise": self.secure_noise,
             "allow_unsafe": self.allow_unsafe,
             "plan": {
-                "dp": None if self.plan.dp is None else {"clip_norm": self.plan.dp.clip_norm},
+                "dp": self._dp_config(),
                 "imbalance": type(self.plan.imbalance).__name__,
                 "positive_prior": getattr(self.plan.imbalance, "positive_prior", None),
                 "proximal_mu": self.plan.proximal_mu,
@@ -336,7 +443,13 @@ class Simulation:
         }
         maskers: dict[str, MaskingClient] = {}
         aggregator: MaskingAggregator | None = None
-        if self.plan.secure_sum is not None:
+        mode: ModeReport | None = None
+        if self.plan.single_step:
+            assert ledger is not None
+            state, mode = self._single_step_rounds(
+                shared, tables, sizes, loss_fn, ledger, calibrations, seed, history, communication
+            )
+        elif self.plan.secure_sum is not None:
             maskers, aggregator = self.plan.secure_sum.build(names)
             upload = self.plan.secure_sum.message_bytes(length, len(names))
             communication.update(
@@ -345,7 +458,7 @@ class Simulation:
                 bits_per_value=float(self.plan.secure_sum.modulus_bits(len(names))),
                 setup_bytes=float(self.plan.secure_sum.setup_bytes(len(names))),
             )
-        for round_index in range(self.rounds):
+        for round_index in range(0 if self.plan.single_step else self.rounds):
             updates = []
             for index, client in enumerate(self.clients):
                 set_state(worker, state)
@@ -398,6 +511,7 @@ class Simulation:
                 protection=self._protection(),
                 unsafe_flags=self._flags.messages,
                 caveats=self._caveats(),
+                mode=mode,
             )
         return SimulationResult(
             report=report,
@@ -448,11 +562,7 @@ class Simulation:
                 reference=reference if mu > 0 else None,
             )
             return
-        noise = (
-            entropy_generator()
-            if self.secure_noise
-            else torch_generator(seed, "noise", round_index, index)
-        )
+        noise = self._torch_stream(seed, "noise", round_index, index)
         train_private_round(
             model,
             features,
@@ -465,12 +575,200 @@ class Simulation:
             steps=calibration.steps // self.rounds,
             clip_norm=self.plan.dp.clip_norm,
             noise_multiplier=calibration.noise_multiplier,
-            sampling_generator=torch_generator(seed, "sampling", round_index, index),
+            # The budget counts on the choice of rows being secret, like the noise.
+            sampling_generator=self._torch_stream(seed, "sampling", round_index, index),
             noise_generator=noise,
             clip_scale=self.plan.imbalance.clip_scale,
             proximal_mu=mu,
             reference=reference if mu > 0 else None,
         )
+
+    def _torch_stream(self, seed: int, purpose: str, *path: int) -> torch.Generator:
+        """A random stream for something the privacy guarantee relies on being secret."""
+        if self.secure_noise:
+            return entropy_generator()
+        return torch_generator(seed, purpose, *path)
+
+    def _single_step_rounds(
+        self,
+        shared: nn.Module,
+        tables: Sequence[tuple[torch.Tensor, torch.Tensor]],
+        sizes: Sequence[int],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        ledger: PrivacyLedger,
+        calibrations: Mapping[str, Calibration],
+        seed: int,
+        history: list[dict[str, Any]],
+        communication: dict[str, float],
+    ) -> tuple[State, ModeReport]:
+        """The rounds of ``DistributedDPSGD`` and ``CentralDPSGD``: one step each.
+
+        Every participant computes one clipped gradient sum at the shared model. In the
+        distributed mode it adds its slice of the noise and the sums go through the secure
+        sum; in the central mode the server adds the noise to the clean total. The server
+        divides by the expected batch size and takes one optimizer step.
+        """
+        dp = self.plan.dp
+        assert isinstance(dp, (DistributedDPSGD, CentralDPSGD))
+        names = [client.name for client in self.clients]
+        calibration = calibrations[names[0]]
+        rate, sigma = calibration.sampling_rate, calibration.noise_multiplier
+        divisor = rate * sum(sizes)
+        check_per_record_model(shared)
+        trainable = [value for value in shared.parameters() if value.requires_grad]
+        length = sum(int(value.numel()) for value in trainable)
+        optimizer = self._make_optimizer(shared)
+        from_logits = self._from_logits(shared)
+        event = SubsampledGaussianEvent(sigma, rate, 1)
+
+        grid: SumGrid | None = None
+        maskers: dict[str, MaskingClient] = {}
+        aggregator: MaskingAggregator | None = None
+        share = bound = 0.0
+        plain = float(float32_size(length))
+        communication.update(upload_bytes_per_round=plain, plain_bytes_per_round=plain)
+        if isinstance(dp, DistributedDPSGD):
+            share = dp.clip_norm * dp.share_noise_multiplier(sigma, len(names))
+            bound = default_sum_bound(dp.clip_norm, rate, max(sizes))
+            grid = plan_sum_grid(share, bound, len(names))
+            maskers, aggregator = setup_pairwise_masking(names, grid.modulus_bits)
+            communication.update(
+                upload_bytes_per_round=float(grid.message_bytes(length)),
+                ratio=grid.message_bytes(length) / plain,
+                bits_per_value=float(grid.modulus_bits),
+                setup_bytes=float(PUBLIC_KEY_BYTES * len(names)),
+            )
+
+        completed = 0
+        for attempt in range(self.rounds):
+            total: np.ndarray[Any, Any] | None = None
+            if grid is not None and aggregator is not None:
+                absent = self._missing.get(attempt, frozenset())
+                messages: dict[str, bytes] = {}
+                for index, client in enumerate(self.clients):
+                    if client.name in absent:
+                        continue
+                    torch.manual_seed(derive_seed(seed, "train", attempt, index))
+                    vector = private_sum_step(
+                        shared,
+                        *tables[index],
+                        loss_fn=loss_fn,
+                        ledger=ledger,
+                        scope=client.name,
+                        sampling_rate=rate,
+                        clip_norm=dp.clip_norm,
+                        noise_multiplier=sigma,
+                        share_std=share,
+                        sampling_generator=self._torch_stream(seed, "sampling", attempt, index),
+                        noise_generator=self._torch_stream(seed, "noise", attempt, index),
+                        clip_scale=self.plan.imbalance.clip_scale,
+                        sum_bound=bound,
+                    ).numpy()
+                    communication["saturated_share"] = max(
+                        communication["saturated_share"], grid.outside_share(vector)
+                    )
+                    rounding = (
+                        np.random.default_rng()
+                        if self.secure_noise
+                        else numpy_generator(seed, "quantize", attempt, index)
+                    )
+                    # Every attempt has its own sum index: masks are never used twice.
+                    messages[client.name] = maskers[client.name].protect(
+                        attempt, grid.encode(vector, rounding)
+                    )
+                try:
+                    total = grid.decode_sum(aggregator.combine(attempt, messages, length))
+                except MissingParticipants:
+                    # The sum stays closed and the model does not move. Those who sent a
+                    # message stay charged: if the missing participant works with the
+                    # server, the two can strip the masks from the others' messages.
+                    total = None
+            else:
+                sums = []
+                for index, client in enumerate(self.clients):
+                    torch.manual_seed(derive_seed(seed, "train", attempt, index))
+                    ledger.charge(client.name, event)
+                    sums.append(
+                        clipped_sum_step(
+                            shared,
+                            *tables[index],
+                            loss_fn=loss_fn,
+                            sampling_rate=rate,
+                            clip_norm=dp.clip_norm,
+                            sampling_generator=self._torch_stream(seed, "sampling", attempt, index),
+                            clip_scale=self.plan.imbalance.clip_scale,
+                        )
+                    )
+                noise = gaussian_noise(
+                    (length,),
+                    sigma * dp.clip_norm,
+                    self._torch_stream(seed, "noise", attempt, len(names)),
+                    dtype=torch.float64,
+                )
+                total = (torch.stack(sums).sum(dim=0) + noise).numpy()
+
+            if total is not None:
+                self._apply_step(trainable, optimizer, total / divisor)
+                completed += 1
+            last = attempt == self.rounds - 1
+            due = (
+                total is not None
+                and self.evaluate_every > 0
+                and completed % self.evaluate_every == 0
+            )
+            scored = bool(history) and history[-1]["round"] == completed
+            if (due or last) and not scored and self._has_rows("validation"):
+                scores = self._score(shared, "validation", from_logits)
+                history.append({"round": completed, **scores[0]})
+
+        if isinstance(dp, DistributedDPSGD):
+            assert grid is not None
+            mode = ModeReport(
+                mode=MODE_DISTRIBUTED,
+                participants=len(names),
+                attempts=self.rounds,
+                completed_rounds=completed,
+                max_colluding=dp.max_colluding,
+                max_dropouts=dp.max_dropouts,
+                steps_per_share=share / grid.step,
+                table=collusion_table(
+                    {scope: ledger.events(scope) for scope in ledger.scopes},
+                    ledger.policy.delta,
+                    len(names),
+                    dp.max_colluding,
+                    dp.max_dropouts,
+                ),
+            )
+        else:
+            mode = ModeReport(
+                mode=MODE_CENTRAL,
+                participants=len(names),
+                attempts=self.rounds,
+                completed_rounds=completed,
+            )
+        return get_state(shared), mode
+
+    def _make_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
+        if self.optimizer == "adam":
+            return torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+        return torch.optim.SGD(model.parameters(), lr=self.learning_rate)
+
+    @staticmethod
+    def _apply_step(
+        trainable: Sequence[torch.Tensor],
+        optimizer: torch.optim.Optimizer,
+        gradient: np.ndarray[Any, Any],
+    ) -> None:
+        """One optimizer step with ``gradient``, a flat vector over the trainable parameters."""
+        optimizer.zero_grad(set_to_none=True)
+        offset = 0
+        with torch.no_grad():
+            for value in trainable:
+                size = int(value.numel())
+                piece = torch.as_tensor(gradient[offset : offset + size], dtype=value.dtype)
+                value.grad = piece.view_as(value).to(value.device)
+                offset += size
+        optimizer.step()
 
     def _secure_average(
         self,
@@ -507,6 +805,10 @@ class Simulation:
 
     def _protection(self) -> tuple[str, ...]:
         assert self.plan.dp is not None
+        if isinstance(self.plan.dp, CentralDPSGD):
+            return self.plan.dp.protection()
+        if isinstance(self.plan.dp, DistributedDPSGD):
+            return self.plan.dp.protection(len(self.clients))
         if self.plan.secure_sum is None:
             return self.plan.dp.protection(updates_in_the_clear=True)
         return (
@@ -549,6 +851,12 @@ class Simulation:
             caveats.append(
                 "The noise was drawn from the run's seed so that the experiment can be repeated. "
                 "Anyone who knows the seed can remove it. Real data needs secure_noise=True."
+            )
+        if isinstance(self.plan.dp, DistributedDPSGD):
+            caveats.append(
+                "The participants' public keys are not checked. A server that swaps them could "
+                "read single messages, and a single message carries only a slice of the noise: "
+                "the stated budget would then not hold."
             )
         if self.choose_threshold:
             caveats.append("The decision threshold was chosen on validation rows.")
