@@ -16,7 +16,7 @@ const viewports = [
   { name: 'mobile', width: 390, height: 844 },
 ];
 const pages = [
-  { path: '/', name: 'home', sections: ['hero', 'problem', 'mission', 'framework', 'research', 'roadmap', 'impact', 'about', 'contact', 'footer'] },
+  { path: '/', name: 'home', sections: ['hero', 'video', 'problem', 'mission', 'framework', 'research', 'roadmap', 'impact', 'about', 'contact', 'footer'] },
   { path: '/research', name: 'research', sections: [] },
   { path: '/credits', name: 'credits', sections: [] },
   { path: '/does-not-exist', name: '404', sections: [] },

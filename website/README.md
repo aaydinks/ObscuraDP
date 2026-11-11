@@ -122,7 +122,7 @@ Cloudflare's own preview builds (the "Workers Builds: obscura-dp" check) can fai
 
 ## Privacy and analytics
 
-No cookies, no third-party trackers, no analytics. Workers observability is enabled in `wrangler.jsonc`, so Cloudflare keeps short-lived request logs for debugging; they are not used for analytics. The only third-party script is Cloudflare Turnstile on the contact form, and only when a site key is configured. If analytics is ever wanted, use Cloudflare Web Analytics (cookieless), enabled in the dashboard without touching the code.
+No cookies, no third-party trackers, no analytics. Workers observability is enabled in `wrangler.jsonc`, so Cloudflare keeps short-lived request logs for debugging; they are not used for analytics. The only third-party script is Cloudflare Turnstile on the contact form, and only when a site key is configured. The intro video in the section after the hero is a local poster that links to YouTube; the YouTube player (from the `youtube-nocookie.com` domain) is only loaded after a visitor presses play, so nothing is requested from YouTube before that. The video ID is `SITE.introVideo` in `src/lib/site.ts`. If analytics is ever wanted, use Cloudflare Web Analytics (cookieless), enabled in the dashboard without touching the code.
 
 ## Quality checks
 

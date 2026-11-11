@@ -12,6 +12,11 @@ export const SITE = {
   preregistrationUrl: '', // Pre-registration link: empty until supplied
   founderLinks: [] as { label: string; href: string }[], // [FOUNDER LINKS]
   statusLine: 'Research stage · Open-source release planned for 2026–27',
+  introVideo: {
+    id: 'ez8MoY2MsYU',
+    url: 'https://youtu.be/ez8MoY2MsYU',
+    title: 'Obscura DP: project introduction',
+  },
 };
 
 export const NAV = [

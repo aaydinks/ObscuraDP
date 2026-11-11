@@ -1,0 +1,164 @@
+---
+// The recorded project introduction. The poster is local and is a plain link
+// to YouTube, so nothing is requested from YouTube until a visitor presses
+// play. With JavaScript, pressing play swaps in the player from YouTube's
+// no-cookie domain instead of leaving the page.
+import Section from '../components/Section.astro';
+import Logo from '../components/Logo.astro';
+import { SITE } from '../lib/site';
+
+const { id, url, title } = SITE.introVideo;
+const embed = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+---
+
+<Section id="video" tone="bg" labelledBy="video-title" class="video-section">
+  <div class="video-head">
+    <p class="label">Introduction</p>
+    <h2 id="video-title">See the project explained.</h2>
+    <p class="video-lede">
+      A short recorded talk that walks through the slides: the problem, the framework and the research behind it.
+      It covers the same ground as this page, in presentation form.
+    </p>
+  </div>
+
+  <div class="video-frame" data-video data-embed={embed} data-title={title}>
+    <a class="video-facade" href={url} rel="noopener" aria-label={`Play video: ${title}`}>
+      <span class="facade-mark" aria-hidden="true"><Logo variant="mark" height={44} /></span>
+      <span class="facade-title">{title}</span>
+      <span class="play" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"></path></svg>
+      </span>
+      <span class="facade-note">Plays from YouTube</span>
+    </a>
+  </div>
+  <p class="video-caption caption">
+    <a href={url} rel="noopener">Watch on YouTube</a>
+  </p>
+</Section>
+
+<style>
+  .video-head {
+    display: grid;
+    gap: var(--s-2);
+    max-width: 46rem;
+  }
+  .video-head .label {
+    margin: 0;
+  }
+  .video-lede {
+    color: var(--text);
+  }
+  .video-frame {
+    position: relative;
+    margin-top: var(--s-5);
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    max-width: 960px;
+    border-radius: var(--r-panel);
+    overflow: hidden;
+    background: var(--ink);
+  }
+  .video-frame :global(iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  .video-facade {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    padding: var(--s-3);
+    text-align: center;
+    color: #fff;
+    text-decoration: none;
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(26, 92, 244, 0.35), transparent 60%),
+      var(--ink);
+  }
+  .facade-mark {
+    display: inline-flex;
+    padding: 0.5rem;
+    border-radius: 999px;
+    background: #fff;
+  }
+  .facade-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: clamp(1.15rem, 2.4vw, 1.75rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    max-width: 24ch;
+  }
+  .play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 999px;
+    background: var(--blue);
+    color: #fff;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+  .play svg {
+    margin-left: 3px;
+  }
+  .video-facade:hover .play,
+  .video-facade:focus-visible .play {
+    background: var(--blue-deep);
+    transform: scale(1.06);
+  }
+  .video-facade:focus-visible {
+    outline: 3px solid var(--blue-soft);
+    outline-offset: -6px;
+  }
+  .facade-note {
+    font-size: var(--fs-small);
+    color: rgba(255, 255, 255, 0.78);
+  }
+  .video-caption {
+    margin-top: var(--s-2);
+  }
+  @media (max-width: 479px) {
+    .facade-mark,
+    .facade-note {
+      display: none;
+    }
+    .play {
+      width: 3.5rem;
+      height: 3.5rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .play {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-video]').forEach((frame) => {
+    const link = frame.querySelector<HTMLAnchorElement>('.video-facade');
+    const src = frame.dataset.embed;
+    if (!link || !src) return;
+    link.addEventListener('click', (e) => {
+      // Let modified clicks (new tab, new window) open YouTube as a normal link.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      const iframe = document.createElement('iframe');
+      iframe.src = src;
+      iframe.title = frame.dataset.title ?? 'Video';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      link.replaceWith(iframe);
+      iframe.focus();
+    });
+  });
+</script>
