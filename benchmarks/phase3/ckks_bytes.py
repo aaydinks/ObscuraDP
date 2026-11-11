@@ -44,7 +44,8 @@ def main() -> None:
                 "ratio": encrypted / (4 * numbers),
             }
             print(
-                f"{dataset}/{model}: {numbers} numbers, {encrypted} bytes, {encrypted / (4 * numbers):.1f} times plain"
+                f"{dataset}/{model}: {numbers} numbers, {encrypted} bytes, "
+                f"{encrypted / (4 * numbers):.1f} times plain"
             )
     output = {
         "note": "One update encrypted with obscuradp.crypto.ckks, measured from the real "
