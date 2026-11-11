@@ -2,6 +2,7 @@
 
 from obscuradp.client.trainer import (
     RoundStats,
+    clipped_model_change,
     clipped_sum_step,
     flatten_gradients,
     integer_sum_step,
@@ -12,6 +13,7 @@ from obscuradp.client.trainer import (
 
 __all__ = [
     "RoundStats",
+    "clipped_model_change",
     "clipped_sum_step",
     "flatten_gradients",
     "integer_sum_step",

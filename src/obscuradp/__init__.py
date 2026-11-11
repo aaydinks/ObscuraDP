@@ -22,7 +22,7 @@ except PackageNotFoundError:  # running from a source tree that was never instal
 
 from obscuradp import crypto, imbalance, tables
 from obscuradp.ledger import BudgetExceeded, PrivacyLedger
-from obscuradp.plan import CentralDPSGD, DistributedDPSGD, LocalDPSGD, Plan
+from obscuradp.plan import CentralDPSGD, ClientLevelDP, DistributedDPSGD, LocalDPSGD, Plan
 from obscuradp.policy import PrivacyPolicy
 from obscuradp.report import PrivacyReport, verify_report
 from obscuradp.sim import Simulation, SimulationResult
@@ -31,6 +31,7 @@ from obscuradp.unsafe import UnsafeConfiguration
 __all__ = [
     "BudgetExceeded",
     "CentralDPSGD",
+    "ClientLevelDP",
     "DistributedDPSGD",
     "LocalDPSGD",
     "Plan",

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import math
 import time
+import warnings
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -43,6 +44,7 @@ from obscuradp.accounting.calibrate import (
 from obscuradp.accounting.events import SubsampledGaussianEvent
 from obscuradp.aggregation.fedavg import aggregate_states, fedavg_weights
 from obscuradp.client.trainer import (
+    clipped_model_change,
     clipped_sum_step,
     integer_sum_step,
     private_sum_step,
@@ -66,11 +68,20 @@ from obscuradp.mechanisms.noise import entropy_generator, gaussian_noise
 from obscuradp.mechanisms.shared_noise import default_sum_bound
 from obscuradp.mechanisms.skellam import IntegerStep, plan_integer_step
 from obscuradp.metrics import best_threshold, binary_metrics
-from obscuradp.plan import CentralDPSGD, DistributedDPSGD, LocalDPSGD, Plan
+from obscuradp.plan import (
+    SMALL_FEDERATION,
+    CentralDPSGD,
+    ClientLevelDP,
+    DistributedDPSGD,
+    LocalDPSGD,
+    Plan,
+    SmallFederationWarning,
+)
 from obscuradp.policy import PrivacyPolicy
 from obscuradp.report import (
     MODE_CENTRAL,
     MODE_DISTRIBUTED,
+    MODE_PARTICIPANT,
     ModeReport,
     PrivacyReport,
     collusion_table,
@@ -89,6 +100,8 @@ from obscuradp.tables.split import ClientData
 from obscuradp.unsafe import UnsafeFlags
 
 OPTIMIZERS = ("sgd", "adam")
+# The ledger scope of a run that protects whole participants: one budget for the group.
+GROUP_SCOPE = "all participants"
 
 
 @dataclass(frozen=True)
@@ -244,8 +257,20 @@ class Simulation:
                 "a privacy budget was given but the plan adds no noise; use Plan(dp=LocalDPSGD()) "
                 "or pass policy=None for an unprotected baseline"
             )
-        if self.policy is not None and self.policy.unit != "record":
-            raise ValueError("only record-level privacy is implemented so far")
+        whole = isinstance(self.plan.dp, ClientLevelDP)
+        if self.policy is not None and whole != (self.policy.unit == "client"):
+            raise ValueError(
+                "a budget for whole participants (PrivacyPolicy(unit='client')) goes with "
+                "ClientLevelDP, and a budget for single rows (unit='record') with the other "
+                "plans"
+            )
+        if whole and self.policy is not None and self.policy.per_scope_epsilon:
+            raise ValueError(
+                "a budget for whole participants is one budget for the group; "
+                "per_scope_epsilon does not apply"
+            )
+        if whole and len(self.clients) < 2:
+            raise ValueError("protecting whole participants needs at least two of them")
         if self.plan.secure_sum is not None and len(self.clients) < 2:
             raise ValueError("a secure sum needs at least two participants")
         if self.plan.single_step:
@@ -259,6 +284,17 @@ class Simulation:
                     "this plan draws every row of every participant with the same "
                     "probability, which is the weighted average; weighted_average=False is "
                     "not available"
+                )
+        if isinstance(self.plan.dp, ClientLevelDP):
+            if self.plan.secure_sum is not None:
+                self.plan.dp.honest_shares(len(self.clients))
+            if len(self.clients) < SMALL_FEDERATION:
+                warnings.warn(
+                    f"protecting whole participants with only {len(self.clients)} of them: "
+                    "the noise has to hide one participant among the others, which leaves "
+                    f"little to learn from below about {SMALL_FEDERATION} participants",
+                    SmallFederationWarning,
+                    stacklevel=3,
                 )
         if isinstance(self.plan.dp, DistributedDPSGD):
             self.plan.dp.honest_shares(len(self.clients))
@@ -283,8 +319,14 @@ class Simulation:
     def _check_dropouts(self, names: Sequence[str]) -> dict[int, frozenset[str]]:
         if self.dropouts is None:
             return {}
-        if not isinstance(self.plan.dp, DistributedDPSGD):
-            raise ValueError("dropouts can only be played with DistributedDPSGD")
+        shared = isinstance(self.plan.dp, DistributedDPSGD) or (
+            isinstance(self.plan.dp, ClientLevelDP) and self.plan.secure_sum is not None
+        )
+        if not shared:
+            raise ValueError(
+                "dropouts can only be played where the participants share the noise "
+                "(DistributedDPSGD, or ClientLevelDP with a secure sum)"
+            )
         missing: dict[int, frozenset[str]] = {}
         for attempt, absent in self.dropouts.items():
             if isinstance(attempt, bool) or not isinstance(attempt, int):
@@ -303,11 +345,21 @@ class Simulation:
     def _check_unsafe(self) -> None:
         if self.policy is None:
             return
-        if isinstance(self.plan.dp, CentralDPSGD):
+        if isinstance(self.plan.dp, CentralDPSGD) or (
+            isinstance(self.plan.dp, ClientLevelDP) and self.plan.secure_sum is None
+        ):
             self._flags.raise_or_record("trusted_server")
         code = self.plan.imbalance.unsafe_code
         if code is not None:
             self._flags.raise_or_record(code)
+        if isinstance(self.plan.dp, ClientLevelDP):
+            # The unit is a participant: delta has to be small against their number.
+            if self.policy.delta_is_weak_for(len(self.clients)):
+                self._flags.raise_or_record(
+                    "weak_delta",
+                    f"delta = {self.policy.delta:g} with {len(self.clients)} participants",
+                )
+            return
         weak = [c.name for c in self.clients if self.policy.delta_is_weak_for(c.n_train)]
         if weak:
             self._flags.raise_or_record(
@@ -340,6 +392,17 @@ class Simulation:
     def _calibrate(self, sizes: Sequence[int]) -> dict[str, Calibration | SkellamCalibration]:
         if self.policy is None:
             return {}
+        if isinstance(self.plan.dp, ClientLevelDP):
+            # One release per round for the whole group, at the participants' sampling rate.
+            return {
+                GROUP_SCOPE: calibrate_noise_multiplier(
+                    self.policy.epsilon,
+                    self.policy.delta,
+                    self.plan.dp.sampling_rate,
+                    self.rounds,
+                    accountant=self.policy.accountant,
+                )
+            }
         if self.plan.single_step:
             # One release per round, one noise level for everybody: the strictest budget
             # among the participants decides.
@@ -418,6 +481,15 @@ class Simulation:
             settings["dropouts"] = {
                 str(attempt): sorted(absent) for attempt, absent in sorted(self._missing.items())
             }
+        if isinstance(dp, ClientLevelDP):
+            settings.update(
+                sampling_rate=dp.sampling_rate,
+                max_colluding=dp.max_colluding,
+                max_dropouts=dp.max_dropouts,
+            )
+            settings["dropouts"] = {
+                str(attempt): sorted(absent) for attempt, absent in sorted(self._missing.items())
+            }
         return settings
 
     def config(self) -> dict[str, Any]:
@@ -473,8 +545,8 @@ class Simulation:
             ledger = PrivacyLedger(self.policy)
             calibrations = self._calibrate(sizes)
             # Reserve the whole run first. A run that cannot fit never touches the data.
-            for client in self.clients:
-                ledger.plan(client.name, [calibrations[client.name].event])
+            for scope, calibration in calibrations.items():
+                ledger.plan(scope, [calibration.event])
 
         history: list[dict[str, Any]] = []
         state = get_state(shared)
@@ -491,10 +563,25 @@ class Simulation:
         maskers: dict[str, MaskingClient] = {}
         aggregator: MaskingAggregator | None = None
         mode: ModeReport | None = None
+        one_step = self.plan.single_step or isinstance(self.plan.dp, ClientLevelDP)
         if self.plan.single_step:
             assert ledger is not None
             state, mode = self._single_step_rounds(
                 shared, tables, sizes, loss_fn, ledger, calibrations, seed, history, communication
+            )
+        elif isinstance(self.plan.dp, ClientLevelDP):
+            assert ledger is not None
+            state, mode = self._participant_rounds(
+                shared,
+                worker,
+                tables,
+                sizes,
+                loss_fn,
+                ledger,
+                calibrations[GROUP_SCOPE],
+                seed,
+                history,
+                communication,
             )
         elif self.plan.secure_sum is not None:
             maskers, aggregator = self.plan.secure_sum.build(names)
@@ -505,7 +592,7 @@ class Simulation:
                 bits_per_value=float(self.plan.secure_sum.modulus_bits(len(names))),
                 setup_bytes=float(self.plan.secure_sum.setup_bytes(len(names))),
             )
-        for round_index in range(0 if self.plan.single_step else self.rounds):
+        for round_index in range(0 if one_step else self.rounds):
             updates = []
             for index, client in enumerate(self.clients):
                 set_state(worker, state)
@@ -834,6 +921,162 @@ class Simulation:
             )
         return get_state(shared), mode
 
+    def _participant_rounds(
+        self,
+        shared: nn.Module,
+        worker: nn.Module,
+        tables: Sequence[tuple[torch.Tensor, torch.Tensor]],
+        sizes: Sequence[int],
+        loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        ledger: PrivacyLedger,
+        calibration: Calibration | SkellamCalibration,
+        seed: int,
+        history: list[dict[str, Any]],
+        communication: dict[str, float],
+    ) -> tuple[State, ModeReport]:
+        """The rounds of ``ClientLevelDP``: the budget protects whole participants.
+
+        Each participant takes part with its own secret coin, trains without noise and
+        shortens its change to the shared model. Noise sized for one whole participant is
+        added to the sum of the changes: in slices through the secure sum, or by the server.
+        """
+        dp = self.plan.dp
+        assert isinstance(dp, ClientLevelDP)
+        names = [client.name for client in self.clients]
+        rate, sigma = dp.sampling_rate, calibration.noise_multiplier
+        # Public weights: a participant counts by its share of the largest declared table.
+        weights = [size / max(sizes) if self.weighted_average else 1.0 for size in sizes]
+        divisor = rate * sum(weights)
+        trainable = [value for value in shared.parameters() if value.requires_grad]
+        length = sum(int(value.numel()) for value in trainable)
+        from_logits = self._from_logits(shared)
+        event = SubsampledGaussianEvent(sigma, rate, 1)
+
+        grid: SumGrid | None = None
+        maskers: dict[str, MaskingClient] = {}
+        aggregator: MaskingAggregator | None = None
+        share = 0.0
+        plain = float(float32_size(length))
+        communication.update(upload_bytes_per_round=plain, plain_bytes_per_round=plain)
+        if self.plan.secure_sum is not None:
+            share = dp.clip_norm * dp.share_noise_multiplier(sigma, len(names))
+            # No number of a shortened change can be larger than the clipping norm.
+            grid = plan_sum_grid(share, dp.clip_norm, len(names))
+            maskers, aggregator = setup_pairwise_masking(names, grid.modulus_bits)
+            communication.update(
+                upload_bytes_per_round=float(grid.message_bytes(length)),
+                ratio=grid.message_bytes(length) / plain,
+                bits_per_value=float(grid.modulus_bits),
+                setup_bytes=float(PUBLIC_KEY_BYTES * len(names)),
+            )
+
+        completed = 0
+        for attempt in range(self.rounds):
+            absent = self._missing.get(attempt, frozenset())
+            # One release for the group, charged before any participant does anything.
+            ledger.charge(GROUP_SCOPE, event)
+            state = get_state(shared)
+            start = [value.detach().clone() for value in trainable]
+            total = torch.zeros(length, dtype=torch.float64)
+            messages: dict[str, bytes] = {}
+            for index, client in enumerate(self.clients):
+                if client.name in absent:
+                    continue
+                coin = self._torch_stream(seed, "sampling", attempt, index)
+                takes_part = bool(torch.rand(1, generator=coin, dtype=torch.float64) < rate)
+                change = torch.zeros(length, dtype=torch.float64)
+                if takes_part:
+                    set_state(worker, state)
+                    torch.manual_seed(derive_seed(seed, "train", attempt, index))
+                    mu = self.plan.proximal_mu
+                    train_plain_round(
+                        worker,
+                        *tables[index],
+                        loss_fn=loss_fn,
+                        optimizer=self._make_optimizer(worker),
+                        epochs=self.local_epochs,
+                        batch_size=self.batch_size,
+                        generator=coin,
+                        proximal_mu=mu,
+                        reference=state if mu > 0 else None,
+                    )
+                    change = clipped_model_change(worker, start, dp.clip_norm, weights[index])
+                if grid is None:
+                    total += change
+                    continue
+                noise = gaussian_noise(
+                    (length,),
+                    share,
+                    self._torch_stream(seed, "noise", attempt, index),
+                    dtype=torch.float64,
+                )
+                vector = (change + noise).numpy()
+                communication["saturated_share"] = max(
+                    communication["saturated_share"], grid.outside_share(vector)
+                )
+                messages[client.name] = maskers[client.name].protect(
+                    attempt,
+                    grid.encode(vector, self._numpy_stream(seed, "quantize", attempt, index)),
+                )
+            opened: np.ndarray[Any, Any] | None
+            if grid is not None and aggregator is not None:
+                try:
+                    opened = grid.decode_sum(aggregator.combine(attempt, messages, length))
+                except MissingParticipants:
+                    opened = None
+            else:
+                server_noise = gaussian_noise(
+                    (length,),
+                    sigma * dp.clip_norm,
+                    self._torch_stream(seed, "noise", attempt, len(names)),
+                    dtype=torch.float64,
+                )
+                opened = (total + server_noise).numpy()
+            if opened is not None:
+                offset = 0
+                with torch.no_grad():
+                    for value in trainable:
+                        size = int(value.numel())
+                        piece = torch.as_tensor(
+                            opened[offset : offset + size] / divisor, dtype=value.dtype
+                        )
+                        value.add_(piece.view_as(value).to(value.device))
+                        offset += size
+                completed += 1
+            last = attempt == self.rounds - 1
+            due = (
+                opened is not None
+                and self.evaluate_every > 0
+                and completed % self.evaluate_every == 0
+            )
+            scored = bool(history) and history[-1]["round"] == completed
+            if (due or last) and not scored and self._has_rows("validation"):
+                scores = self._score(shared, "validation", from_logits)
+                history.append({"round": completed, **scores[0]})
+
+        shared_noise = grid is not None
+        mode = ModeReport(
+            mode=MODE_PARTICIPANT,
+            participants=len(names),
+            attempts=self.rounds,
+            completed_rounds=completed,
+            sampling_rate=rate,
+            max_colluding=dp.max_colluding if shared_noise else None,
+            max_dropouts=dp.max_dropouts if shared_noise else None,
+            steps_per_share=share / grid.step if grid is not None else None,
+            noise="gaussian" if shared_noise else None,
+            table=collusion_table(
+                {GROUP_SCOPE: ledger.events(GROUP_SCOPE)},
+                ledger.policy.delta,
+                len(names),
+                dp.max_colluding,
+                dp.max_dropouts,
+            )
+            if shared_noise and dp.max_colluding is not None
+            else (),
+        )
+        return get_state(shared), mode
+
     def _numpy_stream(self, seed: int, purpose: str, *path: int) -> np.random.Generator:
         """Like ``_torch_stream``, for the parts that work on whole numbers."""
         if self.secure_noise:
@@ -901,6 +1144,10 @@ class Simulation:
             return self.plan.dp.protection()
         if isinstance(self.plan.dp, DistributedDPSGD):
             return self.plan.dp.protection(len(self.clients))
+        if isinstance(self.plan.dp, ClientLevelDP):
+            return self.plan.dp.protection(
+                len(self.clients), shared=self.plan.secure_sum is not None
+            )
         if self.plan.secure_sum is None:
             return self.plan.dp.protection(updates_in_the_clear=True)
         return (
@@ -939,6 +1186,11 @@ class Simulation:
         caveats = [
             "Validation and test rows are not protected by this budget; only training rows are."
         ]
+        if isinstance(self.plan.dp, ClientLevelDP):
+            caveats = [
+                "A participant's validation and test rows are not protected by this budget; "
+                "only what it contributes to training is."
+            ]
         if not self.secure_noise:
             caveats.append(
                 "The noise was drawn from the run's seed so that the experiment can be repeated. "
@@ -949,7 +1201,15 @@ class Simulation:
                 "The whole-number noise is drawn with numpy's Poisson routine, which has not "
                 "been certified as an exact sampler."
             )
-        if isinstance(self.plan.dp, DistributedDPSGD):
+        if isinstance(self.plan.dp, ClientLevelDP) and len(self.clients) < SMALL_FEDERATION:
+            caveats.append(
+                f"With {len(self.clients)} participants, hiding one whole participant takes "
+                "noise of about the size of everything one participant contributes. Expect "
+                f"little accuracy below about {SMALL_FEDERATION} participants."
+            )
+        if isinstance(self.plan.dp, DistributedDPSGD) or (
+            isinstance(self.plan.dp, ClientLevelDP) and self.plan.secure_sum is not None
+        ):
             caveats.append(
                 "The participants' public keys are not checked. A server that swaps them could "
                 "read single messages, and a single message carries only a slice of the noise: "

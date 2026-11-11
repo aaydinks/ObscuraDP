@@ -77,7 +77,8 @@ class ScopeReport:
 
 MODE_DISTRIBUTED = "distributed"
 MODE_CENTRAL = "central"
-MODES = (MODE_DISTRIBUTED, MODE_CENTRAL)
+MODE_PARTICIPANT = "participant"
+MODES = (MODE_DISTRIBUTED, MODE_CENTRAL, MODE_PARTICIPANT)
 
 
 @dataclass(frozen=True)
@@ -150,8 +151,10 @@ class ModeReport:
     Reports of the local mode carry no such section.
 
     Attributes:
-        mode: ``"distributed"`` (the participants share the noise) or ``"central"`` (a
-            trusted server adds it).
+        mode: ``"distributed"`` (the participants share the noise), ``"central"`` (a
+            trusted server adds it) or ``"participant"`` (a whole participant is protected;
+            the noise is shared if ``max_colluding`` is given and added by the server
+            otherwise).
         participants: Number of participants $N$.
         attempts: Rounds that were started and charged to the budget.
         completed_rounds: Rounds whose sum was opened and moved the model.
@@ -161,6 +164,8 @@ class ModeReport:
             divided by the rounding step of the secure sum; distributed mode with Gaussian
             noise only).
         noise: ``"gaussian"`` or ``"skellam"`` (distributed mode only).
+        sampling_rate: Probability with which a participant takes part in a round
+            (participant mode only).
         table: The budget for every number of colluding participants (distributed mode).
     """
 
@@ -173,6 +178,12 @@ class ModeReport:
     steps_per_share: float | None = None
     table: tuple[CollusionRow, ...] = ()
     noise: str | None = None
+    sampling_rate: float | None = None
+
+    @property
+    def shared(self) -> bool:
+        """True if the participants shared the noise (so the collusion table applies)."""
+        return self.max_colluding is not None
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
@@ -189,7 +200,9 @@ class ModeReport:
             "attempts": self.attempts,
             "completed_rounds": self.completed_rounds,
         }
-        if self.mode == MODE_DISTRIBUTED:
+        if self.mode == MODE_PARTICIPANT:
+            data["sampling_rate"] = self.sampling_rate
+        if self.shared:
             data.update(
                 max_colluding=self.max_colluding,
                 max_dropouts=self.max_dropouts,
@@ -214,9 +227,26 @@ class ModeReport:
                 "How the noise was added: by the server, which sees every participant's clean "
                 f"sums ({self.participants} participants, one step per round, {rounds}).",
             ]
-        lines = [
-            f"How the noise was added: shared. Each of the {self.participants} participants "
-            f"adds a slice (one step per round, {rounds}).",
+        taking_part = (
+            f"each of the {self.participants} participants takes part in a round with "
+            f"probability {self.sampling_rate}"
+        )
+        if self.mode == MODE_PARTICIPANT and not self.shared:
+            return [
+                "How the noise was added: by the server, which sees every participant's "
+                f"change to the model ({taking_part}; {rounds}).",
+            ]
+        if self.mode == MODE_PARTICIPANT:
+            lines = [
+                f"How the noise was added: shared. Every participant adds a slice every round "
+                f"({taking_part}; {rounds}).",
+            ]
+        else:
+            lines = [
+                f"How the noise was added: shared. Each of the {self.participants} "
+                f"participants adds a slice (one step per round, {rounds}).",
+            ]
+        lines += [
             f"Assumed: at most {self.max_colluding} participant(s) pool what they know with "
             f"the server, at most {self.max_dropouts} are missing from a sum.",
             "Budget by the real number of participants who pool with the server:",
@@ -240,7 +270,7 @@ class ModeReport:
             )
         elif self.steps_per_share is not None:
             lines.append(
-                f"Each participant rounds its noisy sum to whole numbers before the secure "
+                f"Each participant rounds its noisy numbers to whole numbers before the secure "
                 f"sum, on a grid {self.steps_per_share:g} times finer than its noise slice. "
                 "The budget is computed as if nothing were rounded. That is supported by an "
                 "argument and a numerical check, not yet by a machine-checked proof."
@@ -363,8 +393,13 @@ class PrivacyReport:
                 )
                 lines += [f"Note: {text}." for text in self._worst().check.warnings()]
             lines.append(
-                "Worst case for an attacker guessing whether a record was used "
-                "(true-positive rate minus false-positive rate): "
+                "Worst case for an attacker guessing whether "
+                + (
+                    "a participant contributed "
+                    if self.policy.unit == "client"
+                    else "a record was used "
+                )
+                + "(true-positive rate minus false-positive rate): "
                 f"at most {self.advantage_ceiling:.1%} against these releases; "
                 f"{self.general_advantage_ceiling:.1%} for any method with this budget."
             )
@@ -522,7 +557,12 @@ def _verify_mode(mode: Any, stored_scopes: Sequence[Any], delta: float) -> list[
             f"a scope recorded {most} releases, more than the {attempts} attempts the mode "
             "section states"
         )
-    if mode["mode"] != MODE_DISTRIBUTED:
+    if mode["mode"] == MODE_PARTICIPANT:
+        rate = mode.get("sampling_rate")
+        rates = {getattr(e, "sampling_rate", None) for es in events_by_scope.values() for e in es}
+        if isinstance(rate, bool) or not isinstance(rate, (int, float)) or rates != {float(rate)}:
+            problems.append("the mode section's sampling rate does not match the recorded releases")
+    if "max_colluding" not in mode and mode["mode"] != MODE_DISTRIBUTED:
         return problems
     try:
         max_colluding = int(mode["max_colluding"])
