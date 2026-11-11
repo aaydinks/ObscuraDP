@@ -1,0 +1,29 @@
+{
+ "note": "One update encrypted with obscuradp.crypto.ckks, measured from the real messages. The public context that every participant also needs is not included.",
+ "sizes": {
+  "loan/logistic": {
+   "encrypted_bytes": 235373,
+   "numbers": 14,
+   "plain_bytes": 56,
+   "ratio": 4203.089285714285
+  },
+  "loan/network": {
+   "encrypted_bytes": 235335,
+   "numbers": 993,
+   "plain_bytes": 3972,
+   "ratio": 59.24848942598187
+  },
+  "stroke/logistic": {
+   "encrypted_bytes": 235348,
+   "numbers": 21,
+   "plain_bytes": 84,
+   "ratio": 2801.7619047619046
+  },
+  "stroke/network": {
+   "encrypted_bytes": 235335,
+   "numbers": 3457,
+   "plain_bytes": 13828,
+   "ratio": 17.01873011281458
+  }
+ }
+}
