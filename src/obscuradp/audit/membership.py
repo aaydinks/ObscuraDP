@@ -277,8 +277,8 @@ class _Decoder:
         # A coin is plus or minus one half around "undecided": variance one quarter. What
         # is left unexplained per number is treated as noise, which overstates it a little.
         ridge = max(4.0 * self.energy / self.numbers, 1e-6 * typical)
-        solution: FloatVector = np.linalg.solve(self.gram + ridge * np.eye(self.size), self.moment)
-        return solution
+        solution = np.linalg.solve(self.gram + ridge * np.eye(self.size), self.moment)
+        return np.asarray(solution, dtype=np.float64)
 
 
 class _UpdateAttack:
