@@ -77,6 +77,24 @@ const browser = await chromium.launch();
   await page.click('#fig-exp1-recall .view-data');
   check(await page.isVisible('#fig-exp1-recall-table'), '"View data" reveals the table');
 
+  // Intro video: nothing is requested from YouTube until play is pressed,
+  // then the facade is replaced by the no-cookie player.
+  {
+    const vpage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const ytRequests = [];
+    vpage.on('request', (r) => {
+      if (/youtube|ytimg|googlevideo/.test(r.url())) ytRequests.push(r.url());
+    });
+    await vpage.route(/youtube-nocookie\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>player</p>' }));
+    await vpage.goto(base + '/', { waitUntil: 'networkidle' });
+    check(ytRequests.length === 0, `no YouTube requests before play (${ytRequests.length})`);
+    await vpage.click('#video .video-facade');
+    const src = await vpage.getAttribute('#video iframe', 'src');
+    check(src?.startsWith('https://www.youtube-nocookie.com/embed/ez8MoY2MsYU') ?? false, `play inserts the no-cookie player: ${src}`);
+    check((await vpage.locator('#video .video-facade').count()) === 0, 'video poster is replaced by the player');
+    await vpage.close();
+  }
+
   // Keyboard pass: every focusable element gets a visible focus ring.
   await page.goto(base + '/', { waitUntil: 'networkidle' });
   const focusables = await page.evaluate(() => {
