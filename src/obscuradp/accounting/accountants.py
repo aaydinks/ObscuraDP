@@ -7,6 +7,12 @@
   upper limit, and a looser one. It serves as an independent cross-check.
 - For plain Gaussian noise without subsampling the exact answer is known (see ``analytic``).
 
+Whole-number (Skellam) noise is the exception: only its Renyi curve is proven (see
+``skellam``), so for releases with that noise every function here falls back on the RDP
+method. ``epsilon_pld`` then returns the RDP limit as its upper figure, and as its lower
+figure what Gaussian noise of the same size would cost by the PLD method, which serves as a
+reference and as a check (it must not be above the upper figure).
+
 All functions use the add-or-remove-one-record neighbouring relation.
 """
 
@@ -22,9 +28,11 @@ from typing import Any
 from obscuradp.accounting.events import (
     Event,
     GaussianEvent,
+    SkellamEvent,
     SubsampledGaussianEvent,
     merge_events,
 )
+from obscuradp.accounting.skellam import ORDERS, skellam_rdp
 
 # Grid spacing of the PLD accountant for the upper estimate. Smaller is tighter and slower.
 DISCRETIZATION = 1e-4
@@ -57,6 +65,21 @@ def _event_parts(event: Event) -> tuple[float, float, int]:
     if isinstance(event, GaussianEvent):
         return event.noise_multiplier, 1.0, event.count
     raise TypeError(f"unsupported event type {type(event).__name__}")
+
+
+def has_skellam(events: Sequence[Event]) -> bool:
+    """True if any of ``events`` uses whole-number noise, which only the RDP method covers."""
+    return any(isinstance(event, SkellamEvent) for event in events)
+
+
+def _as_gaussian(events: Sequence[Event]) -> tuple[Event, ...]:
+    """Every whole-number release replaced by Gaussian noise of the same size."""
+    return merge_events(
+        GaussianEvent(event.noise_multiplier, event.count)
+        if isinstance(event, SkellamEvent)
+        else event
+        for event in events
+    )
 
 
 @lru_cache(maxsize=256)
@@ -114,6 +137,10 @@ def epsilon_pld(events: Sequence[Event], delta: float, *, pessimistic: bool = Tr
     merged = merge_events(events)
     if not merged:
         return 0.0
+    if has_skellam(merged):
+        if pessimistic:
+            return _epsilon_rdp(merged, delta)
+        return _epsilon_pld(_as_gaussian(merged), delta, False)
     return _epsilon_pld(merged, delta, pessimistic)
 
 
@@ -131,8 +158,13 @@ def delta_pld(events: Sequence[Event], epsilon: float, *, pessimistic: bool = Tr
     """$\\delta$ of ``events`` at a given $\\varepsilon$ by privacy loss distributions."""
     if epsilon < 0:
         raise ValueError("epsilon must not be negative")
-    if not merge_events(events):
+    merged = merge_events(events)
+    if not merged:
         return 0.0
+    if has_skellam(merged):
+        if not pessimistic:
+            return delta_pld(_as_gaussian(merged), epsilon, pessimistic=False)
+        return _delta_rdp(merged, epsilon)
     if _beyond_meaning(events, 1e-5):
         return 1.0
     total = _pld(events, pessimistic)
@@ -158,11 +190,51 @@ def epsilon_rdp(events: Sequence[Event], delta: float) -> float:
     return _epsilon_rdp(merged, delta)
 
 
+def _rdp_curve(merged: Sequence[Event]) -> tuple[list[float], list[float]]:
+    """Orders and summed Renyi divergences of releases that include whole-number noise."""
+    import dp_accounting as dpa
+    from dp_accounting import rdp
+
+    orders = [float(order) for order in ORDERS]
+    total = [0.0] * len(ORDERS)
+    with _quiet_library_logging():
+        accountant = rdp.RdpAccountant(orders=orders)
+        for event in merged:
+            if isinstance(event, SkellamEvent):
+                for index, order in enumerate(ORDERS):
+                    total[index] += event.count * skellam_rdp(
+                        order, event.variance, event.l2_sensitivity, event.l1_sensitivity
+                    )
+                continue
+            sigma, rate, repetitions = _event_parts(event)
+            base: Any = dpa.GaussianDpEvent(sigma)
+            if rate < 1.0:
+                base = dpa.PoissonSampledDpEvent(rate, base)
+            accountant.compose(dpa.SelfComposedDpEvent(base, repetitions))
+        others = [float(value) for value in accountant.rdp]
+    return orders, [a + b for a, b in zip(total, others, strict=True)]
+
+
+@lru_cache(maxsize=1024)
+def _delta_rdp(merged: tuple[Event, ...], epsilon: float) -> float:
+    from dp_accounting import rdp
+
+    orders, curve = _rdp_curve(merged)
+    with _quiet_library_logging():
+        value = float(rdp.rdp_privacy_accountant.compute_delta(orders, curve, epsilon)[0])
+    return 1.0 if math.isnan(value) else min(1.0, value)
+
+
 @lru_cache(maxsize=1024)
 def _epsilon_rdp(merged: tuple[Event, ...], delta: float) -> float:
     import dp_accounting as dpa
     from dp_accounting import rdp
 
+    if has_skellam(merged):
+        orders, curve = _rdp_curve(merged)
+        with _quiet_library_logging():
+            value = float(rdp.compute_epsilon(orders, curve, delta)[0])
+        return math.inf if math.isnan(value) else value
     with _quiet_library_logging():
         accountant = rdp.RdpAccountant()
         for event in merged:

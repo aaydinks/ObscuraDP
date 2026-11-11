@@ -20,6 +20,11 @@ multiplier 1). ``CrossCheck.warnings`` reports it; nothing is raised.
 
 A budget above ``MEANINGLESS_EPSILON`` is reported as unbounded by the PLD accountant without
 being computed, so there is nothing to compare and no rule applies to it.
+
+Releases with whole-number (Skellam) noise have one proven method only, the RDP curve. For
+them the reported budget is the RDP limit, and the "lower" figure is what Gaussian noise of
+the same size would cost by the PLD method. That figure must not be above the reported one,
+which is still checked; the rule that upper and lower be close does not apply.
 """
 
 from __future__ import annotations
@@ -28,7 +33,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
-from obscuradp.accounting.accountants import epsilon_pld, epsilon_rdp
+from obscuradp.accounting.accountants import epsilon_pld, epsilon_rdp, has_skellam
 from obscuradp.accounting.events import Event
 
 # Slack for floating-point and grid effects when comparing two estimates.
@@ -54,10 +59,11 @@ class CrossCheck:
     pld_upper: float
     pld_lower: float
     rdp: float
+    single_method: bool = False
 
     @property
     def epsilon(self) -> float:
-        """The budget to report: the PLD upper estimate."""
+        """The budget to report: the PLD upper estimate (the RDP limit for whole-number noise)."""
         return self.pld_upper
 
     @property
@@ -86,7 +92,8 @@ class CrossCheck:
                 f"the PLD lower estimate ({self.pld_lower:.6g}) is above the RDP limit "
                 f"({self.rdp:.6g})"
             )
-        if self.pld_upper - self.pld_lower > PLD_GAP_RELATIVE * self.pld_upper + PLD_GAP_ABSOLUTE:
+        gap = self.pld_upper - self.pld_lower
+        if not self.single_method and gap > PLD_GAP_RELATIVE * self.pld_upper + PLD_GAP_ABSOLUTE:
             found.append(
                 f"the PLD upper ({self.pld_upper:.6g}) and lower ({self.pld_lower:.6g}) estimates "
                 "are too far apart"
@@ -97,6 +104,12 @@ class CrossCheck:
         """Observations that are unusual but possible when everything is right."""
         if self.unbounded:
             return ["the budget is too large to mean anything and is reported as unbounded"]
+        if self.single_method:
+            return [
+                "these releases use whole-number noise, for which one counting method is "
+                "proven (RDP); the lower figure is what ordinary noise of the same size would "
+                "cost by the tighter method"
+            ]
         if self.rdp > RDP_BAND_RELATIVE * self.pld_upper + RDP_BAND_ABSOLUTE:
             return [
                 f"the RDP limit ({self.rdp:.6g}) is far above the PLD estimate "
@@ -116,6 +129,7 @@ def cross_check(events: Sequence[Event], delta: float, *, strict: bool = True) -
         pld_upper=epsilon_pld(events, delta, pessimistic=True),
         pld_lower=epsilon_pld(events, delta, pessimistic=False),
         rdp=epsilon_rdp(events, delta),
+        single_method=has_skellam(events),
     )
     if strict:
         problems = result.problems()

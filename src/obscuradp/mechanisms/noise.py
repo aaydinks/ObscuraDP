@@ -7,8 +7,9 @@ Two rules:
   who knows the seed can subtract the noise.
 - This module draws ordinary floating-point Gaussian noise. Floating-point noise has known
   weaknesses against an attacker who can inspect the exact low-order bits of a released
-  value (finding G16 in ``docs/AUDIT.md``). The integer noise path planned for a later step
-  closes that gap; until then the library is labelled as research software.
+  value (finding G16 in ``docs/AUDIT.md``). The whole-number noise of
+  ``obscuradp.mechanisms.skellam`` has no such bits; it is available in the shared-noise
+  mode with ``DistributedDPSGD(noise="skellam")``.
 """
 
 from __future__ import annotations

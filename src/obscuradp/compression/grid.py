@@ -90,6 +90,13 @@ class SumGrid:
         rounded = (below + (generator.random(x.shape) < position - below)).astype(np.int64)
         return np.asarray(rounded.astype(np.uint64) & self._mask, dtype=np.uint64)
 
+    def wrap(self, integers: npt.ArrayLike) -> IntVector:
+        """Write whole numbers (in grid steps) modulo $2^k$. Nothing is rounded or cut off."""
+        numbers = np.asarray(integers)
+        if numbers.dtype.kind not in "iu":
+            raise ValueError("wrap takes whole numbers; use encode for other values")
+        return np.asarray(numbers.astype(np.int64).astype(np.uint64) & self._mask, dtype=np.uint64)
+
     def decode_sum(self, total: npt.ArrayLike) -> FloatVector:
         """Turn a sum modulo $2^k$ back into the sum of the values.
 
@@ -110,6 +117,33 @@ class SumGrid:
     @property
     def _mask(self) -> np.uint64:
         return np.uint64(2**self.modulus_bits - 1)
+
+
+def plan_integer_grid(unit: float, sum_bound: int, share_std: float, participants: int) -> SumGrid:
+    """The grid for a sum of whole-number messages (see ``obscuradp.mechanisms.skellam``).
+
+    The step is fixed by the whole-number grid of the run (``unit``, in the units of the
+    gradient); nothing is rounded here. Only the number of bits is planned: one participant's
+    numbers span ``sum_bound`` grid points for the data plus ``TAIL_SHARES`` standard
+    deviations of its noise slice (``share_std``, in grid points).
+
+    Raises:
+        ValueError: If that range needs more than 24 bits per value.
+    """
+    if not unit > 0.0 or not math.isfinite(unit):
+        raise ValueError("unit must be positive")
+    if sum_bound < 1:
+        raise ValueError("sum_bound must be at least 1")
+    if not share_std > 0.0 or not math.isfinite(share_std):
+        raise ValueError("share_std must be positive")
+    reach = sum_bound + TAIL_SHARES * share_std
+    value_bits = max(2, math.ceil(math.log2(reach)) + 1)
+    if value_bits > MAX_VALUE_BITS:
+        raise ValueError(
+            f"one message would need {value_bits} bits per number (at most {MAX_VALUE_BITS} "
+            "are supported); declare a smaller sum_bound in DistributedDPSGD"
+        )
+    return SumGrid(step=unit, value_bits=value_bits, participants=participants)
 
 
 def plan_sum_grid(share_std: float, sum_bound: float, participants: int) -> SumGrid:

@@ -103,6 +103,7 @@ The example above uses `LocalDPSGD`. The `dp` setting of a `Plan` chooses who ad
 |---|---|---|---|
 | `LocalDPSGD()` | Every participant adds all the noise its own rows need | Nothing beyond the participant itself | The safe default |
 | `DistributedDPSGD(max_colluding=t)` with `secure_sum=PairwiseMasking()` | Every participant adds a slice; the slices add up inside the secure sum | The secure sum, and that at most `t` participants pool what they know with the server | Less noise in total. The report prints the budget for every other number of colluders |
+| the same with `noise="skellam"` | As above, with whole-number noise and every row in every round | As above | No floating-point number carries the noise and no rounding has to be argued away. Needs somewhat more noise and larger messages |
 | `CentralDPSGD()` with `allow_unsafe=True` | The server, which sees every participant's clean sums | The server, completely | A baseline for comparisons only |
 
 `DistributedDPSGD` is refused without a secure sum, because a single message would carry only a slice of

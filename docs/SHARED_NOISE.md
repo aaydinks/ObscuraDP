@@ -127,9 +127,11 @@ What supports this:
 - The library refuses any other grid in this mode: the step is fixed at $\tau / 4$.
 
 What is missing: a proof that the tests can run for all dimensions at once, and a treatment of
-floating-point effects in the noise itself (finding G16). Step S13 replaces this path by whole-number
-noise (Skellam), where the data is rounded first, the noise lives on the grid, and the count is exact.
-Until then every report of this mode says that the rounding step is argued and not machine-proven.
+floating-point effects in the noise itself (finding G16). Step S13 added a second path with
+whole-number noise (Skellam), where each row is rounded first, the noise lives on the grid, and the sum
+of the slices is exact.
+Every report of the Gaussian path says that the rounding step is argued and not machine-proven. The
+whole-number path below does not have this step.
 
 One correction to an earlier claim made while planning: the sum of separately rounded messages does
 **not** have the same distribution as one rounding of the plain sum (they differ by about $10^{-3}$ in
@@ -146,6 +148,66 @@ noise**, which is just as good for privacy and is the statement tested here.
   the run's seed even then; that is fixed for all modes.)
 - **Everyone follows the protocol.** A participant that sends something else, or a server that deviates,
   is outside what any report covers.
+
+## The whole-number path (added in S13)
+
+`DistributedDPSGD(noise="skellam")` turns the order around so that the step above needs no argument.
+
+1. Every row takes part in every round.
+2. Each row's clipped gradient is scaled to a grid of $c$ points per clipping norm and **rounded on its
+   own**, at random and right on average.
+3. The squared length of the rounded row is computed in whole-number arithmetic and compared with a fixed
+   whole number $\Delta_2^2$. A row above it is rounded again; after 16 tries it is rounded towards zero,
+   which cannot lengthen it; a row that is still too long counts for nothing. **So no row can move the sum
+   by more than $\Delta_2$, whatever floating-point arithmetic did before.** One row moves the sum of
+   absolute values by at most $\Delta_1 = \min(\Delta_2^2, \sqrt{m}\,\Delta_2)$ for $m$ model numbers.
+4. The rounded rows are added up, each number is limited to a public range, and the participant adds a
+   slice of Skellam noise (the difference of two Poisson counts) with variance $\mu / (N - t - d)$.
+5. Slices of Skellam noise add up to Skellam noise with the variances added, exactly. The honest
+   participants therefore supply Skellam noise of variance at least $\mu$, with nothing approximated.
+
+The limit $\Delta_2^2$ is $\min\bigl((c + \sqrt{m})^2,\ c^2 + m/4 + \sqrt{2 \ln(1/\beta)}\,(c + \sqrt{m}/2)\bigr)$
+with $\beta = e^{-1/2}$ (Kairouz, Liu and Steinke, 2021). The formula only decides how often a row has to
+be rounded again; the guarantee comes from the exact check in step 3. The library chooses $c$ so that
+$\Delta_2 \le 1.05\,c$: rounding lengthens a row by at most 5%.
+
+**The count.** For whole numbers that one row changes by at most $\Delta_2$ in length and $\Delta_1$ in
+summed absolute size, Skellam noise of variance $\mu$ per number, and every whole-number order
+$\alpha > 1$ (Agarwal, Kairouz and Liu, 2021, Theorem 3.5 and Corollary 3.6, read on arXiv:2110.04995 on
+2026-11-11):
+
+$$\varepsilon(\alpha) \le \frac{\alpha \Delta_2^2}{2\mu}
++ \min\left(\frac{(2\alpha - 1)\Delta_2^2 + 6\Delta_1}{4\mu^2},\ \frac{3\Delta_1}{2\mu}\right).$$
+
+The first part is what Gaussian noise of the same variance costs; the second is the price of whole
+numbers and fades as the noise grows. Rounds add up by adding these curves, and the curve is turned into
+a budget with the conversion of the `dp-accounting` library. Only whole-number orders are used, because
+only those are proven.
+
+**What the tests check** (`tests/test_skellam.py`):
+
+- The formula is never below the exact value computed from the Skellam probabilities, over 42 pairs of
+  noise level and shift at seven orders each, and for 200 many-dimensional cases (where the exact value
+  is the sum over coordinates). For ample noise it is within 1% of exact.
+- For one release, the exact leak at the reported budget is below $\delta$.
+- A formula made 10% too small breaks 23 tests. Dropping only the second part breaks one test (the one
+  that pins the paper's form): on every case tried the exact value lies even below the first part. The
+  second part is kept because it is what the paper proves.
+- No rounded row ever exceeds $\Delta_2$, over random sizes, scales and rows up to 50 times too long.
+
+**What this path costs**, measured:
+
+- **About 14% more noise** than Gaussian noise for the same budget: about 8% because only the looser
+  counting method (RDP) is proven for this noise, 5% from the rounding.
+- **Every row in every round.** The extra protection from drawing rows at random is not counted for this
+  noise here. More noise per round, against a larger batch.
+- **Larger messages**: 18 to 22 bits per number for the two research-sized groups (see
+  `docs/KPI_MAPPING.md`).
+
+**What remains.** The noise is drawn with numpy's Poisson routine, which is not a certified exact
+sampler; every report of this path says so. Gradients are still computed in floating point, but nothing
+about the guarantee depends on their exact value any more: whatever number comes out is rounded and
+checked. The public-key and protocol assumptions below are unchanged.
 
 ## The trusted-server baseline
 

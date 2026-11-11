@@ -14,6 +14,7 @@ import pytest
 import obscuradp
 from obscuradp.accounting import (
     GaussianEvent,
+    SkellamEvent,
     SubsampledGaussianEvent,
     attacker_advantage_ceiling,
     calibrate_noise_multiplier,
@@ -538,3 +539,50 @@ def test_command_line_shows_and_verifies_a_shared_noise_report(
     odd.write_text(json.dumps(data), encoding="utf-8")
     assert main(["report", "show", str(odd)]) == 0
     assert "  3 colluding: epsilon = no protection" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- whole-number noise
+
+
+def test_a_report_of_whole_number_noise_stores_and_verifies(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    event = SkellamEvent((19.0 * 30.0) ** 2, 30.0, 900.0, 20)
+    ledger = PrivacyLedger(PrivacyPolicy(1.0, DELTA))
+    ledger.charge("site-0", event)
+    ledger.charge("site-1", event.with_repetitions(12))
+    report = PrivacyReport.from_ledger(ledger)
+    assert report.within_budget
+    assert report.epsilon == epsilon_rdp([event], DELTA)
+    assert report.scopes[0].check.single_method
+    text = report.summary()
+    assert "Counted with the RDP method, the one method proven for whole-number noise." in text
+    assert "ordinary noise of the same size would cost" in text
+    assert "Cross-checks of that number" not in text
+    assert 0.0 < report.advantage_ceiling < report.general_advantage_ceiling
+    path = tmp_path / "whole.json"
+    report.to_json(path)
+    stored = load_report(path)
+    assert stored["scopes"][0]["events"] == [event.to_dict()]
+    assert verify_report(stored) == []
+    assert main(["report", "verify", str(path)]) == 0
+    assert "consistent. epsilon = " in capsys.readouterr().out
+    # Each stored number of the release matters.
+    for key, factor in (("variance", 0.5), ("l2_sensitivity", 1.2), ("count", 2)):
+        edited = copy.deepcopy(stored)
+        edited["scopes"][0]["events"][0][key] *= factor
+        assert verify_report(edited) != [], key
+    broken = copy.deepcopy(stored)
+    del broken["scopes"][0]["events"][0]["variance"]
+    assert any("cannot be read" in problem for problem in verify_report(broken))
+
+
+def test_the_collusion_table_scales_whole_number_noise_exactly() -> None:
+    event = SkellamEvent((19.0 * 30.0) ** 2, 30.0, 900.0, 20)
+    table = collusion_table({"site-0": (event,)}, DELTA, 5, 1, 0)
+    assert table[1].epsilon == epsilon_rdp([event], DELTA)
+    for row in table:
+        # With t' colluders the remaining slices have (N - t') / (N - t) of the variance.
+        left = SkellamEvent(event.variance * (5 - row.colluding) / 4, 30.0, 900.0, 20)
+        assert row.epsilon == pytest.approx(epsilon_rdp([left], DELTA))
+        assert row.noise_multiplier == pytest.approx(left.noise_multiplier)

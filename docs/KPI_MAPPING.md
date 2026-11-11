@@ -75,7 +75,15 @@ What this means:
   the rounding step is tied to the size of a slice; see `docs/SHARED_NOISE.md`.
 - Measured in S12 for the shared-noise mode with floating-point noise: 12 bits per number for three
   participants and 14 bits for the five stroke-sized participants at a total budget of 1 (ratios 0.38 and
-  0.44). The whole-number noise of S13 is still to be measured.
+  0.44).
+- Measured in S13 for the shared-noise mode with whole-number noise (five participants, total budget 1,
+  20 to 100 full rounds): **18 to 22 bits per number (ratios 0.56 to 0.69)** when the range covers the
+  largest sum that is possible at all. With a declared limit of 30 clipping norms per number
+  (`sum_bound`), 15 to 19 bits (0.47 to 0.59); only logistic regression gets to 0.5. So the whole-number
+  path **does not meet the bytes target** as it stands. The earlier estimate of 14 to 20 bits was about
+  right. The reason is the grid: it must be fine enough that rounding a record barely lengthens it, and
+  the noise, which is large in full rounds, is then many grid points wide. Whether a coarser grid (more
+  noise, fewer bits) is the better trade is part of S14.
 
 ## Reference table 3: three numbers for the attacker-advantage target
 

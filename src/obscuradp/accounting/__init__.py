@@ -10,7 +10,9 @@ from obscuradp.accounting.accountants import (
 from obscuradp.accounting.analytic import gaussian_delta, gaussian_epsilon, gaussian_total_variation
 from obscuradp.accounting.calibrate import (
     Calibration,
+    SkellamCalibration,
     calibrate_noise_multiplier,
+    calibrate_skellam,
     steps_per_round,
     total_steps,
 )
@@ -18,11 +20,13 @@ from obscuradp.accounting.crosscheck import AccountingMismatch, CrossCheck, cros
 from obscuradp.accounting.events import (
     Event,
     GaussianEvent,
+    SkellamEvent,
     SubsampledGaussianEvent,
     covers,
     event_from_dict,
     merge_events,
 )
+from obscuradp.accounting.skellam import skellam_rdp
 
 __all__ = [
     "AccountingMismatch",
@@ -30,9 +34,12 @@ __all__ = [
     "CrossCheck",
     "Event",
     "GaussianEvent",
+    "SkellamCalibration",
+    "SkellamEvent",
     "SubsampledGaussianEvent",
     "attacker_advantage_ceiling",
     "calibrate_noise_multiplier",
+    "calibrate_skellam",
     "covers",
     "cross_check",
     "delta_pld",
@@ -44,6 +51,7 @@ __all__ = [
     "gaussian_total_variation",
     "general_advantage_ceiling",
     "merge_events",
+    "skellam_rdp",
     "steps_per_round",
     "total_steps",
 ]

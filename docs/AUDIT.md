@@ -270,6 +270,12 @@ turning it on is not the answer. Separately, Gaussian noise in floating point an
 have published attacks. Fix: an operating-system-seeded generator for real runs, a seeded one only for tests
 and marked in the report (S8); integer noise on the secure-sum path (S13).
 
+Status after S13: closed for `DistributedDPSGD(noise="skellam")`. There the noise is whole numbers, each
+record is rounded before the noise is added, and its length is checked in exact whole-number arithmetic, so
+neither floating-point noise nor floating-point clipping carries the guarantee. Still open for the modes
+with Gaussian noise (`LocalDPSGD`, `DistributedDPSGD(noise="gaussian")`, `CentralDPSGD`), whose reports
+say so.
+
 ### G17. Seed collisions and non-reproducible encrypted runs (C)
 
 - Per-client seeds are `seed * 1000 + round_idx * 10 + client_idx` (`Trial 07/27/obscura/orchestrator.py:278`).

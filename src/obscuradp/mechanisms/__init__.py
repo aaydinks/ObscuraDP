@@ -3,6 +3,7 @@
 from obscuradp.mechanisms.dpsgd import (
     CLIP_MARGIN,
     check_per_record_model,
+    clipped_records,
     clipped_sum,
     per_record_gradients,
     private_gradient,
@@ -17,10 +18,18 @@ from obscuradp.mechanisms.shared_noise import (
     share_noise_multiplier,
     share_std,
 )
+from obscuradp.mechanisms.skellam import (
+    IntegerStep,
+    plan_integer_step,
+    round_records,
+    skellam_noise,
+)
 
 __all__ = [
     "CLIP_MARGIN",
+    "IntegerStep",
     "check_per_record_model",
+    "clipped_records",
     "clipped_sum",
     "default_sum_bound",
     "effective_noise_multiplier",
@@ -28,9 +37,12 @@ __all__ = [
     "gaussian_noise",
     "honest_shares",
     "per_record_gradients",
+    "plan_integer_step",
     "poisson_sample",
     "private_gradient",
     "record_norms",
+    "round_records",
     "share_noise_multiplier",
     "share_std",
+    "skellam_noise",
 ]
