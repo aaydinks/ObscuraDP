@@ -2,8 +2,9 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-11): S1 and S3 to S12 are done. The Phase 2 gate is closed** (the owner answered
-every decision on 2026-11-10, second table below). Phase 3 is under way: S13 (whole-number noise) is next.
+**Current state (2026-11-11): S1 and S3 to S13 are done. The Phase 2 gate is closed** (the owner answered
+every decision on 2026-11-10, second table below). Phase 3 is under way: S14 (comparison at equal budgets
+and the default plan) is next.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -55,8 +56,8 @@ are a record of what was run and are not rewritten.
 - [x] S11, Phase 2: corrected re-runs, old against new. aaydinks/ObscuraDP#29, merged as `3a1b0c3`.
       Gate closed 2026-11-10
 - [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
-      aaydinks/ObscuraDP#31
-- [ ] S13, Phase 3: integer noise path
+      aaydinks/ObscuraDP#31, merged by the owner as `c4e559d`
+- [x] S13, Phase 3: integer noise path. PRNUMBER13
 - [ ] S14, Phase 3: equal-budget comparison, measured bytes, default plan
 - [ ] S15, Phase 4: membership audit and nightly check
 - [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
@@ -66,6 +67,107 @@ are a record of what was run and are not rewritten.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S13 log (2026-11-11)
+
+### What was done
+
+- **`DistributedDPSGD(noise="skellam")`**: the shared-noise mode with whole-number noise. Each row's
+  clipped gradient is rounded on its own, its length is checked in exact whole-number arithmetic against
+  a fixed limit, the rounded rows are added up, and each participant adds a slice of Skellam noise (the
+  difference of two Poisson counts). Slices of that noise add up exactly. Nothing is rounded after the
+  noise, and no floating-point number carries it. The default noise stays `"gaussian"`; S14 decides.
+- **The count** (`obscuradp.accounting.skellam`): the formula of Agarwal, Kairouz and Liu (2021,
+  Theorem 3.5 and Corollary 3.6) at whole-number orders, added up over rounds, turned into a budget with
+  the conversion of `dp-accounting`. `dp-accounting` below 0.7 has nothing of its own for this noise.
+- **`SkellamEvent`** as a release record, `calibrate_skellam` for the noise level of a whole run, and the
+  ledger, cross-check, report, collusion table and `obscuradp report verify` all handle it. For these
+  releases the report says that one counting method is proven and shows, for comparison, what ordinary
+  noise of the same size would cost by the tighter method.
+- **`obscuradp.mechanisms.skellam`**: the noise, the rounding with the exact length check, and a planner
+  that picks the grid so that rounding lengthens a row by at most 5%.
+- **`DistributedDPSGD(sum_bound=...)`** (both noise kinds): an optional public limit on each number of a
+  participant's sum, applied before the noise, for smaller messages. Results report the share of numbers
+  it cut off.
+- **Tests**: 77 more, for 704 in total.
+
+### What was verified and how
+
+- 700 tests pass in the pull-request selection with the pinned versions (Python 3.11), coverage of
+  `src/obscuradp` 98%; 538 pass with the newest versions (Python 3.13). The 4 slow tests run nightly.
+- **The formula was read in the paper** (arXiv:2110.04995, opened on 2026-11-11 after the owner allowed
+  the host). It equals what was planned; the paper states it with the noise variance as the parameter.
+- **Exit condition, the formula against brute force**: it is never below the exact value computed from
+  the Skellam probabilities (42 pairs of noise level and shift at seven orders; 200 many-dimensional
+  cases) and within 1% of it for ample noise. For one release the exact leak at the reported budget is
+  below $\delta$.
+- **No rounded row is ever longer than the limit**: property test over sizes, scales and rows up to 50
+  times too long; rows that cannot be made to fit count for nothing.
+- **The noise**: variance as stated; four slices compared with the exact probabilities of their sum; in a
+  simulation the opened sum is whole numbers in grid units and carries $N$ slices; after the assumed
+  colluders remove theirs, at least the charged variance remains.
+- **Budget**: calibration lands between 0.995 and 1.0 of the budget and 2% less noise no longer fits; the
+  ledger refuses one release too many; stored reports verify and edits of the variance, the sensitivity
+  and the count are each caught.
+- **Attack check** (three participants, one colluding, 2,000 runs with and without the target): what the
+  attack proves stays below the ledger's figure and comes within 35% of it.
+- **Nothing else moved**: the final weights of five seeded runs (local, local with the secure sum,
+  unprotected, shared Gaussian noise with a failed round, trusted server) have the same sha256 as on
+  `main` before this step.
+- The tests can fail: slices a quarter of the needed size broke 2 tests; skipping the length check broke
+  3; a formula 10% too small broke 23. Dropping only the formula's second term broke 1 test (see below).
+  All changes were reverted.
+- End to end: a five-participant run with one failed round prints the table and the whole-number
+  sentence, has no "argued, not proven" sentence, and its report file passes `obscuradp report verify`.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass.
+
+### What it costs (measured, five participants, total budget 1)
+
+| | Gaussian noise (S12) | Whole-number noise (S13) |
+|---|---|---|
+| Counting | tight method (PLD), checked by two others | one proven method (RDP) |
+| Rows per round | drawn at random | all |
+| Noise for the same budget and the same full rounds | 1.00 | 1.14 (8% from the looser count, 5% from rounding) |
+| Bits per number, stroke-sized group | 14 (ratio 0.44) | 19 to 22 (0.59 to 0.69); 15 to 19 with a declared limit of 30 clipping norms |
+| Bits per number, loan-sized group | not measured | 18 to 20 (0.56 to 0.62); 15 to 18 with the same limit |
+| Open step in the argument | rounding after the noise (argued, checked in one dimension) | none of that kind |
+
+**The whole-number path does not meet the 50% bytes target as it stands** (`docs/KPI_MAPPING.md`). Which
+path gives the better model at equal budget is S14's question; nothing here claims either.
+
+### Deviations from the plan
+
+- **Rounding is done per row, not on the sum.** The roadmap says "randomized rounding with an exact
+  integer norm check". Checking the sum would bound what a whole participant can change, not what one row
+  can. Rounding each row and checking it bounds one row exactly, which is the unit of this library.
+- **The brute-force tests cannot see the formula's second term.** On every case tried the exact value
+  lies even below the first term (the Gaussian part). The second term is kept because it is what the
+  paper proves; a test pins the paper's form.
+- **`sum_bound` was added** (not in the roadmap), because without it the message size of the new path
+  could not be explored in S14.
+- The "modulus-headroom planner" of the roadmap is `plan_integer_grid`: it sets the number of bits from
+  the public limit on the sums plus ten standard deviations of a noise slice.
+- No sampled rounds with this noise, as the roadmap fixed. A general result for sampled rounds exists in
+  the literature and could lift this later; it was not attempted.
+
+### Environment
+
+- `arxiv.org` was added to the allowed hosts of the "ObscuraDP" environment (owner approved). Pages there
+  can be fetched with `curl`; the built-in page reader still could not resolve the host in this session.
+- The owner merged aaydinks/ObscuraDP#31 before the session did, right after its checks went green. The
+  session works on as in the handoff: no plan stops, merge when all nine checks are green.
+
+### Open items
+
+- S14: settings tuned per mode, more than five seeds before any claim about stroke, the report columns
+  of answer 2, measured bytes for every arm, and `docs/adr/0005-default-plan.md`. For the whole-number
+  path: whether a coarser grid (more noise, fewer bits) or a declared limit on the sums is the better
+  trade.
+- The Poisson routine of numpy is not a certified exact sampler; the report says so.
+- Carried forward for the owner: the license field on the two Kaggle pages (`docs/DATASETS.md`); the
+  merged remote branches `cu/trusting-pasteur-sms0ou-s03-website` and `cu/trusting-pasteur-sms0ou`;
+  TestPyPI setup before S22.
 
 ## S12 log (2026-11-11)
 

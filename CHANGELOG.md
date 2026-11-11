@@ -69,6 +69,12 @@ public interface.
   through the secure sum, and the server only sees the total. Refused without a secure sum. The privacy
   report gains a table of the budget for every real number of colluding participants, which
   `obscuradp report verify` recomputes.
+- `DistributedDPSGD(noise="skellam")`: whole-number noise for the shared-noise mode. Each record is rounded
+  before the noise is added and its length is checked in exact whole-number arithmetic; slices of the noise
+  add up exactly. The budget is counted with the formula of Agarwal, Kairouz and Liu (2021), which the
+  tests compare with an exact computation. Every row takes part in every round in this path.
+- `DistributedDPSGD(sum_bound=...)`: an optional public limit on a participant's sums, for smaller
+  messages. Every result reports the share of numbers it cut off.
 - `obscuradp.CentralDPSGD`: a trusted server adds the noise. A baseline for comparisons, refused unless
   `allow_unsafe=True` and then flagged in the report.
 - `obscuradp.compression.SumGrid`: whole numbers for a secure sum that never cut a value off (values wrap

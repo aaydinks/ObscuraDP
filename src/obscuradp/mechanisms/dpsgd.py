@@ -119,6 +119,21 @@ def clipped_sum(
             unchanged; this only lets some records count less than others (see
             ``obscuradp.imbalance.ClassWeighted``).
     """
+    factors, finite = _clip_factors(gradients, clip_norm, clip_scale)
+    total: Gradients = {}
+    for name, value in gradients.items():
+        shape = (-1, *([1] * (value.dim() - 1)))
+        kept = torch.where(finite.view(shape), value, torch.zeros_like(value))
+        total[name] = (kept * factors.to(value.dtype).view(shape)).sum(dim=0)
+    return total
+
+
+def _clip_factors(
+    gradients: Mapping[str, torch.Tensor],
+    clip_norm: float,
+    clip_scale: torch.Tensor | None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """For each record: the factor that shortens its gradient, and whether it is finite."""
     if not clip_norm > 0.0:
         raise ValueError("clip_norm must be positive")
     norms = record_norms(gradients)
@@ -132,12 +147,26 @@ def clipped_sum(
             raise ValueError("every clip_scale factor must be in (0, 1]")
         limit = limit * scale
     factors = torch.where(finite, (limit / norms.clamp_min(1e-300)).clamp(max=1.0), 0.0)
-    total: Gradients = {}
-    for name, value in gradients.items():
-        shape = (-1, *([1] * (value.dim() - 1)))
-        kept = torch.where(finite.view(shape), value, torch.zeros_like(value))
-        total[name] = (kept * factors.to(value.dtype).view(shape)).sum(dim=0)
-    return total
+    return factors, finite
+
+
+def clipped_records(
+    gradients: Mapping[str, torch.Tensor],
+    clip_norm: float,
+    clip_scale: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Each record's gradient shortened to length at most ``clip_norm``, one row per record.
+
+    The same clipping as ``clipped_sum``, but the records are kept apart (64-bit, all
+    parameters of a record in one row, in the order of the mapping). Needed where every
+    record is processed further on its own before the sum, as for whole-number noise.
+    """
+    factors, finite = _clip_factors(gradients, clip_norm, clip_scale)
+    if not gradients:
+        raise ValueError("the model has no trainable parameter")
+    rows = torch.cat([value.detach().double().flatten(1) for value in gradients.values()], dim=1)
+    rows = torch.where(finite.view(-1, 1), rows, torch.zeros_like(rows))
+    return rows * factors.view(-1, 1)
 
 
 def private_gradient(

@@ -23,21 +23,25 @@ import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
+import numpy as np
+import numpy.typing as npt
 import torch
 from torch import nn
 
-from obscuradp.accounting.events import SubsampledGaussianEvent
+from obscuradp.accounting.events import SkellamEvent, SubsampledGaussianEvent
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.dpsgd import (
     Gradients,
     LossFunction,
     check_per_record_model,
+    clipped_records,
     clipped_sum,
     per_record_gradients,
     private_gradient,
 )
 from obscuradp.mechanisms.noise import gaussian_noise
 from obscuradp.mechanisms.sampling import poisson_sample
+from obscuradp.mechanisms.skellam import IntegerStep, round_records, skellam_noise
 
 StepObserver = Callable[[int, torch.Tensor, Gradients], None]
 ClipScale = Callable[[torch.Tensor], torch.Tensor | None]
@@ -187,6 +191,7 @@ def clipped_sum_step(
     sampling_generator: torch.Generator,
     clip_scale: ClipScale | None = None,
     sum_bound: float | None = None,
+    diagnostics: dict[str, float] | None = None,
 ) -> torch.Tensor:
     """One participant's clipped gradient sum at the model's current weights. **No noise.**
 
@@ -208,6 +213,9 @@ def clipped_sum_step(
         sum_bound: If given, every number of the sum is limited to plus or minus this value.
             Limiting each number can only bring two sums closer together, so one record
             still moves the result by at most $C$.
+        diagnostics: If given, ``"limited_share"`` is set to the share of numbers that
+            ``sum_bound`` cut off. It describes private data: for local use only, never to
+            be sent.
 
     Returns:
         The sum as one 64-bit vector over the trainable parameters, in the order of
@@ -231,6 +239,8 @@ def clipped_sum_step(
     )
     flat = flatten_gradients(total)
     if sum_bound is not None:
+        if diagnostics is not None:
+            diagnostics["limited_share"] = float((flat.abs() > sum_bound).double().mean())
         flat = flat.clamp(min=-sum_bound, max=sum_bound)
     return flat
 
@@ -251,6 +261,7 @@ def private_sum_step(
     noise_generator: torch.Generator,
     clip_scale: ClipScale | None = None,
     sum_bound: float | None = None,
+    diagnostics: dict[str, float] | None = None,
 ) -> torch.Tensor:
     """One participant's message in the shared-noise mode: clipped sum plus its noise slice.
 
@@ -278,6 +289,7 @@ def private_sum_step(
         clip_scale: Optional per-record clip factors, see ``train_private_round``.
         sum_bound: Optional limit for every number of the clipped sum, applied before the
             noise is added.
+        diagnostics: Optional place for local diagnostics, see ``clipped_sum_step``.
 
     Raises:
         BudgetExceeded: If the release does not fit the scope's remaining budget. No data is
@@ -303,9 +315,100 @@ def private_sum_step(
         sampling_generator=sampling_generator,
         clip_scale=clip_scale,
         sum_bound=sum_bound,
+        diagnostics=diagnostics,
     )
     noise = gaussian_noise(total.shape, share_std, noise_generator, dtype=torch.float64)
     return total + noise.to(total.device)
+
+
+def integer_sum_step(
+    model: nn.Module,
+    features: torch.Tensor,
+    targets: torch.Tensor,
+    *,
+    loss_fn: LossFunction,
+    ledger: PrivacyLedger,
+    scope: str,
+    clip_norm: float,
+    step: IntegerStep,
+    variance: float,
+    share_variance: float,
+    rounding_generator: np.random.Generator,
+    noise_generator: np.random.Generator,
+    clip_scale: ClipScale | None = None,
+    sum_bound: int | None = None,
+    diagnostics: dict[str, float] | None = None,
+) -> npt.NDArray[np.int64]:
+    """One participant's message with whole-number noise: rounded records plus its noise slice.
+
+    Every record takes part. Each record's clipped gradient is scaled to the whole-number
+    grid, rounded on its own, and checked in whole-number arithmetic against
+    ``step.l2_squared``; the rounded records are added up; then this participant's slice of
+    Skellam noise is added. The release is charged to the ledger **before** any data is used:
+    one release at ``variance``, the noise of all honest slices together. **The result is
+    only protected inside a secure sum**, like the message of ``private_sum_step``.
+
+    Args:
+        model: The model at the shared weights. It is not changed.
+        features: All of the participant's training records, one per row.
+        targets: Their targets.
+        loss_fn: Per-record loss, called as ``loss_fn(output, target)`` on one record.
+        ledger: The privacy ledger.
+        scope: The ledger scope to charge, normally the participant's name.
+        clip_norm: Clipping norm $C$.
+        step: The whole-number grid (see ``obscuradp.mechanisms.plan_integer_step``).
+        variance: Variance of the summed honest noise, in grid units; what the ledger is
+            charged with.
+        share_variance: Variance of this participant's slice, normally
+            ``variance / (N - t - d)``.
+        rounding_generator: Random stream for the rounding.
+        noise_generator: Random stream for the noise. For real data it must be seeded from
+            the operating system.
+        clip_scale: Optional per-record clip factors, see ``train_private_round``.
+        sum_bound: Optional limit, in grid units, for every number of the sum of rounded
+            records, applied before the noise. Limiting each number cannot move two sums
+            apart, so the sensitivities stay as they are.
+        diagnostics: Optional place for local diagnostics, see ``clipped_sum_step``.
+
+    Returns:
+        The message as 64-bit whole numbers over the trainable parameters, in the order of
+        ``model.named_parameters()``.
+
+    Raises:
+        BudgetExceeded: If the release does not fit the scope's remaining budget. No data is
+            used in that case.
+    """
+    n_records = int(features.shape[0])
+    if n_records < 1:
+        raise ValueError("a participant needs at least one record")
+    if targets.shape[0] != n_records:
+        raise ValueError("features and targets must have the same number of records")
+    if not share_variance > 0.0:
+        raise ValueError("share_variance must be positive: a message without noise is not private")
+    if sum_bound is not None and sum_bound < 1:
+        raise ValueError("sum_bound must be at least 1")
+    check_per_record_model(model)
+    event = SkellamEvent(variance, step.l2_sensitivity, step.l1_sensitivity, 1)
+
+    # The charge comes first. If it is refused, no data has been touched.
+    ledger.charge(scope, event)
+
+    model.train()
+    rows = clipped_records(
+        per_record_gradients(model, loss_fn, features, targets),
+        clip_norm,
+        None if clip_scale is None else clip_scale(targets),
+    )
+    if rows.shape[1] != step.dimension:
+        raise ValueError("the grid was planned for a model of another size")
+    scaled = (rows * (step.scale / clip_norm)).cpu().numpy()
+    total = round_records(scaled, step.l2_squared, rounding_generator).sum(axis=0)
+    if sum_bound is not None:
+        if diagnostics is not None:
+            diagnostics["limited_share"] = float(np.mean(np.abs(total) > sum_bound))
+        total = np.clip(total, -sum_bound, sum_bound)
+    noise = skellam_noise(total.shape, share_variance, noise_generator)
+    return np.asarray(total + noise, dtype=np.int64)
 
 
 def train_plain_round(

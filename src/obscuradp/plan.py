@@ -21,6 +21,8 @@ from obscuradp.crypto.pairwise_masking import PairwiseMasking
 from obscuradp.imbalance import Imbalance, NoRebalancing
 from obscuradp.mechanisms.shared_noise import honest_shares, share_noise_multiplier
 
+NOISES = ("gaussian", "skellam")
+
 
 @dataclass(frozen=True)
 class LocalDPSGD:
@@ -77,11 +79,24 @@ class DistributedDPSGD:
             sum. The secure sum of this version cannot open a sum with anyone missing (the
             round is repeated), so a value above 0 only makes every slice larger.
         clip_norm: The clipping norm $C$: the most any single record can move one step.
+        noise: ``"gaussian"`` (ordinary floating-point noise; rows are drawn at random each
+            round) or ``"skellam"`` (whole-number noise; every row takes part in every
+            round). With whole-number noise each record is rounded before the noise is
+            added and its length is checked exactly, so the budget needs no argument about
+            rounding and no floating-point number carries the noise.
+        sum_bound: Optional limit for every number of one participant's clipped gradient
+            sum, in the units of the gradient. By default the largest value that is
+            possible at all is used (the clipping norm times the rows a participant can
+            contribute), which never cuts anything off but makes messages larger. A smaller
+            public limit gives smaller messages at the price of cutting off unusually large
+            sums. It is applied before the noise and cannot weaken the guarantee.
     """
 
     max_colluding: int
     max_dropouts: int = 0
     clip_norm: float = 1.0
+    noise: str = "gaussian"
+    sum_bound: float | None = None
 
     def __post_init__(self) -> None:
         for name in ("max_colluding", "max_dropouts"):
@@ -90,6 +105,10 @@ class DistributedDPSGD:
                 raise ValueError(f"{name} must be a non-negative whole number")
         if not self.clip_norm > 0:
             raise ValueError("clip_norm must be positive")
+        if self.noise not in NOISES:
+            raise ValueError(f"noise must be one of {NOISES}")
+        if self.sum_bound is not None and not self.sum_bound > 0:
+            raise ValueError("sum_bound must be positive")
 
     def honest_shares(self, participants: int) -> int:
         """Slices the guarantee counts on among ``participants``: $N - t - d$."""

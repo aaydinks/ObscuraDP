@@ -23,6 +23,7 @@ What it guarantees for a private plan:
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -32,16 +33,23 @@ import numpy as np
 import torch
 from torch import nn
 
-from obscuradp.accounting.calibrate import Calibration, calibrate_noise_multiplier, steps_per_round
+from obscuradp.accounting.calibrate import (
+    Calibration,
+    SkellamCalibration,
+    calibrate_noise_multiplier,
+    calibrate_skellam,
+    steps_per_round,
+)
 from obscuradp.accounting.events import SubsampledGaussianEvent
 from obscuradp.aggregation.fedavg import aggregate_states, fedavg_weights
 from obscuradp.client.trainer import (
     clipped_sum_step,
+    integer_sum_step,
     private_sum_step,
     train_plain_round,
     train_private_round,
 )
-from obscuradp.compression.grid import SumGrid, plan_sum_grid
+from obscuradp.compression.grid import SumGrid, plan_integer_grid, plan_sum_grid
 from obscuradp.compression.packing import float32_size
 from obscuradp.compression.quantize import Quantizer
 from obscuradp.crypto.pairwise_masking import (
@@ -56,6 +64,7 @@ from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.dpsgd import check_per_record_model
 from obscuradp.mechanisms.noise import entropy_generator, gaussian_noise
 from obscuradp.mechanisms.shared_noise import default_sum_bound
+from obscuradp.mechanisms.skellam import IntegerStep, plan_integer_step
 from obscuradp.metrics import best_threshold, binary_metrics
 from obscuradp.plan import CentralDPSGD, DistributedDPSGD, LocalDPSGD, Plan
 from obscuradp.policy import PrivacyPolicy
@@ -100,7 +109,8 @@ class SimulationResult:
             the same update as 32-bit numbers (``plain_bytes_per_round``), their ``ratio``,
             ``bits_per_value``, one-time ``setup_bytes``, and ``saturated_share`` (the largest
             share of numbers in any update that fell outside the planned range: cut off
-            before rounding in the local mode, wrapped around in the shared-noise mode).
+            before rounding in the local mode; in the shared-noise mode limited by
+            ``sum_bound`` before the noise, or wrapped around afterwards).
         state: The final shared model.
         seed: The run's seed.
         config: The settings of the run.
@@ -252,6 +262,13 @@ class Simulation:
                 )
         if isinstance(self.plan.dp, DistributedDPSGD):
             self.plan.dp.honest_shares(len(self.clients))
+            rows = sum(client.n_train for client in self.clients)
+            if self.plan.dp.noise == "skellam" and self.batch_size < rows:
+                raise ValueError(
+                    "whole-number noise is counted for rounds in which every row takes part; "
+                    f"set batch_size to at least the number of training rows ({rows}), or "
+                    "use noise='gaussian'"
+                )
         self._missing = self._check_dropouts(names)
         self._flags = UnsafeFlags(self.allow_unsafe)
         self._check_unsafe()
@@ -306,28 +323,53 @@ class Simulation:
         """
         return min(1.0, self.batch_size / n_train)
 
-    def calibrations(self) -> dict[str, Calibration]:
+    def calibrations(self) -> dict[str, Calibration | SkellamCalibration]:
         """The noise each participant needs so the whole run fits its budget.
 
         Call this before ``run`` to see what a budget costs. Empty for an unprotected plan.
         """
         return self._calibrate(self._training_sizes())
 
-    def _calibrate(self, sizes: Sequence[int]) -> dict[str, Calibration]:
+    def _integer_step(self) -> IntegerStep:
+        """The whole-number grid for this model: it depends on the model's size only."""
+        model = self.model_fn()
+        return plan_integer_step(
+            sum(int(value.numel()) for value in model.parameters() if value.requires_grad)
+        )
+
+    def _calibrate(self, sizes: Sequence[int]) -> dict[str, Calibration | SkellamCalibration]:
         if self.policy is None:
             return {}
         if self.plan.single_step:
             # One release per round, one noise level for everybody: the strictest budget
             # among the participants decides.
-            shared = calibrate_noise_multiplier(
-                min(self.policy.epsilon_for(client.name) for client in self.clients),
-                self.policy.delta,
-                self.sampling_rate(sum(sizes)),
-                self.rounds,
-                accountant=self.policy.accountant,
-            )
+            strictest = min(self.policy.epsilon_for(client.name) for client in self.clients)
+            rate = self.sampling_rate(sum(sizes))
+            shared: Calibration | SkellamCalibration
+            if isinstance(self.plan.dp, DistributedDPSGD) and self.plan.dp.noise == "skellam":
+                if rate < 1.0:
+                    raise ValueError(
+                        "whole-number noise is counted for rounds in which every row takes "
+                        f"part; set batch_size to at least {sum(sizes)}"
+                    )
+                step = self._integer_step()
+                shared = calibrate_skellam(
+                    strictest,
+                    self.policy.delta,
+                    self.rounds,
+                    step.l2_sensitivity,
+                    step.l1_sensitivity,
+                )
+            else:
+                shared = calibrate_noise_multiplier(
+                    strictest,
+                    self.policy.delta,
+                    rate,
+                    self.rounds,
+                    accountant=self.policy.accountant,
+                )
             return {client.name: shared for client in self.clients}
-        result = {}
+        result: dict[str, Calibration | SkellamCalibration] = {}
         for client, rows in zip(self.clients, sizes, strict=True):
             rate = self.sampling_rate(rows)
             result[client.name] = calibrate_noise_multiplier(
@@ -367,7 +409,12 @@ class Simulation:
             return {"clip_norm": dp.clip_norm}
         settings: dict[str, Any] = {"kind": type(dp).__name__, "clip_norm": dp.clip_norm}
         if isinstance(dp, DistributedDPSGD):
-            settings.update(max_colluding=dp.max_colluding, max_dropouts=dp.max_dropouts)
+            settings.update(
+                max_colluding=dp.max_colluding,
+                max_dropouts=dp.max_dropouts,
+                noise=dp.noise,
+                sum_bound=dp.sum_bound,
+            )
             settings["dropouts"] = {
                 str(attempt): sorted(absent) for attempt, absent in sorted(self._missing.items())
             }
@@ -421,7 +468,7 @@ class Simulation:
         sizes = [int(x.shape[0]) for x, _ in tables]
 
         ledger: PrivacyLedger | None = None
-        calibrations: dict[str, Calibration] = {}
+        calibrations: dict[str, Calibration | SkellamCalibration] = {}
         if self.policy is not None:
             ledger = PrivacyLedger(self.policy)
             calibrations = self._calibrate(sizes)
@@ -536,7 +583,7 @@ class Simulation:
         loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         reference: State,
         ledger: PrivacyLedger | None,
-        calibration: Calibration | None,
+        calibration: Calibration | SkellamCalibration | None,
         seed: int,
         round_index: int,
         index: int,
@@ -596,7 +643,7 @@ class Simulation:
         sizes: Sequence[int],
         loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         ledger: PrivacyLedger,
-        calibrations: Mapping[str, Calibration],
+        calibrations: Mapping[str, Calibration | SkellamCalibration],
         seed: int,
         history: list[dict[str, Any]],
         communication: dict[str, float],
@@ -627,10 +674,29 @@ class Simulation:
         share = bound = 0.0
         plain = float(float32_size(length))
         communication.update(upload_bytes_per_round=plain, plain_bytes_per_round=plain)
+        integer: IntegerStep | None = None
+        share_variance = 0.0
+        integer_bound = 0
         if isinstance(dp, DistributedDPSGD):
-            share = dp.clip_norm * dp.share_noise_multiplier(sigma, len(names))
-            bound = default_sum_bound(dp.clip_norm, rate, max(sizes))
-            grid = plan_sum_grid(share, bound, len(names))
+            bound = (
+                dp.sum_bound
+                if dp.sum_bound is not None
+                else default_sum_bound(dp.clip_norm, rate, max(sizes))
+            )
+            if isinstance(calibration, SkellamCalibration):
+                # Whole numbers throughout: one grid point is clip_norm / scale.
+                integer = plan_integer_step(length)
+                unit = dp.clip_norm / integer.scale
+                share_variance = calibration.variance / dp.honest_shares(len(names))
+                integer_bound = (
+                    math.ceil(max(sizes) * integer.l2_sensitivity)
+                    if dp.sum_bound is None
+                    else max(1, math.ceil(dp.sum_bound / unit))
+                )
+                grid = plan_integer_grid(unit, integer_bound, math.sqrt(share_variance), len(names))
+            else:
+                share = dp.clip_norm * dp.share_noise_multiplier(sigma, len(names))
+                grid = plan_sum_grid(share, bound, len(names))
             maskers, aggregator = setup_pairwise_masking(names, grid.modulus_bits)
             communication.update(
                 upload_bytes_per_round=float(grid.message_bytes(length)),
@@ -649,33 +715,52 @@ class Simulation:
                     if client.name in absent:
                         continue
                     torch.manual_seed(derive_seed(seed, "train", attempt, index))
-                    vector = private_sum_step(
-                        shared,
-                        *tables[index],
-                        loss_fn=loss_fn,
-                        ledger=ledger,
-                        scope=client.name,
-                        sampling_rate=rate,
-                        clip_norm=dp.clip_norm,
-                        noise_multiplier=sigma,
-                        share_std=share,
-                        sampling_generator=self._torch_stream(seed, "sampling", attempt, index),
-                        noise_generator=self._torch_stream(seed, "noise", attempt, index),
-                        clip_scale=self.plan.imbalance.clip_scale,
-                        sum_bound=bound,
-                    ).numpy()
+                    rounding = self._numpy_stream(seed, "quantize", attempt, index)
+                    local: dict[str, float] = {}
+                    if integer is not None and isinstance(calibration, SkellamCalibration):
+                        whole = integer_sum_step(
+                            shared,
+                            *tables[index],
+                            loss_fn=loss_fn,
+                            ledger=ledger,
+                            scope=client.name,
+                            clip_norm=dp.clip_norm,
+                            step=integer,
+                            variance=calibration.variance,
+                            share_variance=share_variance,
+                            rounding_generator=rounding,
+                            noise_generator=self._numpy_stream(seed, "noise", attempt, index),
+                            clip_scale=self.plan.imbalance.clip_scale,
+                            sum_bound=integer_bound,
+                            diagnostics=local,
+                        )
+                        vector = whole * grid.step
+                        encoded = grid.wrap(whole)
+                    else:
+                        vector = private_sum_step(
+                            shared,
+                            *tables[index],
+                            loss_fn=loss_fn,
+                            ledger=ledger,
+                            scope=client.name,
+                            sampling_rate=rate,
+                            clip_norm=dp.clip_norm,
+                            noise_multiplier=sigma,
+                            share_std=share,
+                            sampling_generator=self._torch_stream(seed, "sampling", attempt, index),
+                            noise_generator=self._torch_stream(seed, "noise", attempt, index),
+                            clip_scale=self.plan.imbalance.clip_scale,
+                            sum_bound=bound,
+                            diagnostics=local,
+                        ).numpy()
+                        encoded = grid.encode(vector, rounding)
                     communication["saturated_share"] = max(
-                        communication["saturated_share"], grid.outside_share(vector)
-                    )
-                    rounding = (
-                        np.random.default_rng()
-                        if self.secure_noise
-                        else numpy_generator(seed, "quantize", attempt, index)
+                        communication["saturated_share"],
+                        grid.outside_share(vector),
+                        local.get("limited_share", 0.0),
                     )
                     # Every attempt has its own sum index: masks are never used twice.
-                    messages[client.name] = maskers[client.name].protect(
-                        attempt, grid.encode(vector, rounding)
-                    )
+                    messages[client.name] = maskers[client.name].protect(attempt, encoded)
                 try:
                     total = grid.decode_sum(aggregator.combine(attempt, messages, length))
                 except MissingParticipants:
@@ -730,7 +815,8 @@ class Simulation:
                 completed_rounds=completed,
                 max_colluding=dp.max_colluding,
                 max_dropouts=dp.max_dropouts,
-                steps_per_share=share / grid.step,
+                steps_per_share=None if integer is not None else share / grid.step,
+                noise=dp.noise,
                 table=collusion_table(
                     {scope: ledger.events(scope) for scope in ledger.scopes},
                     ledger.policy.delta,
@@ -747,6 +833,12 @@ class Simulation:
                 completed_rounds=completed,
             )
         return get_state(shared), mode
+
+    def _numpy_stream(self, seed: int, purpose: str, *path: int) -> np.random.Generator:
+        """Like ``_torch_stream``, for the parts that work on whole numbers."""
+        if self.secure_noise:
+            return np.random.default_rng()
+        return numpy_generator(seed, purpose, *path)
 
     def _make_optimizer(self, model: nn.Module) -> torch.optim.Optimizer:
         if self.optimizer == "adam":
@@ -851,6 +943,11 @@ class Simulation:
             caveats.append(
                 "The noise was drawn from the run's seed so that the experiment can be repeated. "
                 "Anyone who knows the seed can remove it. Real data needs secure_noise=True."
+            )
+        if isinstance(self.plan.dp, DistributedDPSGD) and self.plan.dp.noise == "skellam":
+            caveats.append(
+                "The whole-number noise is drawn with numpy's Poisson routine, which has not "
+                "been certified as an exact sampler."
             )
         if isinstance(self.plan.dp, DistributedDPSGD):
             caveats.append(

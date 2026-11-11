@@ -16,17 +16,28 @@ import torch
 from torch import nn
 
 import obscuradp as odp
-from obscuradp.accounting import SubsampledGaussianEvent, calibrate_noise_multiplier
+from obscuradp.accounting import (
+    SkellamEvent,
+    SubsampledGaussianEvent,
+    calibrate_noise_multiplier,
+    calibrate_skellam,
+)
 from obscuradp.audit import gaussian_epsilon_lower_bound
-from obscuradp.client import private_sum_step
-from obscuradp.compression import plan_sum_grid
+from obscuradp.client import integer_sum_step, private_sum_step
+from obscuradp.compression import plan_integer_grid, plan_sum_grid
 from obscuradp.crypto import PairwiseMasking, pairwise_masking, setup_pairwise_masking
 from obscuradp.imbalance import ClassWeighted
 from obscuradp.ledger import PrivacyLedger
-from obscuradp.mechanisms import default_sum_bound, gaussian_noise, share_std
+from obscuradp.mechanisms import (
+    default_sum_bound,
+    gaussian_noise,
+    plan_integer_step,
+    share_std,
+    skellam_noise,
+)
 from obscuradp.models import TabularMLP
 from obscuradp.results import validate_result
-from obscuradp.seeding import torch_generator
+from obscuradp.seeding import numpy_generator, torch_generator
 from obscuradp.sim import simulation as simulation_module
 from obscuradp.state import flatten_state
 from obscuradp.tables import ClientData, make_client_data
@@ -267,6 +278,8 @@ def test_the_run_learns_and_reports_like_any_other(
         "clip_norm": 1.0,
         "max_colluding": 1,
         "max_dropouts": 0,
+        "noise": "gaussian",
+        "sum_bound": None,
         "dropouts": {},
     }
     assert record["data"]["privacy_report"]["mode"]["mode"] == "distributed"
@@ -636,3 +649,238 @@ def test_the_strongest_attack_with_the_assumed_colluder_proves_no_more_than_the_
     # The attack is sharp, so the accounting is not loose either.
     estimate = gaussian_epsilon_lower_bound(without, with_target, DELTA, confidence=1e-9)
     assert estimate == pytest.approx(spent, rel=0.3)
+
+
+# --------------------------------------------------------------------------- whole-number noise
+
+FULL = sum(TRAIN_ROWS)
+
+
+def _whole(colluding: int = 1, dropouts: int = 0, **settings: Any) -> odp.Plan:
+    return odp.Plan(
+        dp=odp.DistributedDPSGD(
+            max_colluding=colluding, max_dropouts=dropouts, noise="skellam", **settings
+        ),
+        imbalance=ClassWeighted(0.2),
+        secure_sum=PairwiseMasking(),
+    )
+
+
+@pytest.fixture(scope="module")
+def whole_result(clients: list[ClientData]) -> odp.SimulationResult:
+    return _simulation(clients, plan=_whole(), batch_size=FULL, choose_threshold=True).run(seed=1)
+
+
+def test_whole_number_noise_needs_full_rounds_and_a_known_name(
+    clients: list[ClientData],
+) -> None:
+    with pytest.raises(ValueError, match="every row takes part"):
+        _simulation(clients, plan=_whole(), batch_size=FULL - 1)
+    with pytest.raises(ValueError, match="noise must be one of"):
+        odp.DistributedDPSGD(max_colluding=1, noise="laplace")
+    with pytest.raises(ValueError, match="sum_bound must be positive"):
+        odp.DistributedDPSGD(max_colluding=1, sum_bound=0.0)
+    # Still refused without a secure sum, like the Gaussian path.
+    with pytest.raises(ValueError, match="needs a secure sum"):
+        odp.Plan(dp=odp.DistributedDPSGD(max_colluding=1, noise="skellam"))
+
+
+def test_a_run_with_whole_number_noise_fits_its_budget(
+    clients: list[ClientData], whole_result: odp.SimulationResult
+) -> None:
+    report = whole_result.report
+    assert report is not None
+    step = plan_integer_step(129)
+    expected = calibrate_skellam(1.0, DELTA, ROUNDS, step.l2_sensitivity, step.l1_sensitivity)
+    assert _simulation(clients, plan=_whole(), batch_size=FULL).calibrations()["site-1"] == (
+        expected
+    )
+    assert set(whole_result.noise_multipliers.values()) == {expected.noise_multiplier}
+    for scope in report.scopes:
+        assert scope.events == (
+            SkellamEvent(expected.variance, step.l2_sensitivity, step.l1_sensitivity, ROUNDS),
+        )
+        assert 0.995 < scope.epsilon <= 1.0
+        assert scope.check.single_method
+    assert report.is_safe
+    stored = report.to_dict()
+    assert odp.verify_report(stored) == []
+    assert stored["scopes"][0]["events"][0]["mechanism"] == "skellam"
+    assert stored["mode"]["noise"] == "skellam"
+    assert stored["mode"]["steps_per_share"] is None
+    # Editing the stored noise is noticed like any other edit.
+    stored["scopes"][0]["events"][0]["variance"] *= 2.0
+    assert odp.verify_report(stored) != []
+
+
+def test_the_report_of_whole_number_noise_drops_the_rounding_caveat(
+    whole_result: odp.SimulationResult, shared_result: odp.SimulationResult
+) -> None:
+    assert whole_result.report is not None
+    assert shared_result.report is not None
+    text = whole_result.report.summary()
+    assert "The noise is made of whole numbers." in text
+    assert "rests on no argument about rounding" in text
+    assert "not yet by a machine-checked proof" not in text
+    assert "the one method proven for whole-number noise" in text
+    assert "numpy's Poisson routine" in text
+    assert "Budget by the real number of participants who pool with the server:" in text
+    assert chr(0x2014) not in text
+    # The Gaussian path keeps its caveat and is not told about Poisson draws.
+    other = shared_result.report.summary()
+    assert "not yet by a machine-checked proof" in other
+    assert "numpy's Poisson routine" not in other
+    table = whole_result.report.mode.table  # type: ignore[union-attr]
+    assert table[1].epsilon == pytest.approx(whole_result.report.epsilon)
+    assert [row.epsilon for row in table] == sorted(row.epsilon for row in table)
+
+
+def test_a_run_with_whole_number_noise_learns_and_is_repeatable(
+    clients: list[ClientData], whole_result: odp.SimulationResult
+) -> None:
+    assert whole_result.test["auc"] > 0.85
+    record = whole_result.to_record()
+    validate_result(record)
+    assert record["config"]["plan"]["dp"]["noise"] == "skellam"
+    communication = whole_result.communication
+    assert communication["saturated_share"] == 0.0
+    assert communication["upload_bytes_per_round"] == math.ceil(
+        129 * communication["bits_per_value"] / 8
+    )
+    again = _simulation(clients, plan=_whole(), batch_size=FULL, choose_threshold=True).run(seed=1)
+    assert np.array_equal(flatten_state(again.state), flatten_state(whole_result.state))
+    # A declared limit on the sums gives smaller messages; here it cuts nothing off.
+    bounded = _simulation(clients, plan=_whole(sum_bound=40.0), batch_size=FULL).run(seed=1)
+    assert bounded.communication["bits_per_value"] < communication["bits_per_value"]
+    assert bounded.test["auc"] == pytest.approx(whole_result.test["auc"], abs=0.02)
+    assert bounded.to_record()["config"]["plan"]["dp"]["sum_bound"] == 40.0
+    # A limit far too small cuts the sums off, which the result reports. The budget holds
+    # all the same, because the limit is applied before the noise.
+    tiny = _simulation(clients, plan=_whole(sum_bound=0.5), batch_size=FULL).run(seed=1)
+    assert tiny.communication["saturated_share"] > 0.3
+    assert tiny.report is not None
+    assert tiny.report.is_safe
+    cut = _simulation(
+        clients,
+        plan=odp.Plan(
+            dp=odp.DistributedDPSGD(max_colluding=1, sum_bound=0.05),
+            imbalance=ClassWeighted(0.2),
+            secure_sum=PairwiseMasking(),
+        ),
+    ).run(seed=1)
+    assert cut.communication["saturated_share"] > 0.3
+
+
+def test_a_failed_round_with_whole_number_noise_is_charged(clients: list[ClientData]) -> None:
+    result = _simulation(clients, plan=_whole(), batch_size=FULL, dropouts={2: ["site-0"]}).run(
+        seed=1
+    )
+    report = result.report
+    assert report is not None
+    assert report.mode is not None
+    assert (report.mode.attempts, report.mode.completed_rounds) == (ROUNDS, ROUNDS - 1)
+    releases = {scope.scope: scope.events[0].repetitions for scope in report.scopes}
+    assert releases == {"site-0": ROUNDS - 1, "site-1": ROUNDS, "site-2": ROUNDS}
+    assert report.within_budget
+    assert odp.verify_report(report.to_dict()) == []
+
+
+@pytest.mark.parametrize(("colluding", "dropouts"), [(1, 0), (2, 1)])
+def test_the_opened_sum_carries_the_stated_whole_number_noise(
+    colluding: int, dropouts: int
+) -> None:
+    count, clip, rate = 5, 0.7, 0.25
+    silent = _silent_clients(count)
+    rows = sum(client.n_train for client in silent)
+    plan = odp.Plan(
+        dp=odp.DistributedDPSGD(
+            max_colluding=colluding, max_dropouts=dropouts, clip_norm=clip, noise="skellam"
+        ),
+        secure_sum=PairwiseMasking(),
+    )
+    result = odp.Simulation(
+        model_fn=lambda: _Silent(WIDTH),
+        clients=silent,
+        plan=plan,
+        policy=odp.PrivacyPolicy(1.0, DELTA),
+        rounds=1,
+        batch_size=rows,
+        learning_rate=rate,
+    ).run(seed=3)
+    assert result.report is not None
+    event = result.report.scopes[0].events[0]
+    assert isinstance(event, SkellamEvent)
+    step = plan_integer_step(WIDTH)
+    unit = clip / step.scale
+    slice_variance = event.variance / (count - colluding - dropouts)
+    # In grid points the opened sum is whole numbers: nothing was rounded after the noise.
+    opened = _opened_sum(result, divisor=float(rows), rate=rate) / unit
+    assert np.abs(opened - np.round(opened)).max() < 1e-3
+    assert opened.var() == pytest.approx(count * slice_variance, rel=0.1)
+    known = sum(
+        skellam_noise((WIDTH,), slice_variance, numpy_generator(3, "noise", 0, index))
+        for index in range(colluding)
+    )
+    left = (np.round(opened) - known).var()
+    assert left == pytest.approx((count - colluding) * slice_variance, rel=0.1)
+    # What the honest participants supply is at least the noise the ledger was charged with.
+    assert left >= 0.95 * event.variance
+
+
+def _whole_attack_scores(with_target: bool, trials: int, seed: int) -> tuple[list[float], float]:
+    """The attack of ``_attack_scores`` against one release with whole-number noise."""
+    width, clip, count = 6, 1.0, 3
+    step = plan_integer_step(width)
+    planned = calibrate_skellam(1.0, DELTA, 1, step.l2_sensitivity, step.l1_sensitivity)
+    slice_variance = planned.variance / (count - 1)
+    grid = plan_integer_grid(
+        clip / step.scale, math.ceil(4 * step.l2_sensitivity), math.sqrt(slice_variance), count
+    )
+    modulus = np.uint64(2**grid.modulus_bits)
+    data = torch.Generator().manual_seed(0)
+    tables = [torch.randn(3, width, generator=data) for _ in range(count)]
+    target = torch.zeros(1, width)
+    target[0, 0] = 3.0
+    if with_target:
+        tables[0] = torch.cat([tables[0], target])
+    rounding = np.random.default_rng(seed)
+    noise = np.random.default_rng(seed + 1)
+    model = _Silent(width)
+    scores = []
+    spent = 0.0
+    for _ in range(trials):
+        ledger = PrivacyLedger(odp.PrivacyPolicy(50.0, DELTA))
+        total = np.zeros(width, dtype=np.uint64)
+        messages = []
+        for index, table in enumerate(tables):
+            message = integer_sum_step(
+                model,
+                table,
+                torch.ones(table.shape[0]),
+                loss_fn=lambda output, label: -output * label,
+                ledger=ledger,
+                scope=f"site-{index}",
+                clip_norm=clip,
+                step=step,
+                variance=planned.variance,
+                share_variance=slice_variance,
+                rounding_generator=rounding,
+                noise_generator=noise,
+            )
+            messages.append(message)
+            total = (total + grid.wrap(message)) % modulus
+        honest = grid.decode_sum(total) / grid.step - messages[-1]
+        scores.append(-float(honest[0]))
+        spent = ledger.spent("site-0")
+    return scores, spent
+
+
+def test_the_attack_on_whole_number_noise_proves_no_more_than_the_ledger() -> None:
+    without, spent = _whole_attack_scores(False, 2000, seed=10)
+    with_target, _ = _whole_attack_scores(True, 2000, seed=20)
+    assert spent == pytest.approx(1.0, abs=0.01)
+    proven = gaussian_epsilon_lower_bound(without, with_target, DELTA, confidence=0.999)
+    assert proven <= spent
+    # The attack gets most of the way: the count is not loose by much.
+    estimate = gaussian_epsilon_lower_bound(without, with_target, DELTA, confidence=1e-9)
+    assert estimate == pytest.approx(spent, rel=0.35)

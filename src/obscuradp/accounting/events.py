@@ -10,12 +10,14 @@ Events are small frozen records with plain numbers. They carry no data.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 MECHANISM_GAUSSIAN = "gaussian"
 MECHANISM_SUBSAMPLED_GAUSSIAN = "poisson_subsampled_gaussian"
+MECHANISM_SKELLAM = "skellam"
 
 
 @dataclass(frozen=True)
@@ -97,7 +99,62 @@ class SubsampledGaussianEvent:
         }
 
 
-Event = GaussianEvent | SubsampledGaussianEvent
+@dataclass(frozen=True)
+class SkellamEvent:
+    """Whole-number (Skellam) noise added to a whole-number value, repeated ``count`` times.
+
+    Skellam noise is the difference of two independent Poisson counts. ``variance`` is the
+    variance of the noise in every coordinate. The value is a vector of whole numbers that
+    one record can change by at most ``l2_sensitivity`` in length and ``l1_sensitivity`` in
+    the sum of absolute changes. Every record takes part in every release (no sampling).
+    """
+
+    variance: float
+    l2_sensitivity: float
+    l1_sensitivity: float
+    count: int = 1
+
+    def __post_init__(self) -> None:
+        if not self.variance > 0.0 or not math.isfinite(self.variance):
+            raise ValueError("variance must be positive")
+        if not self.l2_sensitivity > 0.0 or not self.l1_sensitivity > 0.0:
+            raise ValueError("sensitivities must be positive")
+        if self.l1_sensitivity < self.l2_sensitivity * (1.0 - 1e-12):
+            raise ValueError("l1_sensitivity cannot be below l2_sensitivity")
+        _check_count(self.count, "count")
+
+    @property
+    def noise_multiplier(self) -> float:
+        """Standard deviation of the noise divided by ``l2_sensitivity``."""
+        return math.sqrt(self.variance) / self.l2_sensitivity
+
+    @property
+    def key(self) -> tuple[Any, ...]:
+        return (MECHANISM_SKELLAM, self.variance, self.l2_sensitivity, self.l1_sensitivity)
+
+    @property
+    def repetitions(self) -> int:
+        return self.count
+
+    def with_repetitions(self, count: int) -> SkellamEvent:
+        return SkellamEvent(self.variance, self.l2_sensitivity, self.l1_sensitivity, count)
+
+    def with_noise_multiplier(self, noise_multiplier: float) -> SkellamEvent:
+        """The same releases with another amount of noise (for "what if" tables in a report)."""
+        variance = (noise_multiplier * self.l2_sensitivity) ** 2
+        return SkellamEvent(variance, self.l2_sensitivity, self.l1_sensitivity, self.count)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "mechanism": MECHANISM_SKELLAM,
+            "variance": self.variance,
+            "l2_sensitivity": self.l2_sensitivity,
+            "l1_sensitivity": self.l1_sensitivity,
+            "count": self.count,
+        }
+
+
+Event = GaussianEvent | SubsampledGaussianEvent | SkellamEvent
 
 
 def event_from_dict(data: Mapping[str, Any]) -> Event:
@@ -108,6 +165,13 @@ def event_from_dict(data: Mapping[str, Any]) -> Event:
     if mechanism == MECHANISM_SUBSAMPLED_GAUSSIAN:
         return SubsampledGaussianEvent(
             float(data["noise_multiplier"]), float(data["sampling_rate"]), int(data["steps"])
+        )
+    if mechanism == MECHANISM_SKELLAM:
+        return SkellamEvent(
+            float(data["variance"]),
+            float(data["l2_sensitivity"]),
+            float(data["l1_sensitivity"]),
+            int(data.get("count", 1)),
         )
     raise ValueError(f"unknown mechanism {mechanism!r}")
 

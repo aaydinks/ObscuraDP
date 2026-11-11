@@ -158,7 +158,9 @@ class ModeReport:
         max_colluding: $t$ (distributed mode only).
         max_dropouts: $d$ (distributed mode only).
         steps_per_share: How many grid steps one noise slice spans (its standard deviation
-            divided by the rounding step of the secure sum; distributed mode only).
+            divided by the rounding step of the secure sum; distributed mode with Gaussian
+            noise only).
+        noise: ``"gaussian"`` or ``"skellam"`` (distributed mode only).
         table: The budget for every number of colluding participants (distributed mode).
     """
 
@@ -170,6 +172,7 @@ class ModeReport:
     max_dropouts: int | None = None
     steps_per_share: float | None = None
     table: tuple[CollusionRow, ...] = ()
+    noise: str | None = None
 
     def __post_init__(self) -> None:
         if self.mode not in MODES:
@@ -193,6 +196,8 @@ class ModeReport:
                 steps_per_share=self.steps_per_share,
                 collusion_table=[row.to_dict() for row in self.table],
             )
+            if self.noise is not None:
+                data["noise"] = self.noise
         return data
 
     def lines(self) -> list[str]:
@@ -226,7 +231,14 @@ class ModeReport:
                 "missing participants made every slice larger and the rows above are better "
                 "than the stated budget."
             )
-        if self.steps_per_share is not None:
+        if self.noise == "skellam":
+            lines.append(
+                "The noise is made of whole numbers. Every row took part in every round. "
+                "Each row's contribution was rounded before the noise was added and its "
+                "length was checked exactly, so the budget rests on no argument about "
+                "rounding and no floating-point number carries the noise."
+            )
+        elif self.steps_per_share is not None:
             lines.append(
                 f"Each participant rounds its noisy sum to whole numbers before the secure "
                 f"sum, on a grid {self.steps_per_share:g} times finer than its noise slice. "
@@ -337,11 +349,19 @@ class PrivacyReport:
                 f"Budget spent by the run as a whole: epsilon = {self.epsilon:.4g} "
                 f"({verdict} budget; the largest spend of any scope)."
             )
-            lines.append(
-                f"Cross-checks of that number: lower estimate {self._worst().check.pld_lower:.4g}, "
-                f"older RDP method {self._worst().check.rdp:.4g} (an upper limit, always looser)."
-            )
-            lines += [f"Note: {text}." for text in self._worst().check.warnings()]
+            if self._worst().check.single_method:
+                lines.append(
+                    "Counted with the RDP method, the one method proven for whole-number "
+                    "noise. For comparison: ordinary noise of the same size would cost "
+                    f"{self._worst().check.pld_lower:.4g} by the tighter method."
+                )
+            else:
+                lines.append(
+                    "Cross-checks of that number: lower estimate "
+                    f"{self._worst().check.pld_lower:.4g}, older RDP method "
+                    f"{self._worst().check.rdp:.4g} (an upper limit, always looser)."
+                )
+                lines += [f"Note: {text}." for text in self._worst().check.warnings()]
             lines.append(
                 "Worst case for an attacker guessing whether a record was used "
                 "(true-positive rate minus false-positive rate): "

@@ -105,7 +105,9 @@ What the shared-noise mode assumes, as built in S12 (`obscuradp.DistributedDPSGD
   missing.
 - Values are never cut off before the secure sum. They are rounded on a grid a quarter of a slice wide and
   wrap around the modulus. That the rounding leaves the budget unchanged is argued and checked numerically,
-  not machine-proven; the whole-number noise of S13 removes that gap.
+  not machine-proven. With `noise="skellam"` (S13) the gap does not exist: each record is rounded before
+  the noise is added, its length is checked exactly, and the noise is whole numbers whose slices add up
+  exactly. That path counts full rounds only and its budget comes from one proven method (RDP).
 
 ## What every privacy report will state
 
