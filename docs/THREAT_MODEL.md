@@ -62,7 +62,7 @@ maximum number that drop out.
 | `LocalDPSGD` + secure sum | record | Yes | Yes, and the server also cannot see individual updates | Yes | Secure sum that hides individual messages |
 | `DistributedDPSGD(t, d)` + secure sum | record | Yes, total budget | Yes, if at most $t$ collude | Yes, if at most $t$ collude and $t \ge 1$ (a participant always knows its own slice of the noise); the budget degrades in a stated way beyond that | Secure sum; one step per round; refuses SPE |
 | `CentralDPSGD` | record | Yes | **No** (the server sees clean updates and adds the noise itself) | Yes | A trusted server. Shipped as an upper-bound baseline only, behind `allow_unsafe=True` |
-| `ClientLevelDP` | participant | Yes | Only with a secure sum | Yes | Thousands of participants; warns otherwise |
+| `ClientLevelDP` | participant | Yes | Only with a secure sum (then the participants share the noise and the server sees only the total); without one the server adds the noise and must be trusted | Yes, if at most $t$ collude | Thousands of participants; warns otherwise |
 
 Secure-sum backends:
 
@@ -108,6 +108,22 @@ What the shared-noise mode assumes, as built in S12 (`obscuradp.DistributedDPSGD
   not machine-proven. With `noise="skellam"` (S13) the gap does not exist: each record is rounded before
   the noise is added, its length is checked exactly, and the noise is whole numbers whose slices add up
   exactly. That path counts full rounds only and its budget comes from one proven method (RDP).
+
+What the whole-participant mode assumes, as built in S14 (`obscuradp.ClientLevelDP`):
+
+- The budget covers everything one participant contributes to training: replacing all of its rows by
+  nothing changes what anyone outside can learn by at most the stated amount. The number of participants
+  is treated as public.
+- Each participant decides by its own secret coin whether it takes part in a round. With the secure sum,
+  every participant sends a message every round (its shortened change or nothing, plus a slice of the
+  noise), so neither the server nor the other participants learn who took part. The assumptions of the
+  shared-noise mode above apply unchanged: the stated number of colluders, unchanged public keys, a
+  charge for failed rounds, and the argued rounding step.
+- Without the secure sum the server sees every change and adds the noise. That run needs
+  `allow_unsafe=True` and its report carries the "trusted server" flag.
+- A participant's validation and test rows are outside the budget.
+- With few participants the noise that hides one of them swamps the signal (measured in S14: no better
+  than guessing with five participants at a budget of 1). The library warns below 1,000.
 
 ## What every privacy report will state
 

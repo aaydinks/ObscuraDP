@@ -2,9 +2,10 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-11): S1 and S3 to S13 are done. The Phase 2 gate is closed** (the owner answered
-every decision on 2026-11-10, second table below). Phase 3 is under way: S14 (comparison at equal budgets
-and the default plan) is next.
+**Current state (2026-11-11): S1 and S3 to S14 are done. Phase 3 is complete.** The Phase 2 gate is closed
+(the owner answered every decision on 2026-11-10, second table below). One decision waits for the owner
+without blocking anything: the default plan, proposed in `adr/0005-default-plan.md`. Phase 4 (attack
+tests, S15) is next.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -57,8 +58,9 @@ are a record of what was run and are not rewritten.
       Gate closed 2026-11-10
 - [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
       aaydinks/ObscuraDP#31, merged by the owner as `c4e559d`
-- [x] S13, Phase 3: integer noise path. aaydinks/ObscuraDP#32
-- [ ] S14, Phase 3: equal-budget comparison, measured bytes, default plan
+- [x] S13, Phase 3: integer noise path. aaydinks/ObscuraDP#32, merged as `5f09379`
+- [x] S14, Phase 3: equal-budget comparison, measured bytes, per-participant mode, default plan
+      (proposed). aaydinks/ObscuraDP#33
 - [ ] S15, Phase 4: membership audit and nightly check
 - [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
 - [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
@@ -67,6 +69,109 @@ are a record of what was run and are not rewritten.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S14 log (2026-11-11)
+
+### What was done
+
+- **`obscuradp.ClientLevelDP`** with `PrivacyPolicy(unit="client")`: a budget that protects a whole
+  participant with all of its rows (the owner asked for it inside this step). Each participant takes
+  part by its own secret coin, trains without noise and shortens its change to the shared model. With
+  the secure sum every participant sends a message every round and adds a slice of the noise; without it
+  the server adds the noise and the run needs `allow_unsafe=True`. One ledger entry for the group. It
+  warns below 1,000 participants.
+- **The comparison** (`benchmarks/phase3/`, results in `benchmarks/results/phase3/`): nine ways of running
+  a federation at equal total budgets on both research tables, with the research network and logistic
+  regression. 960 runs, ten seeds for stroke and five for loan, about four hours of computing spread
+  over four cores. Settings were chosen on made-up tables only (1,728 short runs).
+- **`docs/PHASE3_RESULTS.md`**: the results in plain words with their limits.
+- **`docs/adr/0005-default-plan.md`**: a proposal for the default plan, **waiting for the owner**. Nothing
+  in the library's defaults changed.
+- **Tests**: 30 more for the new mode and the comparison scripts, for 734 in total.
+
+### Results in short (details and limits in `docs/PHASE3_RESULTS.md`)
+
+- **Stroke: sharing the noise is better than local noise** at the same total budget, measured against the
+  better of two local arms: by 0.01 to 0.03 AUC for logistic regression from a budget of 1, and by 0.04 to
+  0.05 for the network from a budget of 2 (ordinary noise) or 4 (whole-number noise). At a budget of 1
+  logistic regression reaches 0.800 to 0.806 against 0.774 with local noise and 0.832 without protection.
+  At budgets 0.5 and 1 for the network, and 0.5 for logistic regression, the averages favour sharing but
+  the difference is not shown.
+- **Loan: no difference that matters** (every row-level arm between 0.958 and 0.967).
+- **Whole-number noise does about as well as ordinary noise.**
+- **The trusted server is not clearly ahead of shared noise.**
+- **Messages**: per round, shared ordinary noise is at 0.38 to 0.41 of plain size and whole-number noise
+  at 0.57 to 0.69. Over a whole run the shared modes upload 2 to 14 times what local noise uploads,
+  because they need 60 to 600 rounds.
+- **Whole participants cannot be protected in a group of five** (AUC about 0.5 at a budget of 1).
+- **8-bit values** cost 0.022 AUC in one of eight cells; 12-bit values cost nothing anywhere.
+- Encrypted (CKKS) updates are about 235 kB each: 17 times plain for the stroke network, 59 times for the
+  loan network.
+
+### What was verified and how
+
+- 728 tests pass in the pull-request selection with the pinned versions (Python 3.11), coverage of
+  `src/obscuradp` 98%; 566 pass with the newest versions (Python 3.13). The 6 slow tests run nightly; the
+  two new ones (the attack on a whole participant, and rebuilding the stored summary from all 960 runs)
+  were run once by hand and pass.
+- `python -m benchmarks.phase3.report` exits with status 0: 960 records validated, 930 privacy reports
+  recomputed from their recorded releases, none over budget, unsafe flags only on the trusted-server
+  runs (by design).
+- **The new scripts measure what Phase 2 measured**: the local arm and the baseline at the five Phase 2
+  seeds (120 runs) give exactly the stored Phase 2 numbers.
+- The memo's tables are generated by `report.headline_markdown` and a test checks that the memo contains
+  them exactly.
+- **Whole-participant mode**: every refusal; no participant moves the sum by more than the clipping norm
+  (property test); the opened sum carries $N$ slices and at least the charged noise after the assumed
+  colluders remove theirs; a participant that pulls hard arrives shortened to the clipping norm; a
+  failed round is charged; who takes part comes from the operating system with `secure_noise=True`. A
+  full attack check (1,500 runs with and without the target participant) runs nightly: what it proves
+  stays below the ledger's figure.
+- The tests can fail: slices of half the size broke 3 tests; an unshortened change broke 2. Both changes
+  were reverted.
+- **Nothing else moved**: the final weights of five seeded runs of the earlier modes have the same sha256
+  as on `main` before this step.
+- `ruff check`, `ruff format --check`, strict `mypy`, the ignore-rule guard, the research fingerprint check,
+  the package build and the release-contents check pass (the results do not enter the package).
+
+### Deviations from the plan
+
+- **A ninth arm was added: local noise with its rounds chosen like the other arms.** Without it only the
+  new modes would have had their number of rounds tuned. It turned out worse than the Phase 2 protocol at
+  strict budgets on stroke, so **the yardstick became "the better local arm"** at each table, model and
+  budget. It is picked after looking at the held-out rows, which can only favour local noise.
+- **The decision record is a proposal, not a decision.** The roadmap says it "chooses the default from
+  the table". Which plan the library runs by default is the owner's call; the record gives a
+  recommendation (keep local noise as the default, recommend shared noise for groups of few small
+  participants) and the alternative.
+- The encryption arm is a measurement of message sizes only. What a model learns under it is what the
+  local arm learns, so it was not run as an arm.
+- The whole-participant mode has ordinary noise only, and with thousands of participants the pairwise
+  secure sum will be slow to simulate. S17 has to deal with that.
+- The comparison used one assumed colluder throughout.
+- Loan has five seeds, not ten: its arms differ by less than 0.01 and it is not the case in doubt.
+
+### Environment
+
+- **A long job only makes progress while the session is working.** The settings search stood still for
+  about an hour and a half while the session waited for it idle; the machine had been suspended and
+  resumed. Later sessions should stay active (short waits in a loop) while a long computation runs, and
+  make such jobs resumable, as `tune.py --cache` and `run.py` are.
+- The owner switched planning mode on before S13 and S14; the session presented a plan each time and went
+  on once it was approved.
+
+### Open items
+
+- **For the owner: `docs/adr/0005-default-plan.md`.** Keep local noise as the default (proposed) or make
+  shared noise the default. Nothing waits for this before S22.
+- Several chosen settings are the largest on their grid (600 rounds, a batch of 640, a learning rate of
+  3). A wider search might favour the shared modes more, or other arms.
+- S15: the attack tests, including the measured attacker advantage at a budget of 1.
+- Website wording on message sizes: fewer bytes per round holds for some modes, not fewer bytes in total
+  (for S22, with items 29 to 32 of `WEBSITE_MISMATCHES.md`).
+- Carried forward for the owner: the license field on the two Kaggle pages (`docs/DATASETS.md`); the
+  merged remote branches `cu/trusting-pasteur-sms0ou-s03-website` and `cu/trusting-pasteur-sms0ou`;
+  TestPyPI setup before S22.
 
 ## S13 log (2026-11-11)
 

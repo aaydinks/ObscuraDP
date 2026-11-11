@@ -11,6 +11,9 @@ without touching user code. Three ways of adding the noise exist:
   and on how many participants pool what they know with the server.
 - ``CentralDPSGD``: the server sees clean sums and adds the noise. A baseline for
   comparisons that needs a trusted server.
+
+These three protect one row of a participant's table. ``ClientLevelDP`` protects a whole
+participant with all of its rows, which only pays off when there are very many participants.
 """
 
 from __future__ import annotations
@@ -187,14 +190,119 @@ class CentralDPSGD:
         )
 
 
+SMALL_FEDERATION = 1000
+
+
+class SmallFederationWarning(UserWarning):
+    """A whole-participant budget was asked for with fewer than 1,000 participants."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class ClientLevelDP:
+    """Protect a whole participant: its presence or absence, with all of its rows.
+
+    The other modes protect one row. This one protects everything a participant
+    contributes, which is the right unit when a participant is one person (a phone, a
+    patient's device). Use it with ``PrivacyPolicy(..., unit="client")``.
+
+    Every round, each participant takes part with probability ``sampling_rate``, decided by
+    its own secret coin. A participant that takes part trains on its rows without noise and
+    shortens its change to the shared model to length at most ``clip_norm``. Noise is then
+    added to the sum of those changes:
+
+    - **With a secure sum** every participant sends a message every round (its shortened
+      change or nothing) plus a slice of the noise, as in ``DistributedDPSGD``. The server
+      sees only the total, and ``max_colluding`` must be given.
+    - **Without one** the server sees every change and adds the noise itself. That needs a
+      trusted server, so the run needs ``allow_unsafe=True`` and its report says why.
+
+    The noise has to hide one whole participant among the others. With a handful of
+    participants that leaves little signal: the mode is meant for a thousand participants
+    or more, and warns below that.
+
+    Args:
+        sampling_rate: Probability $q$ with which a participant takes part in a round.
+        clip_norm: $S$, the most one participant can move the shared model in one round.
+        max_colluding: With a secure sum: the largest number of participants assumed to
+            pool what they know with the server. No default; leave it out without a secure
+            sum.
+        max_dropouts: With a secure sum: the largest number of participants assumed to be
+            missing from a sum (see ``DistributedDPSGD``).
+    """
+
+    sampling_rate: float
+    clip_norm: float = 1.0
+    max_colluding: int | None = None
+    max_dropouts: int = 0
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.sampling_rate <= 1.0:
+            raise ValueError("sampling_rate must be in (0, 1]")
+        if not self.clip_norm > 0:
+            raise ValueError("clip_norm must be positive")
+        for name in ("max_colluding", "max_dropouts"):
+            value = getattr(self, name)
+            if value is None and name == "max_colluding":
+                continue
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a non-negative whole number")
+
+    def honest_shares(self, participants: int) -> int:
+        """Slices the guarantee counts on among ``participants``: $N - t - d$."""
+        if self.max_colluding is None:
+            raise ValueError("max_colluding is needed when the participants share the noise")
+        return honest_shares(participants, self.max_colluding, self.max_dropouts)
+
+    def share_noise_multiplier(self, noise_multiplier: float, participants: int) -> float:
+        """Noise multiplier of one slice: $\\sigma / \\sqrt{N - t - d}$."""
+        if self.max_colluding is None:
+            raise ValueError("max_colluding is needed when the participants share the noise")
+        return share_noise_multiplier(
+            noise_multiplier, participants, self.max_colluding, self.max_dropouts
+        )
+
+    def protection(self, participants: int, *, shared: bool) -> tuple[str, ...]:
+        """Who is protected from whom, in plain words."""
+        lines = [
+            "The budget protects a whole participant: everything it contributes to training, "
+            "all of its rows together. The number of participants is treated as public.",
+        ]
+        if not shared:
+            lines += [
+                "The server sees every participant's change to the model without noise. "
+                "Participants are not protected from the server.",
+                "The server adds the noise before it publishes a model. Participants are "
+                "protected, at the stated budget, from anyone who sees only the models, "
+                "including the other participants.",
+            ]
+            return tuple(lines)
+        t, d = self.max_colluding, self.max_dropouts
+        lines += [
+            f"Each of the {participants} participants sends a message every round, whether "
+            "it takes part or not, and adds a slice of the noise. The slices are added up "
+            "inside the secure sum, so neither the server nor anyone else learns who took "
+            "part.",
+            "Participants are protected, at the stated budget, from the server and from "
+            f"anyone who sees a model, as long as at most {t} of the participants pool what "
+            f"they know with the server and at most {d} are missing from a sum. The table in "
+            "this report shows the budget for other numbers.",
+            "The server receives every message hidden under masks that only cancel in the "
+            "sum. It can read the sum of all messages and no single one, provided it passes "
+            "the participants' public keys on unchanged.",
+            "If a participant's message is missing, the sum cannot be opened, the model does "
+            "not move, and the round still counts against the budget.",
+        ]
+        return tuple(lines)
+
+
 @dataclass(frozen=True)
 class Plan:
     """The means a run uses.
 
     Args:
-        dp: How privacy noise is added: ``LocalDPSGD``, ``DistributedDPSGD`` or
-            ``CentralDPSGD``. ``None`` means no privacy protection at all (a baseline for
-            comparison).
+        dp: How privacy noise is added: ``LocalDPSGD``, ``DistributedDPSGD``,
+            ``CentralDPSGD`` or ``ClientLevelDP``. ``None`` means no privacy protection at
+            all (a baseline for comparison).
         imbalance: How a rare outcome is handled (see ``obscuradp.imbalance``).
         secure_sum: How individual updates are hidden from the server. ``None`` sends them
             in the clear (with ``LocalDPSGD`` they still carry each participant's own
@@ -206,10 +314,13 @@ class Plan:
     Raises:
         ValueError: For ``DistributedDPSGD`` without a secure sum (a single message would be
             protected by a slice of the noise only; ``allow_unsafe`` cannot override this),
-            and for ``CentralDPSGD`` with one.
+            for ``CentralDPSGD`` with one, and for ``ClientLevelDP`` whose ``max_colluding``
+            does not fit its secure sum.
     """
 
-    dp: LocalDPSGD | DistributedDPSGD | CentralDPSGD | None = field(default_factory=LocalDPSGD)
+    dp: LocalDPSGD | DistributedDPSGD | CentralDPSGD | ClientLevelDP | None = field(
+        default_factory=LocalDPSGD
+    )
     imbalance: Imbalance = field(default_factory=NoRebalancing)
     secure_sum: PairwiseMasking | None = None
     proximal_mu: float = 0.0
@@ -238,6 +349,23 @@ class Plan:
             )
         if self.single_step and self.proximal_mu > 0:
             raise ValueError("proximal_mu has no effect with one step per round; leave it at 0")
+        if isinstance(self.dp, ClientLevelDP):
+            if self.secure_sum is None and self.dp.max_colluding is not None:
+                raise ValueError(
+                    "max_colluding only has a meaning when the participants share the noise "
+                    "through a secure sum; add secure_sum=PairwiseMasking() or leave it out"
+                )
+            if self.secure_sum is not None and self.dp.max_colluding is None:
+                raise ValueError(
+                    "with a secure sum the participants share the noise, so ClientLevelDP "
+                    "needs max_colluding (how many of them may work with the server)"
+                )
+            if self.secure_sum is not None and self.secure_sum != PairwiseMasking():
+                raise ValueError(
+                    "ClientLevelDP plans the range and rounding of its messages itself "
+                    "(cutting values off would remove noise that others rely on); use "
+                    "PairwiseMasking() with its default settings"
+                )
 
     @property
     def single_step(self) -> bool:

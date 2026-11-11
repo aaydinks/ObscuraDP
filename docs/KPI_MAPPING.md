@@ -76,6 +76,15 @@ What this means:
 - Measured in S12 for the shared-noise mode with floating-point noise: 12 bits per number for three
   participants and 14 bits for the five stroke-sized participants at a total budget of 1 (ratios 0.38 and
   0.44).
+- Measured in S14 over the whole comparison (`docs/PHASE3_RESULTS.md`), per round against 32-bit numbers:
+  local noise through the secure sum 0.47 to 0.48 (12-bit values) and 0.34 to 0.36 (8-bit values); shared
+  ordinary noise 0.38 to 0.41; shared whole-number noise 0.57 to 0.69; whole-participant mode 0.31 to
+  0.32; CKKS 17 times plain for the stroke network and 59 times for the loan network. **Over a whole run
+  the shared-noise modes upload more than local noise** (2 to 14 times), because they need 60 to 600
+  rounds where local noise needs 20. The target is worded per round; the website must not suggest fewer
+  bytes in total for those modes.
+- Answer to the open question of S1 (does rounding to 8 bits cost accuracy): in one of eight cells, yes
+  (stroke network at a budget of 1: 0.022 AUC, interval 0.003 to 0.041); nowhere with 12 bits.
 - Measured in S13 for the shared-noise mode with whole-number noise (five participants, total budget 1,
   20 to 100 full rounds): **18 to 22 bits per number (ratios 0.56 to 0.69)** when the range covers the
   largest sum that is possible at all. With a declared limit of 30 clipping norms per number

@@ -20,7 +20,7 @@ for a server that is trusted to add the noise itself.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,6 +31,7 @@ from torch import nn
 from obscuradp.accounting.events import SkellamEvent, SubsampledGaussianEvent
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.dpsgd import (
+    CLIP_MARGIN,
     Gradients,
     LossFunction,
     check_per_record_model,
@@ -409,6 +410,51 @@ def integer_sum_step(
         total = np.clip(total, -sum_bound, sum_bound)
     noise = skellam_noise(total.shape, share_variance, noise_generator)
     return np.asarray(total + noise, dtype=np.int64)
+
+
+def clipped_model_change(
+    model: nn.Module,
+    start: Sequence[torch.Tensor],
+    clip_norm: float,
+    weight: float = 1.0,
+) -> torch.Tensor:
+    """How far local training moved the model, shortened to length at most ``clip_norm``.
+
+    This is one participant's whole contribution to a round when the budget protects whole
+    participants. Whatever the participant's rows are, the result is never longer than
+    ``weight * clip_norm``, so adding or removing the participant changes the sum over all
+    participants by at most ``clip_norm``. A change that is not a finite number counts as
+    nothing.
+
+    Args:
+        model: The model after local training.
+        start: The values of its trainable parameters before training, in the order of
+            ``model.parameters()``.
+        clip_norm: $S$, the longest allowed change.
+        weight: A public factor in (0, 1] by which this participant counts less than the
+            full ``clip_norm`` (for example its share of the largest table).
+
+    Returns:
+        The shortened change as one 64-bit vector over the trainable parameters.
+    """
+    if not clip_norm > 0.0:
+        raise ValueError("clip_norm must be positive")
+    if not 0.0 < weight <= 1.0:
+        raise ValueError("weight must be in (0, 1]")
+    trainable = [value for value in model.parameters() if value.requires_grad]
+    if len(trainable) != len(start) or not trainable:
+        raise ValueError("start must hold one tensor per trainable parameter")
+    change = torch.cat(
+        [
+            (after.detach().double() - before.detach().double().to(after.device)).flatten()
+            for after, before in zip(trainable, start, strict=True)
+        ]
+    )
+    norm = float(change.norm())
+    if not math.isfinite(norm):
+        return torch.zeros_like(change)
+    limit = clip_norm * (1.0 - CLIP_MARGIN)
+    return change * (weight * min(1.0, limit / max(norm, 1e-300)))
 
 
 def train_plain_round(

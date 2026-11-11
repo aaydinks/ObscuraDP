@@ -75,6 +75,13 @@ public interface.
   tests compare with an exact computation. Every row takes part in every round in this path.
 - `DistributedDPSGD(sum_bound=...)`: an optional public limit on a participant's sums, for smaller
   messages. Every result reports the share of numbers it cut off.
+- `obscuradp.ClientLevelDP` with `PrivacyPolicy(unit="client")`: a budget that protects a whole participant
+  with all of its rows. With the secure sum every participant sends a message every round and adds a
+  slice of the noise; without it the server adds the noise and the run is flagged. Warns below 1,000
+  participants.
+- Phase 3 results (`benchmarks/results/phase3/`, `docs/PHASE3_RESULTS.md`): every way of adding the noise
+  compared at equal total budgets on the two research tables, 960 runs. A proposal for the default plan
+  is in `docs/adr/0005-default-plan.md`.
 - `obscuradp.CentralDPSGD`: a trusted server adds the noise. A baseline for comparisons, refused unless
   `allow_unsafe=True` and then flagged in the report.
 - `obscuradp.compression.SumGrid`: whole numbers for a secure sum that never cut a value off (values wrap
