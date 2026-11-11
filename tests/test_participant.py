@@ -32,7 +32,9 @@ from obscuradp.state import flatten_state, get_state
 from obscuradp.tables import ClientData, make_client_data
 from obscuradp.unsafe import UnsafeConfiguration
 
-pytestmark = pytest.mark.filterwarnings("ignore::obscuradp.plan.SmallFederationWarning")
+# Matched by its text, not by its class: another test re-imports the package, after which a
+# filter that names the class would look at a different class object than the one raised.
+pytestmark = pytest.mark.filterwarnings("ignore:protecting whole participants with only")
 
 DELTA = 1e-5
 ROUNDS = 6

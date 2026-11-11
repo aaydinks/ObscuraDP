@@ -12,6 +12,12 @@ runs of the same table, model, budget and seed, which they must equal exactly. W
 A difference between two arms is computed seed by seed (the same seed means the same split
 of the table), and counts as shown only if the 95% interval of those differences does not
 contain zero.
+
+The yardstick for the new arms is "the better local arm": of the two arms in which every
+participant adds all of its own noise (the Phase 2 protocol, and the same with rounds chosen
+on made-up tables), the one with the higher mean AUC at that table, model and budget. It is
+picked after looking at the held-out rows, which can only favour local noise, so a gain
+shown against it is on the safe side.
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ PHASE2_RUNS = ROOT / "benchmarks" / "results" / "phase2" / "runs"
 DATASETS = ("stroke", "loan")
 REFERENCES = ("local", "local_tuned")
 COMPARED = ("local_tuned", "shared", "shared_whole", "server")
+SMALL_NUMBERS = ("local_masked", "local_masked8")
 NAMES = {
     BASELINE: "no protection",
     "local": "local noise (Phase 2 protocol)",
@@ -156,6 +163,16 @@ def summarize(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 if other is not None and arm != reference:
                     for name in ("auc", "ap"):
                         row[f"{name}_minus_{reference}"] = _differences(members, other, name)
+            both = [groups.get((dataset, model, reference, epsilon)) for reference in REFERENCES]
+            if arm not in REFERENCES and all(other is not None for other in both):
+                means = [
+                    sum(d["test"]["auc"] for d in other.values()) / len(other)  # type: ignore[union-attr]
+                    for other in both
+                ]
+                best = 0 if means[0] >= means[1] else 1
+                row["best_local_arm"] = REFERENCES[best]
+                for name in ("auc", "ap"):
+                    row[f"{name}_minus_best_local"] = _differences(members, both[best], name)  # type: ignore[arg-type]
         rows.append(row)
     order = [BASELINE, *ARMS]
     rows.sort(
@@ -216,12 +233,27 @@ def difference_table(rows: list[dict[str, Any]], dataset: str, measure: str, ref
     ]
     for model in MODELS:
         for arm in COMPARED:
-            if arm == reference:
+            if arm == reference or (reference == "best_local" and arm in REFERENCES):
                 continue
             cells = []
             for budget in BUDGETS:
                 row = index.get((dataset, model, arm, budget))
                 stat = None if row is None else row.get(f"{measure}_minus_{reference}")
+                cells.append("" if stat is None else _difference_cell(stat))
+            lines.append(f"| {model} | {NAMES[arm]} | " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def small_numbers_table(rows: list[dict[str, Any]], dataset: str) -> str:
+    """Local noise through the secure sum with 12-bit and 8-bit values, against the clear."""
+    index = _index(rows)
+    lines = ["| Model | Arm | 1 | 8 |", "|---|---|---|---|"]
+    for model in MODELS:
+        for arm in SMALL_NUMBERS:
+            cells = []
+            for budget in FEW_BUDGETS:
+                row = index.get((dataset, model, arm, budget))
+                stat = None if row is None else row.get("auc_minus_local")
                 cells.append("" if stat is None else _difference_cell(stat))
             lines.append(f"| {model} | {NAMES[arm]} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
@@ -306,9 +338,9 @@ def headline_markdown(rows: list[dict[str, Any]]) -> str:
             "",
             measure_table(rows, dataset, "test_auc"),
             "",
-            f"**{dataset.capitalize()} table, difference in AUC against local noise with tuned rounds** (mean of the seed-by-seed differences, 95% interval in brackets; marked only if the interval excludes zero)",
+            f"**{dataset.capitalize()} table, difference in AUC against the better local arm** (mean of the seed-by-seed differences, 95% interval in brackets; marked only if the interval excludes zero)",
             "",
-            difference_table(rows, dataset, "auc", "local_tuned"),
+            difference_table(rows, dataset, "auc", "best_local"),
             "",
         ]
     return "\n".join(parts).rstrip("\n")
@@ -333,13 +365,21 @@ def markdown(rows: list[dict[str, Any]], problems: list[str], count: int, compar
             "",
             measure_table(rows, dataset, "test_ap"),
             "",
-            "### Difference in average precision against local noise with tuned rounds",
+            "### Difference in average precision against the better local arm",
             "",
-            difference_table(rows, dataset, "ap", "local_tuned"),
+            difference_table(rows, dataset, "ap", "best_local"),
             "",
             "### Difference in AUC against local noise with the Phase 2 protocol",
             "",
             difference_table(rows, dataset, "auc", "local"),
+            "",
+            "### Difference in AUC against local noise with tuned rounds",
+            "",
+            difference_table(rows, dataset, "auc", "local_tuned"),
+            "",
+            "### Does rounding to fewer bits cost accuracy? (difference in AUC against local noise in the clear)",
+            "",
+            small_numbers_table(rows, dataset),
             "",
             "### At the cut-off chosen on validation rows",
             "",

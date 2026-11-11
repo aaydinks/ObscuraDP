@@ -104,12 +104,16 @@ The example above uses `LocalDPSGD`. The `dp` setting of a `Plan` chooses who ad
 | `LocalDPSGD()` | Every participant adds all the noise its own rows need | Nothing beyond the participant itself | The safe default |
 | `DistributedDPSGD(max_colluding=t)` with `secure_sum=PairwiseMasking()` | Every participant adds a slice; the slices add up inside the secure sum | The secure sum, and that at most `t` participants pool what they know with the server | Less noise in total. The report prints the budget for every other number of colluders |
 | the same with `noise="skellam"` | As above, with whole-number noise and every row in every round | As above | No floating-point number carries the noise and no rounding has to be argued away. Needs somewhat more noise and larger messages |
+| `ClientLevelDP(sampling_rate=q, max_colluding=t)` with `PrivacyPolicy(unit="client")` and the secure sum | Every participant adds a slice, every round | As for `DistributedDPSGD` | Protects a whole participant, not one row. Only useful with a thousand participants or more; the library warns below that |
 | `CentralDPSGD()` with `allow_unsafe=True` | The server, which sees every participant's clean sums | The server, completely | A baseline for comparisons only |
 
 `DistributedDPSGD` is refused without a secure sum, because a single message would carry only a slice of
 the noise. The argument for its budget, and the one step that is argued and not yet machine-proven, are
 in [`docs/SHARED_NOISE.md`](docs/SHARED_NOISE.md). Whether sharing the noise gives better models at the
-same budget is measured in a later step; nothing here claims it yet.
+same budget was measured on two small tables: on the harder one it does from a total budget of 1 or 2
+upwards, on the easier one it makes no real difference, and it always uploads more in total
+([`docs/PHASE3_RESULTS.md`](docs/PHASE3_RESULTS.md)). Which plan should be the default is proposed in
+[`docs/adr/0005-default-plan.md`](docs/adr/0005-default-plan.md) and not yet decided.
 
 ## Check that it works
 

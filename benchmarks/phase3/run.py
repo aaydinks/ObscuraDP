@@ -45,7 +45,14 @@ def settings_for(
         plain = phase2[f"{dataset}/{model}/none"]
         out.append(
             Setting(
-                dataset, model, BASELINE, None, seed, plain["learning_rate"], plain["clip_norm"]
+                dataset,
+                model,
+                BASELINE,
+                None,
+                seed,
+                plain["learning_rate"],
+                plain["clip_norm"],
+                2 if quick else ROUNDS,
             )
         )
         for arm, (_, budgets) in ARMS.items():
@@ -77,8 +84,6 @@ def settings_for(
                         epochs,
                     )
                 )
-    if quick:
-        out[0] = Setting(dataset, out[0].model, BASELINE, None, seed, out[0].learning_rate, 1.0, 2)
     return out
 
 
