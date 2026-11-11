@@ -57,7 +57,7 @@ are a record of what was run and are not rewritten.
       Gate closed 2026-11-10
 - [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
       aaydinks/ObscuraDP#31, merged by the owner as `c4e559d`
-- [x] S13, Phase 3: integer noise path. PRNUMBER13
+- [x] S13, Phase 3: integer noise path. aaydinks/ObscuraDP#32
 - [ ] S14, Phase 3: equal-budget comparison, measured bytes, default plan
 - [ ] S15, Phase 4: membership audit and nightly check
 - [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
