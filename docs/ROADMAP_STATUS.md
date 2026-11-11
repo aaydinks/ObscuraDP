@@ -60,7 +60,7 @@ are a record of what was run and are not rewritten.
       aaydinks/ObscuraDP#31, merged by the owner as `c4e559d`
 - [x] S13, Phase 3: integer noise path. aaydinks/ObscuraDP#32, merged as `5f09379`
 - [x] S14, Phase 3: equal-budget comparison, measured bytes, per-participant mode, default plan
-      (proposed). PRNUMBER14
+      (proposed). aaydinks/ObscuraDP#33
 - [ ] S15, Phase 4: membership audit and nightly check
 - [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
 - [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
