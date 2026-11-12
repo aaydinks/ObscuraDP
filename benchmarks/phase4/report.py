@@ -169,7 +169,7 @@ def choose_shares(cells: dict[str, dict[int, dict[str, Any]]]) -> dict[str, Any]
         table[attack] = {}
         for share in GUESS_SHARES:
             limits = [
-                summarize(_summaries(runs), attack, share).epsilon_lower
+                summarize(_summaries(runs), attack, share, with_best_case=False).epsilon_lower
                 for runs in protected.values()
             ]
             table[attack][f"{share:g}"] = sum(limits) / len(limits)

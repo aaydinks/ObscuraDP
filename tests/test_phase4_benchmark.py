@@ -4,14 +4,17 @@ The scripts live in ``benchmarks/`` and are not part of the installed package, s
 tests only run from a full checkout of the repository.
 """
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 
 import obscuradp as odp
+from obscuradp.audit.attribute import attribute_from_schema
 from obscuradp.audit.membership import ATTACK_FINAL_MODEL, ATTACK_UPDATES, ATTACKS, GUESS_SHARES
 from obscuradp.mechanisms import dpsgd as dpsgd_module
 from obscuradp.results import validate_result
@@ -244,3 +247,195 @@ def test_the_stored_summary_is_what_the_report_script_produces(summary: dict[str
             assert fresh[key] == row[key]
         for key in ("epsilon_lower", "advantage", "advantage_low", "advantage_high", "best_case"):
             assert fresh[key] == pytest.approx(row[key], abs=1e-12)
+
+
+# --------------------------------------------------------------------------- further attacks (S16)
+
+from benchmarks.phase4 import more, report_more  # noqa: E402
+
+MORE = RESULTS / "more"
+MORE_MEMO = ROOT / "docs" / "PHASE4_MORE_ATTACKS.md"
+
+
+def _made_up_with_proper_columns(name: str, seed: int) -> list[Any]:
+    """A made-up table whose yes/no columns are encoded the way the real ones are."""
+    clients = []
+    for client in standin.make_standin(name, seed):
+        parts = {}
+        for part in ("train_x", "validation_x", "test_x"):
+            table = getattr(client, part).copy()
+            for column in more.HIDDEN_COLUMNS[name]:
+                hidden = attribute_from_schema(more.SCHEMAS[name], column)
+                first = table[:, hidden.columns[0]] > 0
+                if len(hidden.columns) == 1:  # a flag stored as one number
+                    table[:, hidden.columns[0]] = np.where(first, 1.0, -1.0)
+                else:  # one 0/1 column per category
+                    table[:, hidden.columns[0]] = first
+                    table[:, hidden.columns[1]] = ~first
+            parts[part] = table
+        clients.append(dataclasses.replace(client, **parts))
+    return clients
+
+
+@pytest.fixture(scope="module")
+def tiny_more(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The quick mode of every part on made-up tables shaped like the real ones."""
+    directory = tmp_path_factory.mktemp("more")
+    cache = tmp_path_factory.mktemp("cache")
+    patch = pytest.MonkeyPatch()
+    patch.setattr(more, "make_clients", _made_up_with_proper_columns)
+    patch.setattr(more, "DATASETS", ("stroke",))
+    # One model, and the rare rows on the split the other parts use: the noise levels, which
+    # take longest to work out, are then shared by all parts.
+    patch.setattr(more, "MODELS", ("logistic",))
+    try:
+        for arm, epsilon in more.PROTECTION[:2]:
+            task = ("stroke", "logistic", arm, epsilon, True, str(directory), str(cache))
+            assert more.shadow_cell(task) == more.cell_name("stroke", "logistic", arm, epsilon)
+        assert more.rare_seed((42, True, str(directory))) == "rare_stroke_seed-42"
+        assert more.inversion_part(str(directory), True) == "inversion"
+        # A finished part is not computed again.
+        before = (directory / "inversion.json").stat().st_mtime_ns
+        more.inversion_part(str(directory), True)
+        assert (directory / "inversion.json").stat().st_mtime_ns == before
+    finally:
+        patch.undo()
+    return directory
+
+
+def test_shadow_cells_store_figures_per_run_and_no_single_records_score(tiny_more: Path) -> None:
+    for name in ("none_eps-none", "local_eps-1"):
+        record = json.loads((tiny_more / f"shadow_stroke_logistic_{name}.json").read_text())
+        validate_result(record)
+        data = record["data"]
+        assert len(data["runs"]) == 8  # the quick mode's number of runs
+        assert data["rows_label_1"] < data["rows"] / 5
+        assert set(data["without_model"]) == set(more.HIDDEN_COLUMNS["stroke"])
+        for index, stored in enumerate(data["runs"]):
+            run = stored
+            assert set(run["shadow_advantage"]) == {"all", "label_1", "label_0"}
+            assert set(run["hidden_columns"]) == set(more.HIDDEN_COLUMNS["stroke"])
+            for figures in run["hidden_columns"].values():
+                assert all(0.0 <= value <= 1.0 for value in figures.values())
+            # Only the runs set apart as targets carry guesses that may be pooled.
+            assert ("pooled" in run) == (index < 4)
+            if "pooled" in run:
+                made, right = run["pooled"]["guesses"]
+                assert 0 <= right <= made <= run["pooled"]["canaries"] == data["rows"]
+            assert (run["epsilon"] is None) == (name == "none_eps-none")
+        # Nothing as long as the list of rows is stored.
+        assert len(json.dumps(record["data"])) < 12_000
+
+
+def test_the_rare_rows_are_all_test_records_beside_as_many_common_ones(tiny_more: Path) -> None:
+    record = json.loads((tiny_more / "rare_stroke_seed-42.json").read_text())
+    validate_result(record)
+    cells = record["data"]["cells"]
+    assert set(cells) == {f"stroke_logistic_local_eps-{budget}" for budget in (1, 8)}
+    clients = _made_up_with_proper_columns("stroke", 42)
+    rare = sum(int((client.train_y > 0.5).sum()) for client in clients)
+    # A participant with fewer common rows than rare ones adds all it has.
+    common = sum(
+        min(int((client.train_y > 0.5).sum()), int((client.train_y <= 0.5).sum()))
+        for client in clients
+    )
+    for stored in cells.values():
+        assert stored["canaries_label_1"] == rare
+        assert stored["canaries"] == rare + common
+        assert set(stored["advantage"]) == {ATTACK_UPDATES, ATTACK_FINAL_MODEL}
+
+
+def test_a_record_alone_is_read_back_and_a_protected_one_is_not(tiny_more: Path) -> None:
+    record = json.loads((tiny_more / "inversion.json").read_text())
+    validate_result(record)
+    for cell in record["data"]["cells"].values():
+        errors = cell["median_error"]
+        assert errors["alone, no protection"] < 1e-3
+        assert cell["share_within_10_percent"]["alone, no protection"] == 1.0
+        average = errors["no update at all (the average record)"]
+        # Behind the plan's noise, and among other records, nothing better than the average.
+        for view in ("alone, default plan, budget 1", "alone, default plan, budget 8"):
+            assert errors[view] > average
+            assert cell["share_within_10_percent"][view] == 0.0
+        assert errors["one of 32, no protection"] > 0.5 * average
+
+
+def test_the_tables_of_the_further_attacks_are_built_from_what_is_stored(
+    tiny_more: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(report_more, "DATASETS", ("stroke",))
+    monkeypatch.setattr(report_more, "MODELS", ("logistic",))
+    monkeypatch.setattr(report_more, "PROTECTION", more.PROTECTION[:2])
+    monkeypatch.setattr(report_more, "SHADOW_SEEDS", more.SHADOW_SEEDS[:8])
+    monkeypatch.setattr(report_more, "POOLED_TARGETS", more.POOLED_TARGETS[:4])
+    monkeypatch.setattr(report_more, "RARE_SEEDS", (42,))
+    monkeypatch.setattr(report_more, "RARE_BUDGETS", (1.0,))
+    summary = report_more.build_summary(tiny_more)
+    assert summary["failed_checks"] == []
+    assert (summary["shadow_runs"], summary["rare_runs"]) == (16, 1)
+    protected = summary["shadow"][1]
+    assert protected["budget"] == 1.0
+    assert protected["flagged"] is False
+    assert protected["pooled_runs"] == 4
+    assert protected["ceiling_any"] == pytest.approx(0.462, abs=1e-3)
+    assert summary["shadow"][0]["flagged"] is None
+    text = report_more.headline_markdown(summary)
+    for part in (
+        "Shadow models",
+        "the rare class apart",
+        "hidden yes/no column",
+        "Reading a record",
+    ):
+        assert part in text
+    assert chr(0x2014) not in text
+    # A cell that is missing is reported, not passed over.
+    monkeypatch.setattr(report_more, "PROTECTION", more.PROTECTION)
+    assert any("missing" in item for item in report_more.build_summary(tiny_more)["failed_checks"])
+
+
+@pytest.fixture(scope="module")
+def more_summary() -> dict[str, Any]:
+    if not (MORE / "summary.json").is_file():
+        pytest.skip("the results of the further attacks are not present")
+    data: dict[str, Any] = json.loads((MORE / "summary.json").read_text(encoding="utf-8"))
+    return data
+
+
+def test_the_stored_further_attacks_are_complete_and_passed_their_checks(
+    more_summary: dict[str, Any],
+) -> None:
+    assert more_summary["failed_checks"] == []
+    assert more_summary["shadow_runs"] == 2 * 2 * 3 * 32
+    assert more_summary["rare_runs"] == 2 * 2 * 30
+    assert more_summary["guess_share"] == 0.05
+    for row in more_summary["shadow"]:
+        if row["budget"] is None:
+            continue
+        # No protected cell leaks more than its report states, by either sign.
+        assert row["flagged"] is False
+        assert row["shadow"]["all"]["mean"] <= row["ceiling_mechanism"]
+        assert row["epsilon_lower"] <= row["budget"]
+    for cell in more_summary["inversion"].values():
+        assert cell["median_error"]["alone, no protection"] < 1e-3
+        assert cell["share_within_10_percent"]["alone, default plan, budget 1"] == 0.0
+
+
+def test_the_memo_of_the_further_attacks_quotes_the_stored_numbers(
+    more_summary: dict[str, Any],
+) -> None:
+    if not MORE_MEMO.is_file():
+        pytest.skip("the memo of the further attacks is not present")
+    memo = MORE_MEMO.read_text(encoding="utf-8")
+    assert report_more.headline_markdown(more_summary) in memo
+    assert chr(0x2014) not in memo
+    stored = (MORE / "summary.md").read_text(encoding="utf-8")
+    assert report_more.headline_markdown(more_summary) in stored
+
+
+@pytest.mark.slow
+def test_the_stored_further_attacks_are_what_the_report_script_produces(
+    more_summary: dict[str, Any],
+) -> None:
+    rebuilt = report_more.build_summary()
+    assert rebuilt["failed_checks"] == []
+    assert json.loads(json.dumps(rebuilt)) == more_summary

@@ -18,7 +18,7 @@ import torch
 import obscuradp as odp
 from benchmarks.phase2.common import BATCH_SIZE, LOCAL_EPOCHS, ROUNDS
 from benchmarks.phase3.common import Setting, build_simulation
-from obscuradp.audit.membership import AuditRun, audit_run, summarize_run
+from obscuradp.audit.membership import AuditRun, SimulationBuilder, audit_run, summarize_run
 from obscuradp.mechanisms import dpsgd
 from obscuradp.tables import ClientData
 
@@ -76,9 +76,8 @@ def noise_switched_off() -> Iterator[None]:
         dpsgd.gaussian_noise = honest
 
 
-def audit_setting(setting: Setting, clients: Sequence[ClientData]) -> AuditRun:
-    """Audit one run. ``setting.arm`` may be any arm of ``ARMS``."""
-    torch.set_num_threads(1)
+def builder(setting: Setting) -> SimulationBuilder:
+    """How to build the simulation of ``setting`` for an audit that leaves rows out."""
     real = replace(setting, arm=SETTINGS_OF.get(setting.arm, setting.arm))
 
     def build(rows: Sequence[ClientData], declared: Mapping[str, int]) -> odp.Simulation:
@@ -86,10 +85,28 @@ def audit_setting(setting: Setting, clients: Sequence[ClientData]) -> AuditRun:
         # The audit needs no validation scores and no chosen cut-off.
         return replace(simulation, declared_rows=dict(declared), choose_threshold=False)
 
+    return build
+
+
+def audit_setting(
+    setting: Setting,
+    clients: Sequence[ClientData],
+    eligible: Mapping[str, Any] | None = None,
+) -> AuditRun:
+    """Audit one run. ``setting.arm`` may be any arm of ``ARMS``.
+
+    ``eligible`` limits the test records to the named rows of each participant, with every
+    one of them a test record.
+    """
+    torch.set_num_threads(1)
+    build = builder(setting)
+    options: dict[str, Any] = (
+        {} if eligible is None else {"eligible": eligible, "fraction": 1.0, "cap": 10**9}
+    )
     if setting.arm == SILENT:
         with noise_switched_off():
-            return audit_run(build, clients, setting.seed)
-    return audit_run(build, clients, setting.seed)
+            return audit_run(build, clients, setting.seed, **options)
+    return audit_run(build, clients, setting.seed, **options)
 
 
 def run_setting(setting: Setting, clients: Sequence[ClientData]) -> dict[str, Any]:
@@ -122,6 +139,7 @@ __all__ = [
     "SETTINGS_OF",
     "SILENT",
     "audit_setting",
+    "builder",
     "noise_switched_off",
     "run_setting",
 ]

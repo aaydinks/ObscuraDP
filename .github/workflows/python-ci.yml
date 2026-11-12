@@ -48,7 +48,8 @@ jobs:
   test:
     name: Tests (Python ${{ matrix.python }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # The suite takes about 16 minutes on the slowest runner (Windows) since the attack tests.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
