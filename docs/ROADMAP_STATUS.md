@@ -75,7 +75,7 @@ are a record of what was run and are not rewritten.
 - [x] S15, Phase 4: membership audit, public attack checks, self-test, nightly check.
       aaydinks/ObscuraDP#34, merged as `c41a5c7`
 - [x] S16, Phase 4: shadow models, attribute inference, gradient inversion, the stroke table by class.
-      Pull request to follow
+      aaydinks/ObscuraDP#35
 - [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
 - [ ] S18, Phase 5: benchmark runs
 - [ ] S19, Phase 5: Flower adapter
