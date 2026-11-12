@@ -107,6 +107,14 @@ public interface.
   changes nothing an observer could read off directly. Runs that use neither are unchanged.
 - Phase 4 results (`benchmarks/results/phase4/`, `docs/PHASE4_ATTACK_TESTS.md`): attack tests on the two
   research tables, 1,080 runs, with the measured attacker advantage at every budget.
+- `obscuradp.audit.shadow`: the shadow-model attack, which judges each record against how the same
+  record fared in other runs. `obscuradp.audit.attribute`: guessing a hidden column with the model,
+  against an attacker without it. `obscuradp.audit.inversion`: reading a record back out of an update.
+- `obscuradp.audit.membership.audit_run(eligible=...)` tests one group of rows, for example those of a
+  rare class; an audited run reports its test records' labels.
+- Further Phase 4 results (`benchmarks/results/phase4/more/`, `docs/PHASE4_MORE_ATTACKS.md`): the three
+  further attacks and the stroke table read by class. They correct one statement of the first memo: the
+  rows of the rare class are far easier to find than the average row.
 
 ### Changed
 

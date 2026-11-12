@@ -53,6 +53,19 @@ the mitigation. Review this file at every gate.
   length. The measured average on the stroke table says little about the rare rows. To be measured
   apart in S16.
 
+## Changes after S16 (2026-11-12)
+
+- **"Averages hide groups of rows" has happened.** On the stroke table the rows of the rare class are
+  found with an advantage of 5.4% and 9.0% at a total budget of 1 and 23% to 30% at a budget of 8,
+  against about 0% for the common class (`docs/PHASE4_MORE_ATTACKS.md`). All of it is within the proven
+  limits. Consequences: the S15 statement "met on the stroke table" was corrected; documentation and
+  website must give figures by kind of row where classes are weighted (S21, S22); the benchmark of S17
+  and S18 reports attack results by class.
+- **Risk 8, attacker advantage:** the 5% target at a total budget of 1 is now met for no table as a
+  whole.
+- **Risk 13:** the shadow-model attack was added as the second opinion. For an outsider with the final
+  model it agrees with S15: nothing measurable behind the default plan.
+
 ## Triggers that reopen a decision
 
 - Any independent finding that the default plan leaks more than its report states: stop feature work, fix,

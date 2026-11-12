@@ -4,10 +4,16 @@ Date: 2026-11-11. Written in step S15. Every number below comes from
 `benchmarks/results/phase4/summary.json`, which is built from 1,080 stored runs by
 `python -m benchmarks.phase4.report`. The full tables are in `benchmarks/results/phase4/summary.md`.
 
+**Corrected in step S16 (2026-11-12).** Where this memo says the 5% target holds on the stroke table,
+that is true of the average row only. Read by class, the rows of the rare class are found with an
+advantage of 5.4% and 9.0% at a total budget of 1 (`docs/PHASE4_MORE_ATTACKS.md`). The numbers below are
+unchanged; the sentences they support are marked.
+
 ## In one paragraph
 
-The target "at most 5% attacker advantage at a budget of 1" **holds on the stroke table and does not
-hold on the loan table**, measured against the stronger of the two attacks on whole runs. On the loan
+The target "at most 5% attacker advantage at a budget of 1" **holds on the stroke table (for the
+average row only, see the correction above) and does not hold on the loan table**, measured against the
+stronger of the two attacks on whole runs. On the loan
 table the attacker the default plan is written for reaches an advantage of 4.3% (network) and 5.3%
 (logistic regression) at a total budget of 1, with intervals that reach 5.6% and 6.3%; on the stroke
 table it does no better than a coin (-1.1% and 0.5%). All of this is below the proven limits (10.6% for
@@ -200,7 +206,8 @@ What these numbers say:
    4% of the rows) and shorten every row of the common class to about 3% of the clipping length, so 96%
    of the test records can barely move the model. The few rows of the rare class keep the full length
    and are probably as exposed as loan rows. The stored counts do not separate the classes; step S16
-   should measure them apart.
+   should measure them apart. (It did: 5.4% and 9.0% for the rare class at a budget of 1, about 0%
+   for the common class. See `docs/PHASE4_MORE_ATTACKS.md`.)
 3. **The loan figures are a large share of what is possible at all.** At a budget of 0.5 the plan's
    attacker reaches 3.6% of a proven 5.6%; at a budget of 1, 5.3% of 10.6%. Loan rows pull harder than
    the clipping length allows, so each is shortened to exactly that length, which is the worst case the
@@ -294,7 +301,7 @@ the pilot, before any reported run; the first pilot was discarded and repeated.
 
 | Target | Now |
 |---|---|
-| At most 5% attacker advantage at a total budget of 1 | **Measured. Met on the stroke table** (upper ends -0.1% and 1.4%), **not met on the loan table** (4.3% and 5.3%, upper ends 5.6% and 6.3%). On the loan table the network is within 5% at a budget of 0.5; logistic regression is at 3.6% there with an upper end of 5.0%. Proven limits at a budget of 1: 10.6% for the noise used, 46.2% for any method |
+| At most 5% attacker advantage at a total budget of 1 | **Measured. Met on the stroke table for the average row** (upper ends -0.1% and 1.4%; not for its rare class, see the correction at the top), **not met on the loan table** (4.3% and 5.3%, upper ends 5.6% and 6.3%). On the loan table the network is within 5% at a budget of 0.5; logistic regression is at 3.6% there with an upper end of 5.0%. Proven limits at a budget of 1: 10.6% for the noise used, 46.2% for any method |
 | Mathematically guaranteed privacy | Unchanged, and now tested from outside: no protected run exceeded what its report states, and a pipeline with its noise switched off is caught |
 
 For the website (step S22, new item 33 of `docs/WEBSITE_MISMATCHES.md`): the sentence about 5% cannot
