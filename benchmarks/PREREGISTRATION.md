@@ -236,4 +236,55 @@ pull request that adds this file.
 
 ## Amendments
 
-None.
+### 2026-11-12, before the first run of the search and of the benchmark
+
+Written in step S18, after the plan's commit (`ad2289c`) and before any run named in sections 4 and 5.
+None of these changes a dataset, an arm, a budget, a seed or the judging rule. They fix details the text
+above left open, so that they cannot be chosen after results are seen.
+
+1. **Attack tests by class on the health table (section 7).** They are run on the default plan (arm
+   "local") with the settings the search chooses, for logistic regression and for the network, at budgets
+   1 and 8, seeds 1100 to 1129. The test records of a hospital are all its training rows of the rare
+   class and equally many of the other class, drawn at random, as in step S16. Both attacks of step S15
+   are used, with the share of guesses fixed there (5%). Reason: section 7 named neither the arm nor the
+   models.
+2. **Attack test on whole writers (section 7).** One attempt, one run: handwriting, a budget of 8, seed
+   1100, the settings the search chooses. 400 writers are drawn at random as test units; each is kept or
+   left out of the whole run by a fair coin, and every other writer takes part as usual. The attacker
+   sees the sum that is opened in every round, knows the images of the 400 test writers, and does not
+   know who was drawn in which round. For every round it works out what each test writer would have
+   sent and takes out the direction that all test writers share. The scores of all test writers are
+   then worked out together, as the set of scores that best explains what is left of the opened sums
+   (the decoding step S15 used for rows). Guesses are made for the 5% highest and the 5% lowest scores. The attack is built and tried on a small made-up
+   group only, never on this run. If it cannot be built and run within about three hours of computing,
+   the results say "not done". Reason: section 7 described no attack.
+3. **The small real case of section 10.** All 60 writers take part in every round (a round would draw
+   200, more than there are), 6 of them are assumed to work with the server, and the learning rate and
+   the clipping norm are those the search chooses for handwriting. Real and simulated secure sum are
+   compared seed by seed with the rule of section 8 (Student's t with two degrees of freedom): they
+   agree if the interval of their difference contains zero. Reason: section 10 named neither the
+   participation nor what "agree" means in numbers.
+4. **A search run whose score is not a number** counts as the worst setting. Reason: section 5 did not
+   say what happens when a learning rate is too large for a run to stay finite.
+5. **What the search stores.** One small record per run with the scores on validation rows, the time
+   and the budget spent; scores on test rows are not computed into any stored file. Everything tried
+   and everything chosen goes to `benchmarks/results/phase5/settings.json`, which is committed before
+   the first reported run.
+6. **Where runs are made.** Every run is made from a clean copy of the repository at a recorded
+   commit, so that the commit stored in a record names exactly the code that produced it.
+7. **How "unchanged" is checked (section 12).** The text above the line "Amendments" has the sha256
+   fingerprint `87e4c3b26b1240a69eb7fb1288a8889b8f89ed23357ec57d2a499ad93a197313`, computed on the file
+   with Unix line ends. A test compares it on every change, and the results check requires every run's
+   commit to come after the plan's commit `ad2289c`.
+8. **How expectations 1 to 3 are read (section 6).** "Shared noise" means each of the two shared arms,
+   and every statement is checked for both models.
+   - Expectation 1 is confirmed if, on the health and the stroke table, for both shared arms, both
+     models and every budget of 1, 2, 4 and 8, the difference "shared minus local" is above zero and
+     counts by the rule of section 8 (32 comparisons). Otherwise it is not confirmed, and the results
+     say in how many of the 32 it holds.
+   - Expectation 2 is confirmed if, on the loan table, the mean AUC of any two of the three protected
+     arms differs by at most 0.01, for both models at every budget (30 comparisons).
+   - Expectation 3 is confirmed if, at a budget of 8, the mean AUC of each shared arm is at most 0.03
+     below that of no protection, for both models on all three tables (12 comparisons).
+
+   Reason: section 6 did not say which shared arm and which model a statement is about.

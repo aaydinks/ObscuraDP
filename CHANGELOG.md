@@ -130,6 +130,11 @@ public interface.
 - `benchmarks/PREREGISTRATION.md`: the benchmark's plan, written before any of its runs.
   `benchmarks/phase5/`: checked downloads of two public datasets, their readers, the runner and the
   timing pilot. New optional dependency in the `bench` extra: `h5py`.
+- The benchmark's scripts (`benchmarks/phase5/`): `search` (learning rate and clipping norm on validation
+  rows, with seeds no reported run uses), `main` (the reported runs and a small case with the real
+  secure sum), `audit` (attack tests on the health table by class, and one on whole writers), `report`
+  (checks and tables, judged by the written rule) and `plan` (a guard that the plan's text above its
+  amendments is unchanged and that every run was made after it).
 
 ### Changed
 

@@ -7,7 +7,7 @@ closed (the owner answered every decision on 2026-11-10, second table below). Th
 decided: local noise stays the default (third table below, `adr/0005-default-plan.md`). The attack tests
 are in (`PHASE4_ATTACK_TESTS.md`, `PHASE4_MORE_ATTACKS.md`): no protected run leaked more than its report
 states, but the website's 5% target at a budget of 1 is met for no table as a whole. Phase 5 has begun:
-the benchmark's plan is written and its tools are built (S17); its runs (S18) are next.
+the benchmark's plan is written and its tools are built (S17); its runs (S18) are under way.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -78,8 +78,9 @@ are a record of what was run and are not rewritten.
       aaydinks/ObscuraDP#35, merged as `a82c1f4`
 - [x] S17, Phase 5: datasets, made-up health table, tasks with several classes, runner, pilot, the
       written plan (`benchmarks/PREREGISTRATION.md`; the tag is for the owner to set).
-      aaydinks/ObscuraDP#36
-- [ ] S18, Phase 5: benchmark runs
+      aaydinks/ObscuraDP#36, merged as `5b8e623`
+- [ ] S18, Phase 5: benchmark runs. In progress: the scripts and the plan's first amendments are in,
+      the runs follow
 - [ ] S19, Phase 5: Flower adapter
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit

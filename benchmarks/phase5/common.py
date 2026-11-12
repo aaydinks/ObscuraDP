@@ -171,8 +171,15 @@ class Setting:
         return f"{self.dataset}_{self.model}_{self.arm}_eps-{budget}_seed-{self.seed}"
 
 
-def build_simulation(setting: Setting, clients: list[ClientData]) -> odp.Simulation:
-    """The simulation for ``setting``."""
+def build_simulation(
+    setting: Setting, clients: list[ClientData], *, real_secure_sum: bool = False
+) -> odp.Simulation:
+    """The simulation for ``setting``.
+
+    For the many-participant datasets the secure sum is simulated unless ``real_secure_sum``
+    asks for the real one (the small confirming case of the written plan). The tables
+    always run the real one.
+    """
     data = DATASETS[setting.dataset]
     width = int(clients[0].train_x.shape[1])
     arm, clip = setting.arm, setting.clip_norm
@@ -224,7 +231,7 @@ def build_simulation(setting: Setting, clients: list[ClientData]) -> odp.Simulat
                 local_epochs=setting.local_epochs,
                 batch_size=setting.batch_size,
                 # Thousands of participants: the secure sum is simulated (see the written plan).
-                crypto_in_loop=False,
+                crypto_in_loop=real_secure_sum,
                 **common,
             )
     policy = None if setting.epsilon is None else odp.PrivacyPolicy(setting.epsilon, DELTA)
@@ -252,17 +259,23 @@ def build_simulation(setting: Setting, clients: list[ClientData]) -> odp.Simulat
 
 
 def run_setting(
-    setting: Setting, clients: list[ClientData], *, keep_test: bool = True
+    setting: Setting,
+    clients: list[ClientData],
+    *,
+    keep_test: bool = True,
+    real_secure_sum: bool = False,
 ) -> dict[str, Any]:
     """Run one setting and return its result record.
 
     ``keep_test=False`` leaves the scores on the test rows out of the record. The pilot
-    uses it: nothing may be chosen, or even seen, on test rows before the reported runs.
+    and the search use it: nothing may be chosen, or even seen, on test rows before the
+    reported runs.
     """
     torch.set_num_threads(1)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # read-only arrays mapped from the cache
-        result = build_simulation(setting, clients).run(seed=setting.seed)
+        simulation = build_simulation(setting, clients, real_secure_sum=real_secure_sum)
+        result = simulation.run(seed=setting.seed)
     base = result.to_record()
     data = {**base["data"], "label": setting.label}
     if not keep_test:
