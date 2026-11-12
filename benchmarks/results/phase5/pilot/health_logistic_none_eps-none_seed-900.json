@@ -1,0 +1,115 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "none",
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "dataset": "health",
+   "epsilon": null,
+   "learning_rate": 0.1,
+   "local_epochs": 1.0,
+   "model": "logistic",
+   "rounds": 30,
+   "seed": 900
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 0.1,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": null,
+  "rounds": 30,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "communication": {
+   "bits_per_value": 32.0,
+   "plain_bytes_per_round": 48.0,
+   "ratio": 1.0,
+   "saturated_share": 0.0,
+   "setup_bytes": 0.0,
+   "upload_bytes_per_round": 48.0
+  },
+  "history": [
+   {
+    "accuracy": 0.7797400866377874,
+    "ap": 0.2841116218513547,
+    "auc": 0.8107532099888788,
+    "f1": 0.26473859844271413,
+    "loss": 0.46857647383473905,
+    "precision": 0.1643646408839779,
+    "pred_pos_rate": 0.24125291569476842,
+    "recall": 0.68,
+    "round": 30
+   }
+  ],
+  "label": "health_logistic_none_eps-none_seed-900",
+  "noise_multipliers": {},
+  "privacy_report": null,
+  "seconds": 3.469443976002367,
+  "test": null,
+  "test_at_chosen_threshold": null,
+  "threshold": 0.5,
+  "validation": {
+   "accuracy": 0.7797400866377874,
+   "ap": 0.2841116218513547,
+   "auc": 0.8107532099888788,
+   "f1": 0.26473859844271413,
+   "loss": 0.46857647383473905,
+   "precision": 0.1643646408839779,
+   "pred_pos_rate": 0.24125291569476842,
+   "recall": 0.68
+  }
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "de1d019d4c4be8a1b795ef32376d2220a75932b18af69034589a15d983cd26c8",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T02:31:13+00:00",
+  "git_commit": "a82c1f421494dc49630051b692a1e379d0a14008+dirty",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   900
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

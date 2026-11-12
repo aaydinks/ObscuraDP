@@ -19,6 +19,7 @@ docutils==0.23
 dp-accounting==0.6.0
 filelock==4.2.10
 fsspec==2026.9.0
+h5py==3.16.0
 hypothesis==6.170.15
 id==1.6.1
 identify==2.6.20
@@ -33,7 +34,7 @@ jinja2==3.1.6
 keyring==25.7.0 ; platform_machine != 'ppc64le' and platform_machine != 's390x'
 lazy-importer==0.1.0 ; python_full_version < '3.12' and platform_machine != 'ppc64le' and platform_machine != 's390x'
 librt==0.16.0 ; platform_python_implementation != 'PyPy'
-markdown-it-py==4.2.0
+markdown-it-py==4.3.0
 markupsafe==3.0.4
 mdurl==0.1.2
 more-itertools==11.2.1 ; platform_machine != 'ppc64le' and platform_machine != 's390x'
