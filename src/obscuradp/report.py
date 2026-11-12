@@ -105,6 +105,26 @@ class CollusionRow:
         }
 
 
+# Up to this many participants the table has a row for every number of colluders.
+FULL_TABLE_UP_TO = 64
+_SHARES_OF_A_LARGE_GROUP = (0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 0.9)
+
+
+def collusion_counts(participants: int, max_colluding: int) -> tuple[int, ...]:
+    """The numbers of colluding participants the table has a row for.
+
+    Every number from 0 to $N - 1$ for groups of up to ``FULL_TABLE_UP_TO`` participants.
+    For larger groups a row each would take minutes to compute and nobody would read
+    thousands of them, so the table keeps: 0 to 8, the assumed number and the one after
+    it, fixed shares of the group from 1% to 90%, and $N - 1$.
+    """
+    if participants <= FULL_TABLE_UP_TO:
+        return tuple(range(participants))
+    chosen = set(range(9)) | {max_colluding, max_colluding + 1, participants - 1}
+    chosen |= {round(share * participants) for share in _SHARES_OF_A_LARGE_GROUP}
+    return tuple(sorted(count for count in chosen if 0 <= count < participants))
+
+
 def collusion_table(
     events_by_scope: Mapping[str, Sequence[Event]],
     delta: float,
@@ -114,7 +134,8 @@ def collusion_table(
 ) -> tuple[CollusionRow, ...]:
     """How the budget of a shared-noise run weakens with the real number of colluders.
 
-    One row for every number $t'$ of colluding participants from 0 to $N - 1$. The stored
+    One row for every number $t'$ of colluding participants from 0 to $N - 1$ (for large
+    groups a selection of them, see ``collusion_counts``). The stored
     releases carry the multiplier $\\sigma$ the run was calibrated for; a row recomputes the
     budget with $\\sigma \\sqrt{(N - t') / (N - t - d)}$ in its place and takes the largest
     result over all scopes. Rows up to $t' = t$ are within what the plan assumed.
@@ -124,7 +145,7 @@ def collusion_table(
     if not sigmas:
         raise ValueError("no release was recorded, so there is nothing to tabulate")
     rows = []
-    for colluding in range(participants):
+    for colluding in collusion_counts(participants, max_colluding):
         factor = math.sqrt((participants - colluding) / honest)
         worst = 0.0
         for events in events_by_scope.values():
@@ -249,7 +270,12 @@ class ModeReport:
         lines += [
             f"Assumed: at most {self.max_colluding} participant(s) pool what they know with "
             f"the server, at most {self.max_dropouts} are missing from a sum.",
-            "Budget by the real number of participants who pool with the server:",
+            "Budget by the real number of participants who pool with the server"
+            + (
+                ":"
+                if self.participants <= FULL_TABLE_UP_TO
+                else " (a selection of numbers; the group is large):"
+            ),
         ]
         for row in self.table:
             budget = "no protection" if row.unbounded else f"epsilon = {row.epsilon:.4g}"

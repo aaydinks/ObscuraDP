@@ -61,13 +61,13 @@ from obscuradp.crypto.pairwise_masking import (
     setup_pairwise_masking,
 )
 from obscuradp.crypto.roles import MissingParticipants
-from obscuradp.imbalance import UnsafeOversampling
+from obscuradp.imbalance import NoRebalancing, UnsafeOversampling
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms.dpsgd import check_per_record_model
 from obscuradp.mechanisms.noise import entropy_generator, gaussian_noise
 from obscuradp.mechanisms.shared_noise import default_sum_bound
 from obscuradp.mechanisms.skellam import IntegerStep, plan_integer_step
-from obscuradp.metrics import best_threshold, binary_metrics
+from obscuradp.metrics import best_threshold, binary_metrics, multiclass_metrics
 from obscuradp.plan import (
     SMALL_FEDERATION,
     CentralDPSGD,
@@ -97,9 +97,12 @@ from obscuradp.state import (
     unflatten_state,
 )
 from obscuradp.tables.split import ClientData
+from obscuradp.tasks import ManyClasses, Task, YesNo
 from obscuradp.unsafe import UnsafeFlags
 
 OPTIMIZERS = ("sgd", "adam")
+# Rows scored in one pass through the model. Every table of the earlier phases is smaller.
+SCORING_CHUNK = 16_384
 # The ledger scope of a run that protects whole participants: one budget for the group.
 GROUP_SCOPE = "all participants"
 
@@ -256,6 +259,20 @@ class Simulation:
             round, as a mapping from the round's number (counted from 0) to their names.
             Such a round fails: the secure sum cannot be opened, the model does not move,
             and everyone who sent a message is still charged.
+        participation: For a plan without protection only: the chance with which each
+            participant takes part in a round. Those who do train and are averaged; if
+            nobody does, the model stays where it is. The default of 1 has everybody take
+            part in every round. (In protected plans who takes part is part of the plan.)
+        crypto_in_loop: For ``ClientLevelDP`` with a secure sum only: set it to false to
+            **simulate** the secure sum. The participants' changes are then added up in the
+            clear and the noise of all slices is drawn in one piece, which gives the same
+            opened sum up to rounding without the key agreements and masks that make
+            thousands of participants slow to play on one machine. Nothing is hidden from
+            the machine that runs the simulation, and the report says so.
+        task: What the model predicts: a yes/no outcome (the default) or one of several
+            classes (``obscuradp.tasks.ManyClasses``). With several classes the labels are
+            whole numbers from 0, the model returns one raw score per class, and the run is
+            scored by accuracy.
         declared_rows: The public number of training rows of each participant, by name,
             where it differs from the number of rows actually given. Every place that
             would use a participant's size (the noise level, the chance of a row joining a
@@ -281,6 +298,9 @@ class Simulation:
     outputs: str | None = None
     dropouts: Mapping[int, Collection[str]] | None = None
     declared_rows: Mapping[str, int] | None = None
+    task: Task = field(default_factory=YesNo)
+    participation: float = 1.0
+    crypto_in_loop: bool = True
     _flags: UnsafeFlags = field(init=False, repr=False)
     _missing: dict[int, frozenset[str]] = field(init=False, repr=False)
 
@@ -307,6 +327,40 @@ class Simulation:
             raise ValueError("evaluate_every must not be negative")
         if self.outputs not in (None, "probability", "logit"):
             raise ValueError("outputs must be 'probability' or 'logit'")
+        if not 0.0 < self.participation <= 1.0:
+            raise ValueError("participation must be in (0, 1]")
+        if self.participation < 1.0 and (self.plan.dp is not None or self.plan.secure_sum):
+            raise ValueError(
+                "participation is for plans without protection and without a secure sum; "
+                "in ClientLevelDP who takes part is set by its sampling_rate"
+            )
+        if not self.crypto_in_loop and not (
+            isinstance(self.plan.dp, ClientLevelDP) and self.plan.secure_sum is not None
+        ):
+            raise ValueError(
+                "only the secure sum of ClientLevelDP can be simulated (crypto_in_loop=False)"
+            )
+        if not self.crypto_in_loop and self.dropouts:
+            raise ValueError("missing participants cannot be played with a simulated secure sum")
+        if isinstance(self.task, ManyClasses):
+            if self.outputs == "probability":
+                raise ValueError("with several classes the model returns raw scores, one per class")
+            if self.choose_threshold:
+                raise ValueError("a decision threshold only exists for a yes/no outcome")
+            if not isinstance(self.plan.imbalance, NoRebalancing):
+                raise ValueError("class weighting and oversampling are written for yes/no outcomes")
+            for client in self.clients:
+                for part in ("train_y", "validation_y", "test_y"):
+                    labels = getattr(client, part)
+                    if labels.size and not (
+                        bool(np.all(labels == np.round(labels)))
+                        and float(np.min(labels)) >= 0
+                        and float(np.max(labels)) < self.task.classes
+                    ):
+                        raise ValueError(
+                            f"{client.name}: labels must be whole numbers from 0 to "
+                            f"{self.task.classes - 1}"
+                        )
         if self.plan.dp is not None and self.policy is None:
             raise ValueError("a private plan needs a PrivacyPolicy with the total budget")
         if self.plan.dp is None and self.policy is not None:
@@ -537,7 +591,11 @@ class Simulation:
             tables.append(
                 (
                     torch.as_tensor(np.asarray(x, dtype=np.float32)),
-                    torch.as_tensor(np.asarray(y, dtype=np.float32)),
+                    torch.as_tensor(
+                        np.asarray(
+                            y, dtype=np.int64 if isinstance(self.task, ManyClasses) else np.float32
+                        )
+                    ),
                 )
             )
         return tables
@@ -597,6 +655,14 @@ class Simulation:
             },
             "policy": None if self.policy is None else self.policy.to_dict(),
             "clients": {client.name: client.n_train for client in self.clients},
+            # Only present when it is not the default: earlier records keep their fingerprint.
+            **(
+                {"task": {"classes": self.task.classes}}
+                if isinstance(self.task, ManyClasses)
+                else {}
+            ),
+            **({} if self.participation == 1.0 else {"participation": self.participation}),
+            **({} if self.crypto_in_loop else {"crypto_in_loop": False}),
             # Only present when it was set, so that earlier records keep their fingerprint.
             **({} if self.declared_rows is None else {"declared_rows": dict(self.declared_rows)}),
         }
@@ -622,7 +688,7 @@ class Simulation:
         shared = self.model_fn()
         worker = self.model_fn()
         from_logits = self._from_logits(shared)
-        loss_fn = self.plan.imbalance.loss(from_logits=from_logits)
+        loss_fn = self._loss(from_logits)
         tables = self._training_tables(seed)
         sizes = [int(x.shape[0]) for x, _ in tables]
         if self.declared_rows is not None:
@@ -693,7 +759,22 @@ class Simulation:
             )
         for round_index in range(0 if one_step else self.rounds):
             updates = []
-            for index, client in enumerate(self.clients):
+            present = list(range(len(self.clients)))
+            if self.participation < 1.0:
+                present = [
+                    index
+                    for index in present
+                    if float(
+                        torch.rand(
+                            1,
+                            generator=torch_generator(seed, "sampling", round_index, index, 1),
+                            dtype=torch.float64,
+                        )
+                    )
+                    < self.participation
+                ]
+            for index in present:
+                client = self.clients[index]
                 set_state(worker, state)
                 torch.manual_seed(derive_seed(seed, "train", round_index, index))
                 self._train_one(
@@ -711,8 +792,11 @@ class Simulation:
                 )
                 updates.append(get_state(worker))
             start = state
-            if aggregator is None:
-                state = aggregate_states(updates, sizes, weighted=self.weighted_average)
+            taking_part = [sizes[index] for index in present]
+            if not updates:
+                pass  # nobody took part: the model stays where it is
+            elif aggregator is None:
+                state = aggregate_states(updates, taking_part, weighted=self.weighted_average)
             else:
                 state, saturated = self._secure_average(
                     state, updates, sizes, maskers, aggregator, seed, round_index
@@ -731,8 +815,8 @@ class Simulation:
                         kind=RECORD_MODELS,
                         start=start,
                         messages={
-                            name: factor * (flatten_state(update) - origin)
-                            for name, factor, update in zip(names, factors, updates, strict=True)
+                            names[index]: factors[index] * (flatten_state(update) - origin)
+                            for index, update in zip(present, updates, strict=True)
                         },
                         masked=aggregator is not None,
                         total=flatten_state(state) - origin,
@@ -1108,13 +1192,15 @@ class Simulation:
             share = dp.clip_norm * dp.share_noise_multiplier(sigma, len(names))
             # No number of a shortened change can be larger than the clipping norm.
             grid = plan_sum_grid(share, dp.clip_norm, len(names))
-            maskers, aggregator = setup_pairwise_masking(names, grid.modulus_bits)
+            if self.crypto_in_loop:
+                maskers, aggregator = setup_pairwise_masking(names, grid.modulus_bits)
             communication.update(
                 upload_bytes_per_round=float(grid.message_bytes(length)),
                 ratio=grid.message_bytes(length) / plain,
                 bits_per_value=float(grid.modulus_bits),
                 setup_bytes=float(PUBLIC_KEY_BYTES * len(names)),
             )
+        simulated = grid is not None and not self.crypto_in_loop
 
         completed = 0
         for attempt in range(self.rounds):
@@ -1131,7 +1217,7 @@ class Simulation:
                     continue
                 coin = self._torch_stream(seed, "sampling", attempt, index)
                 takes_part = bool(torch.rand(1, generator=coin, dtype=torch.float64) < rate)
-                change = torch.zeros(length, dtype=torch.float64)
+                change: torch.Tensor | None = None
                 if takes_part:
                     set_state(worker, state)
                     torch.manual_seed(derive_seed(seed, "train", attempt, index))
@@ -1148,10 +1234,14 @@ class Simulation:
                         reference=state if mu > 0 else None,
                     )
                     change = clipped_model_change(worker, start, dp.clip_norm, weights[index])
-                if grid is None:
-                    total += change
-                    if observer is not None:
-                        sent[client.name] = change.numpy().copy()
+                if grid is None or simulated:
+                    # A participant that sits the round out changes nothing in a plain sum.
+                    if change is not None:
+                        total += change
+                    if observer is not None and not simulated:
+                        sent[client.name] = (
+                            np.zeros(length) if change is None else change.numpy().copy()
+                        )
                     continue
                 noise = gaussian_noise(
                     (length,),
@@ -1159,7 +1249,7 @@ class Simulation:
                     self._torch_stream(seed, "noise", attempt, index),
                     dtype=torch.float64,
                 )
-                vector = (change + noise).numpy()
+                vector = (noise if change is None else change + noise).numpy()
                 communication["saturated_share"] = max(
                     communication["saturated_share"], grid.outside_share(vector)
                 )
@@ -1174,9 +1264,12 @@ class Simulation:
                 except MissingParticipants:
                     opened = None
             else:
+                # A trusted server adds all the noise. A simulated secure sum adds what the
+                # slices of all participants would have added together.
+                deviation = share * math.sqrt(len(names)) if simulated else sigma * dp.clip_norm
                 server_noise = gaussian_noise(
                     (length,),
-                    sigma * dp.clip_norm,
+                    deviation,
                     self._torch_stream(seed, "noise", attempt, len(names)),
                     dtype=torch.float64,
                 )
@@ -1318,7 +1411,17 @@ class Simulation:
 
     # ------------------------------------------------------------------ scoring
 
+    def _loss(self, from_logits: bool) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+        """The loss of one batch, one value per row."""
+        if isinstance(self.task, ManyClasses):
+            return lambda output, target: nn.functional.cross_entropy(
+                output, target.long(), reduction="none"
+            )
+        return self.plan.imbalance.loss(from_logits=from_logits)
+
     def _from_logits(self, model: nn.Module) -> bool:
+        if isinstance(self.task, ManyClasses):
+            return True
         if self.outputs is not None:
             return self.outputs == "logit"
         return not bool(getattr(model, "probability_output", True))
@@ -1335,12 +1438,19 @@ class Simulation:
         model.eval()
         try:
             with torch.no_grad():
-                output = model(torch.as_tensor(features))
-                if from_logits:
+                # Large sets go through the model in pieces, to keep memory in bounds.
+                pieces = [
+                    model(torch.as_tensor(features[begin : begin + SCORING_CHUNK]))
+                    for begin in range(0, features.shape[0], SCORING_CHUNK)
+                ]
+                output = pieces[0] if len(pieces) == 1 else torch.cat(pieces)
+                if from_logits and not isinstance(self.task, ManyClasses):
                     output = torch.sigmoid(output)
                 probabilities = output.detach().cpu().numpy()
         finally:
             model.train(was_training)
+        if isinstance(self.task, ManyClasses):
+            return multiclass_metrics(probabilities, labels), probabilities, labels
         return binary_metrics(probabilities, labels), probabilities, labels
 
     def _caveats(self) -> tuple[str, ...]:
@@ -1367,6 +1477,13 @@ class Simulation:
                 f"With {len(self.clients)} participants, hiding one whole participant takes "
                 "noise of about the size of everything one participant contributes. Expect "
                 f"little accuracy below about {SMALL_FEDERATION} participants."
+            )
+        if not self.crypto_in_loop:
+            caveats.append(
+                "The secure sum was simulated: the participants' changes were added up in the "
+                "clear and the noise of all slices was drawn in one piece. The result is that "
+                "of the protected protocol up to rounding, but in this run nothing was hidden "
+                "from the machine that ran it."
             )
         if isinstance(self.plan.dp, DistributedDPSGD) or (
             isinstance(self.plan.dp, ClientLevelDP) and self.plan.secure_sum is not None
