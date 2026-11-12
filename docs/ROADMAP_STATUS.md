@@ -2,10 +2,12 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-11): S1 and S3 to S15 are done.** The Phase 2 gate is closed (the owner
-answered every decision on 2026-11-10, second table below). The default plan is decided: local noise
-stays the default (third table below, `adr/0005-default-plan.md`). Phase 4 is half done: the attack tests
-on whole runs are in (S15, `PHASE4_ATTACK_TESTS.md`); the further attacks (S16) are next.
+**Current state (2026-11-12): S1 and S3 to S16 are done. Phase 4 is complete.** The Phase 2 gate is
+closed (the owner answered every decision on 2026-11-10, second table below). The default plan is
+decided: local noise stays the default (third table below, `adr/0005-default-plan.md`). The attack tests
+are in (`PHASE4_ATTACK_TESTS.md`, `PHASE4_MORE_ATTACKS.md`): no protected run leaked more than its report
+states, but the website's 5% target at a budget of 1 is met for no table as a whole. Phase 5 (datasets,
+runner, benchmark, S17) is next.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -71,14 +73,110 @@ are a record of what was run and are not rewritten.
 - [x] S14, Phase 3: equal-budget comparison, measured bytes, per-participant mode, default plan.
       aaydinks/ObscuraDP#33, merged by the owner as `e429a49`
 - [x] S15, Phase 4: membership audit, public attack checks, self-test, nightly check.
-      aaydinks/ObscuraDP#34
-- [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
+      aaydinks/ObscuraDP#34, merged as `c41a5c7`
+- [x] S16, Phase 4: shadow models, attribute inference, gradient inversion, the stroke table by class.
+      Pull request to follow
 - [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
 - [ ] S18, Phase 5: benchmark runs
 - [ ] S19, Phase 5: Flower adapter
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S16 log (2026-11-12)
+
+### What was done
+
+- **`obscuradp.audit.shadow`**: the shadow-model attack (likelihood-ratio attack of Carlini and others,
+  2022). The pipeline is run many times on random halves of the rows, and each record's fit in the run
+  under attack is judged against how the same record fared in the other runs.
+- **`obscuradp.audit.attribute`**: guessing a hidden yes/no column with the model, with its two
+  yardsticks: an attacker without any model, and rows that were not used in training.
+- **`obscuradp.audit.inversion`**: reading a record back out of an update by the exact first-layer
+  method, and a measure of how far the result is from the record.
+- **`audit_run(eligible=...)`**: the whole-run audit of S15 on a chosen group of rows; an audited run
+  now reports its test records' labels.
+- **The measurements** (`benchmarks/phase4/more.py`, results in `benchmarks/results/phase4/more/`): 384
+  runs on random halves (12 cells of 32), 120 audited runs on the rare rows of the stroke table, and
+  one experiment on single updates. About an hour of computing over four cores.
+- **`docs/PHASE4_MORE_ATTACKS.md`**: the results in plain words with their limits, and the correction
+  of S15.
+- **Tests**: 30 more, for 845 in total; 1 of the new ones runs nightly.
+
+### Results in short (details and limits in `docs/PHASE4_MORE_ATTACKS.md`)
+
+- **A correction of S15: on the stroke table the rows of the rare class are far easier to find than
+  the average row.** The plan's attacker reaches 5.4% (network) and 9.0% (logistic regression) for the
+  rare class at a total budget of 1, and 22.8% and 29.9% at a budget of 8, against about 0% for the
+  common class. All within the proven limits (10.7% and 59.5%). The cause is the class weighting: only
+  the rare rows may pull with the full clipping length. **The 5% target is therefore met for no table
+  as a whole.**
+- **An outsider with the final model finds nothing behind the default plan**, also with shadow models:
+  at most 1.0% in any protected cell, lower limit on the budget 0.00. Without protection the same
+  attack finds the rare rows of the stroke table (11% to 12%).
+- **The model gives away no hidden column**: with the model as without it, and for used rows as for
+  unused ones (every difference below one point).
+- **A record alone in an unprotected update is read back exactly; behind the default plan's noise
+  nothing is**, at a budget of 8 as at 1.
+
+### What was verified and how
+
+- 835 tests pass in the pull-request selection with the pinned versions (Python 3.11, comparison with
+  the research code included), coverage of `src/obscuradp` 98%; 673 pass with the newest versions
+  (Python 3.13). The 10 slow tests run nightly; the new one was run once by hand.
+- `python -m benchmarks.phase4.report_more` exits with status 0: 43 files validated, every cell
+  complete, no run over budget, no protected cell flagged.
+- **The attacks can succeed.** On made-up values where records differ far more from each other than
+  "in" from "out", one cut-off finds almost nothing and the shadow attack finds most of what is there;
+  a network that learns its rows by heart is found out (advantage above 30%); a hidden column that the
+  outcome depends on is guessed; a record alone in an update is read back to within a ten-thousandth.
+- **And they are not fooled**: records that do not react to being used give nothing; a column that
+  depends on nothing is not guessed; among 31 other records, or behind the private step's noise, the
+  exact method reads nothing back.
+- **The choice of test records in S15 is unchanged** by the new `eligible` option (same rows from the
+  same seeds), and the stored S15 summary still rebuilds from its runs.
+- The memo's tables are generated by `report_more.headline_markdown` and a test checks that the memo
+  contains them exactly.
+- `ruff check`, `ruff format --check`, strict `mypy` (with Python 3.11 and 3.13), the ignore-rule guard,
+  the research fingerprint check, the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- **The roadmap's "capped" shadow attack is 32 runs per cell, as written, on one split per table.** For
+  the lower limit on the budget the runs are divided: 16 are attacked, 16 are only learned from.
+  Attacking each run with all the others gives the advantage figures; pooling those guesses would not
+  be valid, because a run's guesses would then depend on other runs' coins.
+- **Attribute inference is done for yes/no columns only**, three on the stroke table and two on the
+  loan table.
+- **Gradient inversion is the exact first-layer method only.** The roadmap names it; search-based
+  methods were left out, since they cannot remove the noise the budget counts.
+- **Added: the stroke table by class** (the open item of S15). It turned into the main finding.
+- **The S15 memo was corrected**, with a dated note; its numbers and tables are unchanged.
+- **The auditor's self-test**, which the roadmap lists under S16, was done in S15.
+- **The test jobs' time limit went from 20 to 30 minutes.** The suite took 16 minutes on the Windows
+  runner after S15 and this step adds about two.
+
+### Environment
+
+- The shadow runs took far less time than estimated (a run without the round-by-round attack takes one
+  to fifteen seconds), so the whole step's computing fitted into half an hour.
+- Runs that are learned from each other have to stay in one process; `more.py` keeps finished runs of
+  an unfinished cell in a folder outside the repository (`--cache`).
+
+### Open items
+
+- **For the owner, at S22 at the latest:** what the website says about the 5% target (item 33 of
+  `WEBSITE_MISMATCHES.md`). The measurements support "0% to 9% at a total budget of 1, depending on
+  the table and the kind of row; proven worst case 10.7%".
+- **S17 and S18**: report every attack result by class where classes are weighted; the one-run method
+  for whole participants on groups of a thousand or more.
+- **S21**: the documentation should say plainly that class weighting concentrates the exposure on the
+  rare class, and give the choice (weight less, or use a stricter budget).
+- Whether weighting the rare class less would protect it better at an acceptable cost in quality was
+  not explored.
+- Carried forward for the owner: the license field on the two Kaggle pages (`docs/DATASETS.md`); the
+  merged remote branches `cu/trusting-pasteur-sms0ou-s03-website`, `cu/trusting-pasteur-sms0ou` and
+  `cu/eloquent-bardeen-qlbmdu`; TestPyPI setup before S22.
 
 ## S15 log (2026-11-11)
 
