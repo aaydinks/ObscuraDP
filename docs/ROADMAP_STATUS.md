@@ -2,10 +2,10 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-11): S1 and S3 to S14 are done. Phase 3 is complete.** The Phase 2 gate is closed
-(the owner answered every decision on 2026-11-10, second table below). One decision waits for the owner
-without blocking anything: the default plan, proposed in `adr/0005-default-plan.md`. Phase 4 (attack
-tests, S15) is next.
+**Current state (2026-11-11): S1 and S3 to S15 are done.** The Phase 2 gate is closed (the owner
+answered every decision on 2026-11-10, second table below). The default plan is decided: local noise
+stays the default (third table below, `adr/0005-default-plan.md`). Phase 4 is half done: the attack tests
+on whole runs are in (S15, `PHASE4_ATTACK_TESTS.md`); the further attacks (S16) are next.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -35,6 +35,15 @@ The next stop for the owner is S22; nothing is published before it.
 Answers 2 and 3 change wording and report columns when S14 and S21 reach them. The stored Phase 2 results
 are a record of what was run and are not rewritten.
 
+## Decisions (after Phase 3, answered by the owner on 2026-11-11)
+
+| # | Decision | Answer |
+|---|---|---|
+| 1 | The default plan (`adr/0005-default-plan.md`) | **Local noise stays the default.** The documentation recommends shared noise for groups of few small participants and says what must be trusted in exchange. The record's other points stand as proposed. `Plan()` already used `LocalDPSGD`, so no code changed |
+| 2 | Dataset licenses | Written as "not found" in `DATASETS.md`; the owner may supply them later |
+| 3 | Reading the paper behind S13 | `arxiv.org` was added to the allowed hosts of the "ObscuraDP" environment (used again in S15) |
+| 4 | Way of working | As before: no plan stops between steps, the session merges when all nine checks are green, stop at S22 |
+
 ## Session checklist
 
 - [x] **S1, Phase 0.** Audit, baseline reproduction, threat model, target definitions, website wording
@@ -59,9 +68,10 @@ are a record of what was run and are not rewritten.
 - [x] S12, Phase 3: distributed and central modes, the owner's answers, the dataset note.
       aaydinks/ObscuraDP#31, merged by the owner as `c4e559d`
 - [x] S13, Phase 3: integer noise path. aaydinks/ObscuraDP#32, merged as `5f09379`
-- [x] S14, Phase 3: equal-budget comparison, measured bytes, per-participant mode, default plan
-      (proposed). aaydinks/ObscuraDP#33
-- [ ] S15, Phase 4: membership audit and nightly check
+- [x] S14, Phase 3: equal-budget comparison, measured bytes, per-participant mode, default plan.
+      aaydinks/ObscuraDP#33, merged by the owner as `e429a49`
+- [x] S15, Phase 4: membership audit, public attack checks, self-test, nightly check.
+      aaydinks/ObscuraDP#34
 - [ ] S16, Phase 4: shadow models, attribute inference, gradient inversion
 - [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
 - [ ] S18, Phase 5: benchmark runs
@@ -69,6 +79,128 @@ are a record of what was run and are not rewritten.
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S15 log (2026-11-11)
+
+### What was done
+
+- **`obscuradp.audit.membership`**: an attack test on a whole training run that trains only once (the
+  method of Steinke, Nasr and Jagielski, 2023, read from the paper and tested against its own listing).
+  About a quarter of each participant's real training rows (at most 250) become test records, each kept
+  or left out by a fair coin. Two attacks guess the coins: an outsider with the final model, and the
+  attacker the plan is written for, who sees what the plan lets it see in every round and knows every
+  other row. Every result carries the limit for any method, the limit for the noise used and the
+  measured advantage side by side, a lower limit on the budget, and the most the test could have shown.
+- **`obscuradp.audit.mechanism`**: the strongest-attacker checks of the private training step, both
+  shared-noise modes and the whole-participant mode, as public functions. They lived in three test
+  files; those tests keep every assertion, trial count and planted defect and now call the functions.
+- **`obscuradp.audit.views`**: what the server (with colluders) and a model observer may see of a round.
+- **`obscuradp audit self-test`** (`obscuradp.audit.selftest`): the step's exit check.
+- **`Simulation.run(observer=...)`** hands an audit a record of everything sent in each round;
+  **`Simulation(declared_rows=...)`** keeps the participants' public sizes fixed when rows are left out.
+- **The measurements** (`benchmarks/phase4/`, results in `benchmarks/results/phase4/`): the default plan
+  at five budgets with both models, no protection, a planted defect, and the two shared-noise modes, on
+  both research tables. 1,080 runs (30 per cell), about seven and a half hours of computing over four
+  cores. A pilot of 120 runs on other seeds fixed beforehand for how many records an attack guesses.
+- **`docs/PHASE4_ATTACK_TESTS.md`**: the results in plain words with their limits.
+- **The owner's answers of 2026-11-11** (third decisions table above): `adr/0005-default-plan.md` is
+  accepted, local noise stays the default.
+- **Tests**: 81 more, for 815 in total; 3 of the new ones run nightly.
+
+### Results in short (details and limits in `docs/PHASE4_ATTACK_TESTS.md`)
+
+- **The website target "at most 5% attacker advantage at a budget of 1" is met on the stroke table and
+  not on the loan table.** The plan's attacker reaches 4.3% (network) and 5.3% (logistic regression) on
+  the loan table, with upper ends of the 95% intervals at 5.6% and 6.3%; on the stroke table it does no
+  better than a coin (-1.1% and 0.5%). The proven limits at that budget are 10.6% for the noise used
+  and 46.2% for any method.
+- **An outsider with the final model learns nothing measurable**, at any budget and also without
+  protection.
+- **No protected run leaked more than its report states**: in all 28 protected cells the lower limit on
+  the budget is at most 30% of the stated budget and no measured advantage exceeds the proven limit.
+- **The planted defect (noise switched off, budget of 1 still stated) is caught in all four cells.**
+- **The auditor passes its self-test**: it flags training without noise and a step with half its noise,
+  and passes the correct pipelines.
+- **The test's reach is short** (risk 13): on tables of this size it can prove at most about half of a
+  budget of 1 whatever the attack, and a single run proves next to nothing. It measures the advantage
+  and catches a missing noise; it cannot confirm a budget.
+
+### What was verified and how
+
+- 806 tests pass in the pull-request selection with the pinned versions (Python 3.11, comparison with
+  the research code included), coverage of `src/obscuradp` 97%; 644 pass with the newest versions
+  (Python 3.13). The 9 slow tests run nightly; the 3 new ones were run once by hand and pass.
+- `python -m benchmarks.phase4.report` exits with status 0: 60 files validated, every stored privacy
+  report recomputed, no run over budget, all 36 cells complete with 30 seeds.
+- **Nothing else moved**: the final weights of 80 seeded runs over every mode (plain, local, local
+  through the secure sum with 12 and 8 bits, shared ordinary and whole-number noise, trusted server,
+  whole participants; two models, five seeds) have the same sha256 before and after the change to the
+  simulation. A test also checks, mode by mode, that a watched run ends exactly where an unwatched one
+  does.
+- **The one-run routine is the paper's**: the tests carry the paper's listing line for line and compare.
+  A brute-force test plays the leakiest thing a budget allows and checks that the limit overstates in at
+  most the stated share of audits, single and pooled.
+- **The auditor can fail**: handed a step with half its noise, a shared sum with a third of its slice,
+  the default plan or the whole-number sum without noise, it raises its flag; handed the library's own
+  mechanisms, it does not.
+- The memo's tables are generated by `report.headline_markdown` and a test checks that the memo contains
+  them exactly.
+- `ruff check`, `ruff format --check`, strict `mypy` (with Python 3.11 and 3.13), the ignore-rule guard,
+  the research fingerprint check, the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- **Step 14 needed no merge by this session.** The owner had merged aaydinks/ObscuraDP#33 before the
+  session started.
+- **1,080 runs, not 960.** The approved plan counted the cells without the planted-defect arm.
+- **The attacker is given every other row.** The roadmap says the scores may use only what that plan's
+  attacker can see. That is kept for what was sent; for knowledge of the data the attack takes the worst
+  case the guarantee has to withstand. Without it the attack saw almost nothing.
+- **The attack measures the noise itself.** Its first version took the size of the noise from the
+  pipeline's settings and missed the planted defect on the pilot. Changed before any reported run; the
+  first pilot was thrown away and repeated.
+- **The runs of a cell are pooled for the lower limit.** That step is not in the paper. The argument is
+  in the memo and a brute-force test backs it.
+- **A second sign of a broken pipeline** (measured advantage above the proven limit for the stated
+  noise) was added after the reported runs were in, on seeing that the lower limit alone flagged two of
+  the four planted-defect cells. It is a valid sign whatever the data; no protected cell shows it.
+- **Whole participants are not tested by the one-run method.** It needs many participants to flip coins
+  over. Moved to S17 and S18; the single-step check covers that mode meanwhile.
+- **The shared-noise modes were audited with logistic regression at budgets 1 and 8 only**, to keep the
+  computing within an afternoon.
+- **Stored records hold counts, not scores**, and the full privacy report only for the first seed of a
+  cell (1.1 MB in all). Scores regenerate from the seeds.
+- **The nightly check is a set of slow tests** picked up by the existing nightly job. No workflow changed.
+- **The roadmap lists the auditor's self-test under S16 as well as in S15's exit check.** It is done
+  here.
+- **Halved noise is not caught by the whole-run audit**, only by the single-step check. The approved
+  plan expected every planted defect to be caught by the whole-run tests.
+
+### Environment
+
+- The first push failed the type check: Python 3.11 with numpy 2.4 reads the result of
+  `numpy.linalg.solve` more loosely than Python 3.13 with numpy 2.5. **Run `mypy` with both
+  environments before pushing** (`.venv/bin/mypy` and `.venv-legacy/bin/mypy`).
+- A background job is stopped after two hours. The run script resumes where it stopped, so the last
+  tenth of the runs was started again; nothing was lost.
+- The test suites ran while the measurements used all four cores, which slowed both by a factor of two
+  to three. The fast suite alone takes about nine minutes now.
+- The owner switched planning mode on before this step; the session presented a plan and went on once it
+  was approved.
+
+### Open items
+
+- **S16**: shadow models as a second opinion; attribute inference; gradient inversion. To add from this
+  step: measure the rare class of the stroke table apart from the common one, since the average hides
+  that the rare rows carry the full clipping length.
+- **S17 and S18**: the one-run method for whole participants, on groups of a thousand or more.
+- **For S22**: item 33 of `WEBSITE_MISMATCHES.md`. The sentence about 5% cannot stay a single promise.
+- The update attack follows local training only roughly (one straight line per round). A closer model
+  of local training could raise the measured numbers; taking gradients at several points along the
+  line did not.
+- Carried forward for the owner: the license field on the two Kaggle pages (`docs/DATASETS.md`); the
+  merged remote branches `cu/trusting-pasteur-sms0ou-s03-website`, `cu/trusting-pasteur-sms0ou` and
+  `cu/eloquent-bardeen-qlbmdu`; TestPyPI setup before S22.
 
 ## S14 log (2026-11-11)
 
@@ -1087,8 +1219,8 @@ independently and passed.
 
 1. Real row counts per client for the seed-42 stroke split in Trial 07/27 should be recorded in results;
    table 1 in `KPI_MAPPING.md` uses the sizes reported by Experiment 1's split as examples.
-2. Whether the one-run audit has enough power on tables of about 4,000 rows (risk 13). Answered by the S15
-   pilot.
+2. Whether the one-run audit has enough power on tables of about 4,000 rows (risk 13). Answered in S15:
+   enough to measure the advantage and to catch missing noise, not enough to confirm a budget.
 3. Whether rounding updates to 8 bits costs accuracy at these model sizes. Answered in S14.
 4. Whether a tag `research-baseline-v0` should be pushed at `34071be`. Not done: this session was limited to
    its own branch.

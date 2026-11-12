@@ -106,7 +106,7 @@ public interface.
   and `Simulation(declared_rows=...)` fixes the participants' public sizes so that leaving a row out
   changes nothing an observer could read off directly. Runs that use neither are unchanged.
 - Phase 4 results (`benchmarks/results/phase4/`, `docs/PHASE4_ATTACK_TESTS.md`): attack tests on the two
-  research tables, 960 runs, with the measured attacker advantage at every budget.
+  research tables, 1,080 runs, with the measured attacker advantage at every budget.
 
 ### Changed
 
