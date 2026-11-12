@@ -118,6 +118,7 @@ def choose_canaries(
     fraction: float = 0.25,
     cap: int = 250,
     skip: Collection[str] = (),
+    eligible: Mapping[str, npt.ArrayLike] | None = None,
 ) -> Canaries:
     """Pick test records among the participants' training rows and flip their coins.
 
@@ -128,6 +129,10 @@ def choose_canaries(
         cap: Largest number of test records per participant.
         skip: Participants without test records (those that work with the attacker know
             their own rows anyway).
+        eligible: For each participant, the positions of the training rows that may become
+            test records (default: all of them). ``fraction`` and ``cap`` then apply to
+            these rows. A participant that is not named has no test records. Use it to
+            test one group of rows, for example those of a rare class.
     """
     if not 0.0 < fraction <= 1.0:
         raise ValueError("fraction must be in (0, 1]")
@@ -138,11 +143,19 @@ def choose_canaries(
     for index, client in enumerate(clients):
         if client.name in skip:
             continue
-        count = min(cap, int(fraction * client.n_train))
+        if eligible is None:
+            pool = np.arange(client.n_train, dtype=np.int64)
+        elif client.name in eligible:
+            pool = np.unique(np.asarray(eligible[client.name], dtype=np.int64))
+            if pool.size and (pool[0] < 0 or pool[-1] >= client.n_train):
+                raise ValueError(f"{client.name}: eligible rows must be training rows")
+        else:
+            continue
+        count = min(cap, int(fraction * pool.size))
         if count < 1:
             continue
         generator = numpy_generator(seed, "canary", index)
-        rows[client.name] = np.sort(generator.choice(client.n_train, size=count, replace=False))
+        rows[client.name] = np.sort(generator.choice(pool, size=count, replace=False))
         kept[client.name] = generator.random(count) < 0.5
     return Canaries(rows=rows, kept=kept)
 
@@ -489,6 +502,7 @@ class AuditRun:
 
     Attributes:
         kept: One coin per test record: true if the record was in the training rows.
+        labels: The test records' own labels, in the same order (to look at groups apart).
         scores: For each attack, one score per test record; higher means "more likely in".
         result: The run's own result, with its privacy report.
         attacker: Whose view the update attack used.
@@ -496,6 +510,7 @@ class AuditRun:
     """
 
     kept: BoolVector
+    labels: FloatVector
     scores: Mapping[str, FloatVector]
     result: SimulationResult
     attacker: str
@@ -525,6 +540,7 @@ def audit_run(
     attacker: str | None = None,
     colluders: Collection[str] | None = None,
     path_points: int = 1,
+    eligible: Mapping[str, npt.ArrayLike] | None = None,
 ) -> AuditRun:
     """Train once with test records flipped in and out, and attack the run.
 
@@ -543,6 +559,8 @@ def audit_run(
         path_points: For plans with local training: at how many points between a round's
             start and end the update attack takes the rows' gradients. More points follow
             a round's training more closely and cost that many times the arithmetic.
+        eligible: For each participant, the positions of the training rows that may become
+            test records (default: all), see ``choose_canaries``.
     """
     full = [client.n_train for client in clients]
     probe = build(clients, dict(zip([c.name for c in clients], full, strict=True)))
@@ -552,7 +570,9 @@ def audit_run(
     together = frozenset(default_colluders(probe) if colluders is None else colluders)
     if who == MODEL_OBSERVER and together:
         raise ValueError("a model observer has no colluders")
-    canaries = choose_canaries(clients, seed, fraction=fraction, cap=cap, skip=together)
+    canaries = choose_canaries(
+        clients, seed, fraction=fraction, cap=cap, skip=together, eligible=eligible
+    )
     if canaries.count == 0:
         raise ValueError("no test records: the participants have too few rows")
     reduced, declared = leave_out(clients, canaries)
@@ -562,8 +582,14 @@ def audit_run(
     # The attacker works from the full tables: it knows every row and every test record.
     attack = _UpdateAttack(probe, clients, canaries, who, together, path_points)
     result = simulation.run(seed, observer=attack.observe)
+    by_name = {client.name: client for client in clients}
+    labels = [
+        np.asarray(by_name[name].train_y, dtype=np.float64)[rows]
+        for name, rows in canaries.rows.items()
+    ]
     return AuditRun(
         kept=canaries.coins(),
+        labels=np.concatenate(labels),
         scores={
             ATTACK_FINAL_MODEL: attack.final_model_scores(result.state),
             ATTACK_UPDATES: attack.scores(),
@@ -835,6 +861,7 @@ def summarize(
     confidence: float = 0.95,
     resamples: int = 2000,
     seed: int = 0,
+    with_best_case: bool = True,
 ) -> MembershipAudit:
     """Put several audited runs of one pipeline together.
 
@@ -849,6 +876,8 @@ def summarize(
         confidence: Confidence of the lower limit and of the advantage interval.
         resamples: Number of resamples of whole runs for the interval.
         seed: Seed of the resampling.
+        with_best_case: Also work out the most the test could have shown (a simulation
+            that takes a moment). Without it ``best_case`` is ``None``.
     """
     if not runs:
         raise ValueError("no runs to summarize")
@@ -889,7 +918,7 @@ def summarize(
     ceilings = [run.ceiling_mechanism for run in runs if run.ceiling_mechanism is not None]
     ceiling = max(ceilings) if len(ceilings) == len(runs) else None
     best = None
-    if ceiling is not None:
+    if ceiling is not None and with_best_case:
         per_run = max(1, round(canaries / len(runs)))
         best = best_case_lower_bound(
             per_run, len(runs), share, ceiling, delta, confidence=confidence, seed=seed

@@ -193,6 +193,7 @@ def test_runs_are_pooled_and_the_three_numbers_stand_side_by_side() -> None:
     assert found.advantage_low < found.advantage_high
     assert 0.0 <= found.epsilon_lower < 1.0
     assert found.best_case is not None
+    assert summarize(runs, ATTACK_UPDATES, 1.0, with_best_case=False).best_case is None
     assert not found.flagged
     assert not found.above_noise_limit
     text = found.describe()
@@ -505,3 +506,38 @@ def test_the_self_test_holds_on_other_tables_too() -> None:
         )
         assert silent.flagged, seed
         assert not correct.flagged, seed
+
+
+# --------------------------------------------------------------------------- a group apart
+
+
+def test_test_records_can_be_limited_to_a_group_of_rows(clients: list[ClientData]) -> None:
+    positives = {client.name: np.flatnonzero(client.train_y > 0.5) for client in clients[:2]}
+    chosen = choose_canaries(clients, seed=1, fraction=1.0, cap=10**9, eligible=positives)
+    # Every eligible row of the named participants, and nobody else's.
+    assert set(chosen.rows) == {"site-0", "site-1"}
+    for name, rows in chosen.rows.items():
+        assert np.array_equal(rows, positives[name])
+    half = choose_canaries(clients, seed=1, fraction=0.5, eligible=positives)
+    for name, rows in half.rows.items():
+        assert len(rows) == len(positives[name]) // 2
+        assert set(rows.tolist()) <= set(positives[name].tolist())
+    with pytest.raises(ValueError, match="must be training rows"):
+        choose_canaries(clients, seed=1, eligible={"site-0": [0, 240]})
+    # Naming nobody leaves no test records.
+    assert choose_canaries(clients, seed=1, eligible={}).count == 0
+
+
+def test_an_audit_of_a_group_reports_the_groups_labels(clients: list[ClientData]) -> None:
+    positives = {client.name: np.flatnonzero(client.train_y > 0.5) for client in clients}
+    audited = audit_run(
+        selftest.correct_pipeline, clients, seed=3, fraction=1.0, cap=10**9, eligible=positives
+    )
+    count = sum(len(rows) for rows in positives.values())
+    assert audited.kept.shape == audited.labels.shape == (count,)
+    assert np.all(audited.labels == 1.0)
+    # Without the limit the labels are those of the test records, in their order.
+    mixed = audit_run(selftest.correct_pipeline, clients, seed=3)
+    canaries = choose_canaries(clients, seed=3)
+    expected = np.concatenate([client.train_y[canaries.rows[client.name]] for client in clients])
+    assert np.array_equal(mixed.labels, expected)
