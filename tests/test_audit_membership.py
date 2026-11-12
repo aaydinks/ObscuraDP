@@ -194,6 +194,7 @@ def test_runs_are_pooled_and_the_three_numbers_stand_side_by_side() -> None:
     assert 0.0 <= found.epsilon_lower < 1.0
     assert found.best_case is not None
     assert not found.flagged
+    assert not found.above_noise_limit
     text = found.describe()
     for part in ("stated budget 1", "10.6%", "46.2%", "the most it could show", "not flagged"):
         assert part in text
@@ -210,6 +211,26 @@ def test_guessing_right_too_often_is_flagged() -> None:
     assert "FLAGGED" in found.describe()
     # The pooled limit uses all the guesses and so proves more than a single run does.
     assert found.epsilon_lower > summarize(runs[:1], ATTACK_UPDATES, 1.0).epsilon_lower
+
+
+def test_an_advantage_above_what_the_stated_noise_allows_is_a_sign_of_its_own() -> None:
+    """Right 60% of the time: within a budget of 1, but not with the noise that is stated."""
+    runs = [_summary(right) for right in (118, 122, 120, 121, 119, 120, 123, 117, 120, 121)]
+    found = summarize(runs, ATTACK_UPDATES, 1.0)
+    assert found.advantage == pytest.approx(0.201, abs=1e-3)
+    assert found.advantage_low > 0.106
+    assert not found.flagged  # a budget of 1 allows up to 73% right guesses
+    assert found.above_noise_limit
+    assert "ABOVE THE LIMIT FOR THE STATED NOISE" in found.describe()
+    # With a handful of runs the interval is not trusted, and without a proven limit there
+    # is nothing to be above.
+    assert not summarize(runs[:5], ATTACK_UPDATES, 1.0).above_noise_limit
+    bare = [
+        _summary(right, epsilon=None, delta=None, ceiling_mechanism=None)
+        for right in range(115, 125)
+    ]
+    unlimited = summarize(bare, ATTACK_UPDATES, 1.0, claimed_epsilon=1.0, delta=DELTA)
+    assert not unlimited.above_noise_limit
 
 
 def test_a_pipeline_without_a_report_needs_its_claim_spelled_out() -> None:

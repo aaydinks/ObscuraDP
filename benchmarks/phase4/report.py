@@ -129,7 +129,9 @@ def summarize_cells(
             row = found.to_dict()
             if not stated:
                 # No budget is stated without protection: nothing to be flagged against.
-                row.update(epsilon_claimed=None, ceiling_any=None, flagged=None)
+                row.update(
+                    epsilon_claimed=None, ceiling_any=None, flagged=None, above_noise_limit=None
+                )
             rows.append(
                 {
                     "dataset": dataset,
@@ -202,6 +204,18 @@ def _measured(row: dict[str, Any]) -> str:
     return f"{_percent(row['advantage'])} ({_percent(row['advantage_low'])} to {_percent(row['advantage_high'])})"
 
 
+def _verdict(row: dict[str, Any]) -> str:
+    """Whether the audit raised a flag, and by which of its two signs."""
+    if row["flagged"] is None:
+        return "n/a"
+    signs = []
+    if row["flagged"]:
+        signs.append("lower limit above the stated budget")
+    if row["above_noise_limit"]:
+        signs.append("advantage above the limit for the stated noise")
+    return f"**yes** ({'; '.join(signs)})" if signs else "no"
+
+
 def three_numbers_table(rows: list[dict[str, Any]], dataset: str, model: str) -> str:
     """The default plan at every budget: both proven limits beside both measured values."""
     index = _index(rows)
@@ -239,7 +253,7 @@ def other_arms_table(rows: list[dict[str, Any]], dataset: str) -> str:
                     continue
                 stated = "none" if arm == BASELINE else f"{strong['epsilon_claimed']:.2g}"
                 best = "n/a" if strong["best_case"] is None else f"{strong['best_case']:.2f}"
-                flagged = {None: "n/a", True: "**yes**", False: "no"}[strong["flagged"]]
+                flagged = _verdict(strong)
                 lines.append(
                     f"| {model} | {NAMES[arm]} | {stated} | {_percent(strong['ceiling_mechanism'])} "
                     f"| {_measured(strong)} | {_measured(weak)} | {strong['epsilon_lower']:.2f} | {best} | {flagged} |"

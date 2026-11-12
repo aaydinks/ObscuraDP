@@ -126,6 +126,7 @@ def test_cells_are_put_together_with_the_shares_fixed_beforehand(
         if row["arm"] == common.BASELINE:
             assert row["epsilon_claimed"] is None
             assert row["flagged"] is None
+            assert row["above_noise_limit"] is None
             assert row["ceiling_mechanism"] is None
         else:
             assert row["epsilon_claimed"] == pytest.approx(1.0, abs=0.01)
@@ -179,7 +180,9 @@ def test_the_stored_summary_covers_the_whole_grid_and_passed_its_checks(
         # A protected run never leaks more than its report says. The planted defect may.
         if row["arm"] != common.SILENT:
             assert row["flagged"] is False, row
+            assert row["above_noise_limit"] is False, row
             assert row["epsilon_lower"] <= row["epsilon_claimed"]
+            assert row["advantage"] <= row["ceiling_mechanism"]
         assert row["epsilon_claimed"] <= row["budget"] * (1 + 1e-6)
         assert row["epsilon_claimed"] > 0.98 * row["budget"]
 
@@ -227,7 +230,17 @@ def test_the_stored_summary_is_what_the_report_script_produces(summary: dict[str
     assert rebuilt["runs"] == summary["runs"]
     assert len(rebuilt["rows"]) == len(summary["rows"])
     for fresh, row in zip(rebuilt["rows"], summary["rows"], strict=True):
-        for key in ("dataset", "model", "arm", "budget", "attack", "guesses", "correct", "flagged"):
+        for key in (
+            "dataset",
+            "model",
+            "arm",
+            "budget",
+            "attack",
+            "guesses",
+            "correct",
+            "flagged",
+            "above_noise_limit",
+        ):
             assert fresh[key] == row[key]
         for key in ("epsilon_lower", "advantage", "advantage_low", "advantage_high", "best_case"):
             assert fresh[key] == pytest.approx(row[key], abs=1e-12)

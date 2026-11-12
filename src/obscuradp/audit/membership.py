@@ -74,6 +74,9 @@ ATTACKS = (ATTACK_FINAL_MODEL, ATTACK_UPDATES)
 # for each of them; which one a report uses has to be fixed before the runs it reports.
 GUESS_SHARES = (0.02, 0.05, 0.1, 0.2, 0.5, 1.0)
 
+# An interval from resampling runs means little with a handful of runs.
+MIN_RUNS_FOR_INTERVAL = 10
+
 _CHUNK = 2048
 
 BoolVector = npt.NDArray[np.bool_]
@@ -776,6 +779,11 @@ class MembershipAudit:
         confidence: Confidence of the limit and of the interval.
         flagged: True if the lower limit is above the stated budget: the pipeline leaks
             more than it says.
+        above_noise_limit: True if even the lower end of the advantage interval is above
+            ``ceiling_mechanism``: the attack does better than the stated noise allows, so
+            the noise is not what the pipeline says, whether or not the budget limit shows
+            it. Only judged from ``MIN_RUNS_FOR_INTERVAL`` runs on, because the interval
+            comes from resampling runs.
     """
 
     attack: str
@@ -796,6 +804,7 @@ class MembershipAudit:
     ceiling_mechanism: float | None
     confidence: float
     flagged: bool
+    above_noise_limit: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
@@ -805,6 +814,8 @@ class MembershipAudit:
         limit = "none proven" if self.ceiling_mechanism is None else f"{self.ceiling_mechanism:.1%}"
         reach = "" if self.best_case is None else f" (the most it could show: {self.best_case:.2f})"
         verdict = "FLAGGED: leaks more than stated" if self.flagged else "not flagged"
+        if self.above_noise_limit:
+            verdict += "; ABOVE THE LIMIT FOR THE STATED NOISE: the noise is not as stated"
         return (
             f"{self.attack} attack, {self.runs} run(s), {self.canaries} test records: "
             f"stated budget {self.epsilon_claimed:g}, lower limit shown "
@@ -902,4 +913,7 @@ def summarize(
         ceiling_mechanism=ceiling,
         confidence=confidence,
         flagged=lower > float(claimed_epsilon),
+        above_noise_limit=(
+            ceiling is not None and len(runs) >= MIN_RUNS_FOR_INTERVAL and low > ceiling
+        ),
     )
