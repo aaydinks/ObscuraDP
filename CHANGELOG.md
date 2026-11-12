@@ -116,6 +116,21 @@ public interface.
   further attacks and the stroke table read by class. They correct one statement of the first memo: the
   rows of the rare class are far easier to find than the average row.
 
+- `obscuradp.tasks.ManyClasses` and `Simulation(task=...)`: outcomes with more than two classes (labels
+  from 0, one raw score per class, scored by accuracy). `obscuradp.metrics.multiclass_metrics`.
+  `obscuradp.models.SmallCNN` (images) and `obscuradp.models.CharGRU` (text).
+- `Simulation(participation=...)`: in a plan without protection, each participant takes part in a round
+  with a given chance. `Simulation(crypto_in_loop=False)` simulates the secure sum of `ClientLevelDP` for
+  groups too large to play on one machine, and says so in the report. Participants that sit a round out
+  cost no work.
+- `obscuradp.tables.synthetic_health`: a made-up health table of 20,000 rows in 10 hospitals that differ
+  from each other. No row describes a real person.
+- For groups of more than 64 participants the report's table of budgets by number of colluders keeps a
+  selection of rows (`obscuradp.report.collusion_counts`) instead of one per participant.
+- `benchmarks/PREREGISTRATION.md`: the benchmark's plan, written before any of its runs.
+  `benchmarks/phase5/`: checked downloads of two public datasets, their readers, the runner and the
+  timing pilot. New optional dependency in the `bench` extra: `h5py`.
+
 ### Changed
 
 - Root `.gitignore` rules are anchored to the repository root so they can no longer hide source folders.
