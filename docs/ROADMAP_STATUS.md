@@ -77,8 +77,8 @@ are a record of what was run and are not rewritten.
 - [x] S16, Phase 4: shadow models, attribute inference, gradient inversion, the stroke table by class.
       aaydinks/ObscuraDP#35, merged as `a82c1f4`
 - [x] S17, Phase 5: datasets, made-up health table, tasks with several classes, runner, pilot, the
-      written plan (`benchmarks/PREREGISTRATION.md`; the tag is for the owner to set). Pull request to
-      follow
+      written plan (`benchmarks/PREREGISTRATION.md`; the tag is for the owner to set).
+      aaydinks/ObscuraDP#36
 - [ ] S18, Phase 5: benchmark runs
 - [ ] S19, Phase 5: Flower adapter
 - [ ] S20, Phase 5: analysis and claims registry
