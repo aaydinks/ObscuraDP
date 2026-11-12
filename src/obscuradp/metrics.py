@@ -18,6 +18,34 @@ from torch import nn
 _LOG_CLAMP = -100.0
 
 
+def multiclass_metrics(scores: npt.ArrayLike, labels: npt.ArrayLike) -> dict[str, float]:
+    """Return the measures for a prediction among several classes.
+
+    Args:
+        scores: One row per record and one raw score per class (before any softmax).
+        labels: The true class of each record, as whole numbers from 0.
+
+    Keys: ``accuracy`` (share of records whose highest score is the true class) and
+    ``loss`` (mean cross-entropy).
+    """
+    values = np.asarray(scores, dtype=np.float64)
+    truth = np.asarray(labels).ravel()
+    if values.ndim != 2 or values.shape[0] != truth.shape[0]:
+        raise ValueError("need one row of scores per label")
+    if values.shape[0] == 0:
+        raise ValueError("need at least one row")
+    classes = truth.astype(np.int64)
+    if not np.all(classes == truth) or np.min(classes) < 0 or np.max(classes) >= values.shape[1]:
+        raise ValueError("labels must be whole numbers from 0 to the number of classes minus 1")
+    shifted = values - np.max(values, axis=1, keepdims=True)
+    log_share = shifted - np.log(np.sum(np.exp(shifted), axis=1, keepdims=True))
+    picked = log_share[np.arange(classes.size), classes]
+    return {
+        "accuracy": float(np.mean(np.argmax(values, axis=1) == classes)),
+        "loss": float(-np.mean(np.maximum(picked, _LOG_CLAMP))),
+    }
+
+
 def binary_metrics(
     probabilities: npt.ArrayLike, labels: npt.ArrayLike, *, threshold: float = 0.5
 ) -> dict[str, float]:

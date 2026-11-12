@@ -1,0 +1,322 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 20,
+  "benchmark": {
+   "arm": "participant",
+   "batch_size": 20,
+   "clip_norm": 1.0,
+   "dataset": "shakespeare",
+   "epsilon": 8.0,
+   "learning_rate": 1.0,
+   "local_epochs": 1.0,
+   "model": "gru",
+   "rounds": 3,
+   "seed": 900
+  },
+  "choose_threshold": false,
+  "clients": {
+   "participants": 644,
+   "training_rows": 253529
+  },
+  "crypto_in_loop": false,
+  "learning_rate": 1.0,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": {
+    "clip_norm": 1.0,
+    "dropouts": {},
+    "kind": "ClientLevelDP",
+    "max_colluding": 64,
+    "max_dropouts": 0,
+    "sampling_rate": 0.07763975155279502
+   },
+   "imbalance": "NoRebalancing",
+   "positive_prior": null,
+   "proximal_mu": 0.0,
+   "secure_sum": {
+    "kind": "PairwiseMasking",
+    "value_bits": 12,
+    "value_range": 1.0
+   }
+  },
+  "policy": {
+   "accountant": "pld",
+   "adjacency": "add_remove",
+   "delta": 1e-05,
+   "epsilon": 8.0,
+   "max_records_per_person": 1,
+   "per_scope_epsilon": {},
+   "unit": "client"
+  },
+  "rounds": 3,
+  "secure_noise": false,
+  "task": {
+   "classes": 80
+  },
+  "weighted_average": true
+ },
+ "data": {
+  "communication": {
+   "bits_per_value": 19.0,
+   "plain_bytes_per_round": 255808.0,
+   "ratio": 0.59375,
+   "saturated_share": 0.0,
+   "setup_bytes": 20608.0,
+   "upload_bytes_per_round": 151886.0
+  },
+  "history": [
+   {
+    "accuracy": 0.18713408792534506,
+    "loss": 3.675210856270429,
+    "round": 3
+   }
+  ],
+  "label": "shakespeare_gru_participant_eps-8_seed-900",
+  "noise_multipliers": {
+   "all participants": 0.4929375739072651
+  },
+  "privacy_report": {
+   "attacker_advantage_ceiling": 0.12321270953604162,
+   "caveats": [
+    "A participant's validation and test rows are not protected by this budget; only what it contributes to training is.",
+    "The noise was drawn from the run's seed so that the experiment can be repeated. Anyone who knows the seed can remove it. Real data needs secure_noise=True.",
+    "With 644 participants, hiding one whole participant takes noise of about the size of everything one participant contributes. Expect little accuracy below about 1000 participants.",
+    "The secure sum was simulated: the participants' changes were added up in the clear and the noise of all slices was drawn in one piece. The result is that of the protected protocol up to rounding, but in this run nothing was hidden from the machine that ran it.",
+    "The participants' public keys are not checked. A server that swaps them could read single messages, and a single message carries only a slice of the noise: the stated budget would then not hold."
+   ],
+   "epsilon": 7.992450794600312,
+   "general_attacker_advantage_ceiling": 0.9993242258001883,
+   "library_version": "0.1.0.dev0",
+   "mode": {
+    "attempts": 3,
+    "collusion_table": [
+     {
+      "assumed": true,
+      "colluding": 0,
+      "effective_noise_multiplier": 0.5194226219955256,
+      "epsilon": 7.178679118849317,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 1,
+      "effective_noise_multiplier": 0.5190191868884476,
+      "epsilon": 7.190134171390696,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 2,
+      "effective_noise_multiplier": 0.5186154379460604,
+      "epsilon": 7.201625392775973,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 3,
+      "effective_noise_multiplier": 0.5182113744348174,
+      "epsilon": 7.213152954382688,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 4,
+      "effective_noise_multiplier": 0.5178069956183106,
+      "epsilon": 7.224717023119552,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 5,
+      "effective_noise_multiplier": 0.5174023007572539,
+      "epsilon": 7.236317773566642,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 6,
+      "effective_noise_multiplier": 0.5169972891094677,
+      "epsilon": 7.2479553775987275,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 7,
+      "effective_noise_multiplier": 0.516591959929863,
+      "epsilon": 7.259630005477149,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 8,
+      "effective_noise_multiplier": 0.5161863124704256,
+      "epsilon": 7.271341833844933,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 13,
+      "effective_noise_multiplier": 0.5141532745884334,
+      "epsilon": 7.330465135035546,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 32,
+      "effective_noise_multiplier": 0.5063532916898472,
+      "epsilon": 7.564056848788312,
+      "unbounded": false
+     },
+     {
+      "assumed": true,
+      "colluding": 64,
+      "effective_noise_multiplier": 0.4929375739072651,
+      "epsilon": 7.992450794600312,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 65,
+      "effective_noise_multiplier": 0.49251244439833103,
+      "epsilon": 8.006607578729861,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 129,
+      "effective_noise_multiplier": 0.4644955321809813,
+      "epsilon": 9.027246065221048,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 193,
+      "effective_noise_multiplier": 0.4346765359954076,
+      "epsilon": 10.334375836623172,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 322,
+      "effective_noise_multiplier": 0.36728725831473286,
+      "epsilon": 14.475461634196447,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 483,
+      "effective_noise_multiplier": 0.2597113109977628,
+      "epsilon": 28.26051815879472,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 580,
+      "effective_noise_multiplier": 0.16374494945226897,
+      "epsilon": 68.84880899538366,
+      "unbounded": false
+     },
+     {
+      "assumed": false,
+      "colluding": 643,
+      "effective_noise_multiplier": 0.02046811868153362,
+      "epsilon": null,
+      "unbounded": true
+     }
+    ],
+    "completed_rounds": 3,
+    "max_colluding": 64,
+    "max_dropouts": 0,
+    "mode": "participant",
+    "noise": "gaussian",
+    "participants": 644,
+    "sampling_rate": 0.07763975155279502,
+    "steps_per_share": 4.0
+   },
+   "not_covered": [
+    "Anything computed from private data outside this library, such as statistics used for preprocessing or settings chosen by looking at private results.",
+    "The evaluation data and the numbers computed on it.",
+    "Side channels: timing, message sizes, and which participants were online.",
+    "The facts the protocol treats as public: declared dataset sizes, the feature layout and the model architecture.",
+    "A participant or server that does not follow the protocol."
+   ],
+   "policy": {
+    "accountant": "pld",
+    "adjacency": "add_remove",
+    "delta": 1e-05,
+    "epsilon": 8.0,
+    "max_records_per_person": 1,
+    "per_scope_epsilon": {},
+    "unit": "client"
+   },
+   "protection": [
+    "The budget protects a whole participant: everything it contributes to training, all of its rows together. The number of participants is treated as public.",
+    "Each of the 644 participants sends a message every round, whether it takes part or not, and adds a slice of the noise. The slices are added up inside the secure sum, so neither the server nor anyone else learns who took part.",
+    "Participants are protected, at the stated budget, from the server and from anyone who sees a model, as long as at most 64 of the participants pool what they know with the server and at most 0 are missing from a sum. The table in this report shows the budget for other numbers.",
+    "The server receives every message hidden under masks that only cancel in the sum. It can read the sum of all messages and no single one, provided it passes the participants' public keys on unchanged.",
+    "If a participant's message is missing, the sum cannot be opened, the model does not move, and the round still counts against the budget."
+   ],
+   "schema": "obscuradp.privacy_report/1",
+   "scopes": [
+    {
+     "attacker_advantage_ceiling": 0.12321270953604162,
+     "budget": 8.0,
+     "epsilon": 7.992450794600312,
+     "epsilon_lower_estimate": 7.992300819013421,
+     "epsilon_rdp": 9.600459355464073,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.4929375739072651,
+       "sampling_rate": 0.07763975155279502,
+       "steps": 3
+      }
+     ],
+     "scope": "all participants"
+    }
+   ],
+   "unsafe_flags": [],
+   "within_budget": true
+  },
+  "seconds": 125.82390846300041,
+  "test": null,
+  "test_at_chosen_threshold": null,
+  "threshold": 0.5,
+  "validation": {
+   "accuracy": 0.18713408792534506,
+   "loss": 3.675210856270429
+  }
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "fe44e81c38e87ca28baa5c64123c5cf1bea6e33d6c238efe893063346f5d1a48",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T03:02:52+00:00",
+  "git_commit": "a82c1f421494dc49630051b692a1e379d0a14008+dirty",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   900
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

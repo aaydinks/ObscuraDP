@@ -2,12 +2,12 @@
 
 Read this file first in every session, then `docs/ROADMAP.md`. Update it at the end of every session.
 
-**Current state (2026-11-12): S1 and S3 to S16 are done. Phase 4 is complete.** The Phase 2 gate is
+**Current state (2026-11-12): S1 and S3 to S17 are done. Phase 4 is complete.** The Phase 2 gate is
 closed (the owner answered every decision on 2026-11-10, second table below). The default plan is
 decided: local noise stays the default (third table below, `adr/0005-default-plan.md`). The attack tests
 are in (`PHASE4_ATTACK_TESTS.md`, `PHASE4_MORE_ATTACKS.md`): no protected run leaked more than its report
-states, but the website's 5% target at a budget of 1 is met for no table as a whole. Phase 5 (datasets,
-runner, benchmark, S17) is next.
+states, but the website's 5% target at a budget of 1 is met for no table as a whole. Phase 5 has begun:
+the benchmark's plan is written and its tools are built (S17); its runs (S18) are next.
 The next stop for the owner is S22; nothing is published before it.
 
 ## Decisions (Phase 0 gate, answered by the owner on 2026-11-10)
@@ -75,13 +75,112 @@ are a record of what was run and are not rewritten.
 - [x] S15, Phase 4: membership audit, public attack checks, self-test, nightly check.
       aaydinks/ObscuraDP#34, merged as `c41a5c7`
 - [x] S16, Phase 4: shadow models, attribute inference, gradient inversion, the stroke table by class.
-      aaydinks/ObscuraDP#35
-- [ ] S17, Phase 5: datasets, synthetic generator, runner, pilot, written research plan (tagged)
+      aaydinks/ObscuraDP#35, merged as `a82c1f4`
+- [x] S17, Phase 5: datasets, made-up health table, tasks with several classes, runner, pilot, the
+      written plan (`benchmarks/PREREGISTRATION.md`; the tag is for the owner to set).
+      aaydinks/ObscuraDP#36
 - [ ] S18, Phase 5: benchmark runs
 - [ ] S19, Phase 5: Flower adapter
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
 - [ ] S22, Phase 6: release engineering and website sync. **GATE** before publishing
+
+## S17 log (2026-11-12)
+
+### What was done
+
+- **`benchmarks/PREREGISTRATION.md`: the benchmark's plan, written before any of its runs.** Datasets and
+  what a budget protects there, arms and budgets, seeds, how settings are chosen, what is expected, what
+  is measured, how results are judged, time and what is cut first, how the secure sum is handled at this
+  size, and how it can be checked that the plan came first.
+- **Outcomes with more than two classes** (`obscuradp.tasks.ManyClasses`, `Simulation(task=...)`,
+  `metrics.multiclass_metrics`), and two small models, `SmallCNN` (44,318 numbers) for images and
+  `CharGRU` (about 64,000) for text.
+- **Thousands of participants on one machine**: participants that sit a round out cost no work;
+  `Simulation(participation=...)` for unprotected baselines; `Simulation(crypto_in_loop=False)`, a
+  simulated secure sum for `ClientLevelDP`, checked against the real one on a small group; scoring in
+  pieces; for groups above 64 the report's table of budgets by number of colluders keeps a selection of
+  rows.
+- **`obscuradp.tables.synthetic_health`**: the made-up health table (20,000 rows, 10 hospitals of 800 to
+  2,900 rows, about 6% with the outcome, hospitals between 2% and 9%). No row describes a real person.
+- **`benchmarks/phase5/`**: downloads that are checked against a recorded fingerprint and kept outside the
+  repository (`fetch.py`), readers for the handwriting and text datasets (`datasets.py`), what a
+  benchmark run is (`common.py`), the runner that keeps finished runs (`run.py`), the timing pilot
+  (`pilot.py`).
+- **The timing pilot** (seed 900, results in `benchmarks/results/phase5/`): every unprotected run in full
+  and every protected arm for three rounds. Scores on test rows were neither stored nor looked at.
+- **Tests**: 47 more, for 892 in total.
+
+### Results in short
+
+- The pipeline learns before anything is measured with it: validation AUC 0.81 on the health table, 72%
+  of validation images right on handwriting (3,400 writers, about 200 per round, 100 rounds, nine
+  minutes), 44% of next symbols right on text.
+- **The benchmark is estimated at about 35 hours of computing at most** (some 9 hours on four cores), twice
+  the roadmap's guess. The estimate for protected runs is scaled up from three rounds and is too high.
+- **The text dataset is planned smaller than the roadmap said**, decided from the pilot and written into
+  the plan before any reported run: three seeds, no search for settings. One unprotected run takes 30
+  minutes.
+
+### What was verified and how
+
+- 882 tests pass in the pull-request selection with the pinned versions (Python 3.11, comparison with
+  the research code included), coverage of `src/obscuradp` 98%; 720 pass with the newest versions
+  (Python 3.13). One new test first failed under load because it measured time on the clock; it now
+  checks instead that a simulated secure sum sets up none of the real one's machinery.
+- **Nothing else moved**: the final weights of 80 seeded runs over every earlier mode have the same sha256
+  as before the changes to the simulation, and the stored summaries of Phases 3 and 4 still rebuild.
+- **The simulated secure sum opens what the real one opens**: on six participants the noise in the
+  opened sum has the same size either way (six slices sized for five honest ones), a participant's
+  shortened change arrives the same way, and the same budget and assumptions are reported. The report
+  says in plain words that the run was simulated.
+- **Both archives are the published files**: size and md5 equal what the storage service states; the
+  sha256 values in `docs/DATASETS.md` were computed from those downloads. A file with another fingerprint
+  is refused (tested without the network).
+- `ruff check`, `ruff format --check`, strict `mypy` (with Python 3.11 and 3.13), the ignore-rule guard,
+  the research fingerprint check, the package build and the release-contents check pass.
+
+### Deviations from the plan
+
+- **The tag cannot be set by the session**, which may only push its own branch. The plan names the tag
+  (`benchmark-plan-v1`) and asks the owner to set it on the merge commit of this step. Every run records
+  the commit it was run at, so the order can be checked either way.
+- **Settings for the new datasets are not chosen in this step.** The plan fixes how they will be chosen
+  (a search on validation rows with seeds that no reported run uses); the search itself is the first
+  part of S18. The roadmap put the tuning nowhere.
+- **The text dataset has 715 roles in the reachable packaging, 644 of them usable**, not the 1,129 of the
+  roadmap, and is planned with three seeds and no search.
+- **Stroke and loan are still read from the copies in the repository.** Their source pages cannot be
+  reached and no mirror address was recorded; the roadmap wanted every dataset downloaded.
+- **The handwriting dataset comes from the TensorFlow Federated packaging** (3,400 writers), not from
+  LEAF (about 3,600), because that host is reachable from the working sessions.
+- **One confirming case with the real secure sum is planned on 60 writers**, not on the full dataset: at
+  3,400 writers the real secure sum needs 5.8 million shared secrets.
+- **The report's table for large groups keeps a selection of rows.** A row per participant would take
+  hours to compute for thousands of participants. Groups of up to 64 are unchanged.
+- **Attack results by class and the audit of whole participants** are written into the plan as parts of
+  the benchmark and are built in S18.
+
+### Environment
+
+- The handwriting archive unpacks to 2.4 GB of number files in `~/.cache/obscuradp-benchmarks`. They are
+  mapped into memory, so parallel runs share them. A new session has to download and convert them again
+  (about a minute).
+- `h5py` reads the archives. It was added to the development dependencies so that the reader's test
+  runs in CI; the pins were regenerated with `tools/update_constraints.sh` (one line added, and
+  `markdown-it-py` moved from 4.2.0 to 4.3.0). The comparison environment needs it once:
+  `.venv-legacy/bin/pip install -c constraints/legacy-py311.txt h5py`.
+- The test jobs take about two minutes longer than after S16.
+
+### Open items
+
+- **For the owner: set the tag `benchmark-plan-v1`** on the merge commit of this step's pull request.
+- **S18**: the search for settings, the reported runs (about 9 hours on four cores at most, resumable),
+  the attack tests named in the plan, the results memo.
+- Carried forward for the owner: what the website says about the 5% target (item 33 of
+  `WEBSITE_MISMATCHES.md`); the license field on the two Kaggle pages; the merged remote branches
+  `cu/trusting-pasteur-sms0ou-s03-website`, `cu/trusting-pasteur-sms0ou` and `cu/eloquent-bardeen-qlbmdu`;
+  TestPyPI setup before S22.
 
 ## S16 log (2026-11-12)
 
