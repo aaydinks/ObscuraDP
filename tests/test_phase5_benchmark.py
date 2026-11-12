@@ -164,6 +164,7 @@ def test_a_made_up_archive_is_read_into_participants(
 # --------------------------------------------------------------------------- cells and runner
 
 import json  # noqa: E402
+from typing import Any  # noqa: E402
 
 from benchmarks.phase5 import audit, common, pilot, plan, report, run, search  # noqa: E402
 from benchmarks.phase5 import main as reported_runs  # noqa: E402
@@ -927,3 +928,129 @@ def test_the_report_names_what_is_wrong_with_stored_results(
     assert report.build_summary(tmp_path)["failed_checks"] == [
         "settings.json: missing (the search has not been run)"
     ]
+
+
+# --------------------------------------------------------------------------- the stored results
+
+STORED = ROOT / "benchmarks" / "results" / "phase5"
+MEMO = ROOT / "docs" / "PHASE5_BENCHMARK.md"
+
+
+def test_the_stored_search_chose_on_validation_rows_with_seeds_of_its_own() -> None:
+    if not (STORED / "settings.json").is_file():
+        pytest.skip("the search's results are not present")
+    stored = json.loads((STORED / "settings.json").read_text(encoding="utf-8"))
+    settings = search.search_settings()
+    assert stored["runs"] == len(settings) == 241
+    files = sorted((STORED / "search").glob("*.json"))
+    assert {path.stem for path in files} == {search.file_name(setting) for setting in settings}
+    for path in files:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        validate_result(record)
+        assert set(record["manifest"]["seeds"]) <= {901, 902, 903}
+        assert "test" not in record["data"]
+        assert record["data"]["within_budget"] in (True, None)  # None: a run without protection
+    # What is stored as chosen is what the rule takes from the stored records.
+    fresh = search.collect(STORED / "search")
+    assert fresh["chosen"] == stored["chosen"]
+    assert fresh["tried"] == stored["tried"]
+    for key, rows in stored["tried"].items():
+        best = search.choose(rows)
+        assert stored["chosen"][key]["learning_rate"] == best["learning_rate"]
+        assert stored["chosen"][key]["clip_norm"] == best["clip_norm"]
+    # The search was made by committed code that came after the plan.
+    for commit in stored["commits"]:
+        assert plan.comes_after_plan(commit) in (True, None)
+
+
+@pytest.fixture(scope="module")
+def stored_summary() -> dict[str, object]:
+    if not (STORED / "summary.json").is_file():
+        pytest.skip("the benchmark's results are not present")
+    data: dict[str, object] = json.loads((STORED / "summary.json").read_text(encoding="utf-8"))
+    return data
+
+
+def test_the_stored_results_are_complete_and_passed_their_checks(
+    stored_summary: dict[str, object],
+) -> None:
+    summary: dict[str, Any] = dict(stored_summary)
+    assert summary["failed_checks"] == []
+    assert summary["runs_found"] == summary["runs_planned"]
+    assert summary["commits"]["plan_unchanged"] is True
+    assert summary["commits"]["all_after_plan"] is True
+    assert not any(commit.endswith("+dirty") for commit in summary["commits"]["run_commits"])
+    stored = json.loads((STORED / "settings.json").read_text(encoding="utf-8"))
+    assert summary["chosen"] == stored["chosen"]
+    planned = reported_runs.reported_settings(stored["chosen"])
+    assert len(planned) == summary["runs_planned"]
+    assert {path.stem for path in (STORED / "runs").glob("*.json")} == {s.label for s in planned}
+    for row in summary["cells"]:
+        if row["epsilon"] is not None:
+            # Every protected cell stayed within its budget, and its limits are in order.
+            assert row["epsilon_spent"] <= row["epsilon"] * (1 + 1e-9)
+            assert 0.0 < row["ceiling_mechanism"] <= row["ceiling_general"] < 1.0
+    # The attack tests never show more than the report allows.
+    for row in summary["health_audit"]:
+        assert row["runs"] == len(audit.HEALTH_SEEDS)
+        for group in audit.GROUPS:
+            assert row[group]["epsilon_lower_limit"] <= row["epsilon"]
+
+
+def test_one_stored_run_of_each_kind_carries_a_report_that_recomputes(
+    stored_summary: dict[str, object],
+) -> None:
+    for label in (
+        "health_network_local_eps-1_seed-1000",
+        "stroke_logistic_shared_eps-8_seed-1004",
+        "loan_network_shared_whole_eps-0.5_seed-1002",
+    ):
+        record = json.loads((STORED / "runs" / f"{label}.json").read_text(encoding="utf-8"))
+        validate_result(record)
+        stored = record["data"]["privacy_report"]
+        assert odp.verify_report(stored) == []
+        stored["scopes"][0]["epsilon"] = 0.01
+        assert odp.verify_report(stored) != []
+
+
+def test_the_benchmarks_memo_quotes_the_stored_numbers(stored_summary: dict[str, object]) -> None:
+    if not MEMO.is_file():
+        pytest.skip("the results memo is not present")
+    tables = report.headline_markdown(stored_summary)
+    memo = MEMO.read_text(encoding="utf-8")
+    assert tables in memo
+    assert chr(0x2014) not in memo
+    stored = (STORED / "summary.md").read_text(encoding="utf-8")
+    assert tables in stored
+    assert chr(0x2014) not in stored
+
+
+@pytest.mark.slow
+def test_the_stored_summary_is_what_the_report_script_produces(
+    stored_summary: dict[str, object],
+) -> None:
+    """Rebuild everything from the stored records: every check, every figure."""
+    rebuilt = report.build_summary()
+    expected: dict[str, Any] = dict(stored_summary)
+    # Whether commits come after the plan cannot be told in a copy without the history.
+    if rebuilt["commits"]["all_after_plan"] is None:
+        rebuilt["commits"]["all_after_plan"] = expected["commits"]["all_after_plan"]
+    _assert_same(json.loads(json.dumps(rebuilt)), expected, "summary")
+
+
+def _assert_same(fresh: object, stored: object, where: str) -> None:
+    """Equal structures; numbers may differ in the last digits."""
+    if isinstance(stored, dict):
+        assert isinstance(fresh, dict), where
+        assert set(fresh) == set(stored), where
+        for key, value in stored.items():
+            _assert_same(fresh[key], value, f"{where}.{key}")
+    elif isinstance(stored, list):
+        assert isinstance(fresh, list), where
+        assert len(fresh) == len(stored), where
+        for index, value in enumerate(stored):
+            _assert_same(fresh[index], value, f"{where}[{index}]")
+    elif isinstance(stored, float) and isinstance(fresh, (int, float)):
+        assert fresh == pytest.approx(stored, rel=1e-9, abs=1e-12), where
+    else:
+        assert fresh == stored, where

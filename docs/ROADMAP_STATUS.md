@@ -80,7 +80,7 @@ are a record of what was run and are not rewritten.
       written plan (`benchmarks/PREREGISTRATION.md`; the tag is for the owner to set).
       aaydinks/ObscuraDP#36, merged as `5b8e623`
 - [ ] S18, Phase 5: benchmark runs. In progress: the scripts and the plan's first amendments are in,
-      the runs follow
+      the runs follow. aaydinks/ObscuraDP#37
 - [ ] S19, Phase 5: Flower adapter
 - [ ] S20, Phase 5: analysis and claims registry
 - [ ] S21, Phase 6: documentation and partner kit
