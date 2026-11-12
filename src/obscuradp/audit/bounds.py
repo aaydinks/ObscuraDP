@@ -7,13 +7,18 @@ $\\varepsilon$. A correct implementation must never show a lower limit above the
 reports. A lower limit far below the reported budget proves nothing; it only means this
 attack was weak.
 
-Two estimators are provided:
+Three estimators are provided:
 
 - ``epsilon_lower_bound`` makes no assumption about the mechanism. It uses the counts of
   wrong guesses in both directions with exact (Clopper-Pearson) confidence limits.
 - ``gaussian_epsilon_lower_bound`` assumes the attacker's score is Gaussian with the same
   spread in both worlds, which is true by construction for some white-box tests. It is far
   more sensitive with the same number of trials.
+- ``one_run_epsilon_lower_bound`` is for an audit that trains once: many test records are
+  each kept or left out by a fair coin, and the attacker guesses for some of them which way
+  the coin fell. It is the routine of Steinke, Nasr and Jagielski, "Privacy Auditing with
+  One (1) Training Run" (2023), arXiv:2305.08846, Corollary 5.5 and the listing in their
+  appendix.
 """
 
 from __future__ import annotations
@@ -128,3 +133,75 @@ def gaussian_epsilon_lower_bound(
     if lower <= 0.0:
         return 0.0
     return gaussian_epsilon(1.0 / lower, delta)
+
+
+def one_run_p_value(
+    canaries: int, guesses: int, correct: int, epsilon: float, delta: float
+) -> float:
+    """How surprising ``correct`` right guesses are if the run really is private.
+
+    ``canaries`` test records were each kept in or left out of one training run by a fair
+    coin. The attacker made ``guesses`` guesses (it may pass on the other records) and
+    ``correct`` of them were right. If the run satisfies $(\\varepsilon, \\delta)$, the number
+    of right guesses is hardly larger than that of $r$ coin flips which each come up right
+    with probability $e^{\\varepsilon} / (e^{\\varepsilon} + 1)$; $\\delta$ adds a small
+    correction. The result is an upper limit on the probability of seeing at least
+    ``correct`` right guesses.
+
+    The number of guesses must be fixed before the coins are looked at.
+
+    Args:
+        canaries: Number of test records $m$.
+        guesses: Number of guesses $r$, at most ``canaries``.
+        correct: Number of right guesses $v$, at most ``guesses``.
+        epsilon: The $\\varepsilon$ being tested.
+        delta: The $\\delta$ being tested.
+    """
+    if not 0 <= correct <= guesses <= canaries:
+        raise ValueError("need 0 <= correct <= guesses <= canaries")
+    if epsilon < 0.0:
+        raise ValueError("epsilon must not be negative")
+    if not 0.0 <= delta <= 1.0:
+        raise ValueError("delta must be in [0, 1]")
+    if correct == 0:
+        return 1.0
+    right = 1.0 / (1.0 + math.exp(-epsilon))  # how often epsilon alone lets a guess be right
+    beta = float(stats.binom.sf(correct - 1, guesses, right))  # P[Binomial(r, right) >= v]
+    # alpha = max over i of P[v > Binomial >= v - i] / i, for i = 1 .. v.
+    below = stats.binom.pmf(np.arange(correct - 1, -1, -1), guesses, right)
+    alpha = float(np.max(np.cumsum(below) / np.arange(1, correct + 1)))
+    return min(1.0, beta + alpha * delta * 2.0 * canaries)
+
+
+def one_run_epsilon_lower_bound(
+    canaries: int, guesses: int, correct: int, delta: float, confidence: float = 0.95
+) -> float:
+    """Lower limit on $\\varepsilon$ from the guesses of an audit that trained once.
+
+    The largest $\\varepsilon$ for which ``one_run_p_value`` stays below ``1 - confidence``:
+    with the stated confidence the run is not $(\\varepsilon, \\delta)$-private for any
+    smaller value. The limit also holds for the pooled counts of several independent runs
+    (each with its own coins): taken together they are one procedure in which a single
+    record still only enters one run.
+
+    Returns:
+        The lower limit, or 0.0 if the guesses show nothing.
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be in (0, 1)")
+    level = 1.0 - confidence
+    if one_run_p_value(canaries, guesses, correct, 0.0, delta) >= level:
+        return 0.0
+    low, high = 0.0, 1.0  # the p-value is below the level at low, and not below it at high
+    while one_run_p_value(canaries, guesses, correct, high, delta) < level:
+        low, high = high, high * 2.0
+        if high > 64.0:
+            # Only reachable when delta is 0 and every guess is right in a huge sample.
+            return low
+    for _ in range(40):
+        middle = (low + high) / 2.0
+        if one_run_p_value(canaries, guesses, correct, middle, delta) < level:
+            low = middle
+        else:
+            high = middle
+    return low

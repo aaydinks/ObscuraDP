@@ -26,6 +26,7 @@ PURPOSES = {
     "evaluation": 6,
     "data": 7,
     "quantize": 8,
+    "canary": 9,
 }
 
 

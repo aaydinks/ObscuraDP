@@ -1,5 +1,6 @@
 """The simulation: a total budget for the whole run, clean evaluation, unsafe settings refused."""
 
+import dataclasses
 from typing import Any
 
 import numpy as np
@@ -16,7 +17,7 @@ from obscuradp.imbalance import ClassWeighted, NoRebalancing, UnsafeOversampling
 from obscuradp.metrics import best_threshold
 from obscuradp.models import TabularMLP
 from obscuradp.results import validate_result
-from obscuradp.state import set_state
+from obscuradp.state import flatten_state, set_state
 from obscuradp.tables import ClientData, make_client_data
 from obscuradp.unsafe import UnsafeConfiguration
 
@@ -459,3 +460,81 @@ def test_values_outside_the_declared_range_are_reported(clients: list[ClientData
 def test_a_secure_sum_needs_two_participants(clients: list[ClientData]) -> None:
     with pytest.raises(ValueError, match="at least two participants"):
         _baseline(clients[:1], plan=_masked_plan(False))
+
+
+# --------------------------------------------------------------------------- declared sizes
+
+
+def _without_rows(client: ClientData, dropped: int) -> ClientData:
+    return dataclasses.replace(
+        client, train_x=client.train_x[dropped:], train_y=client.train_y[dropped:]
+    )
+
+
+def test_a_declared_size_replaces_the_real_one_everywhere(clients: list[ClientData]) -> None:
+    """Leaving rows out must not move the noise level, the sampling rate or the weights."""
+    full = {client.name: client.n_train for client in clients}
+    reduced = [_without_rows(client, 25 * (index + 1)) for index, client in enumerate(clients)]
+    reference = _simulation(clients).calibrations()
+    declared = _simulation(reduced, declared_rows=full)
+    assert declared.calibrations() == reference
+    # Without the declaration the smaller tables are sampled at another rate.
+    assert _simulation(reduced).calibrations() != reference
+    result = declared.run(seed=1)
+    assert result.noise_multipliers == {name: c.noise_multiplier for name, c in reference.items()}
+    assert result.config["declared_rows"] == full
+    assert result.config["clients"] == {client.name: client.n_train for client in reduced}
+    assert result.report is not None
+    assert odp.verify_report(result.report.to_dict()) == []
+
+
+def test_declaring_the_real_sizes_changes_nothing(clients: list[ClientData]) -> None:
+    real = {client.name: client.n_train for client in clients}
+    plain = _simulation(clients).run(seed=4)
+    declared = _simulation(clients, declared_rows=real).run(seed=4)
+    assert np.array_equal(flatten_state(plain.state), flatten_state(declared.state))
+    # Records of runs that declare nothing keep their fingerprint: the key is absent.
+    assert "declared_rows" not in plain.config
+
+
+def test_declared_sizes_also_steer_the_one_step_modes(clients: list[ClientData]) -> None:
+    full = {client.name: client.n_train for client in clients}
+    reduced = [_without_rows(client, 30) for client in clients]
+    plan = odp.Plan(
+        dp=odp.DistributedDPSGD(max_colluding=1, noise="skellam"),
+        secure_sum=odp.crypto.PairwiseMasking(),
+    )
+    settings = {"plan": plan, "batch_size": sum(full.values())}
+    reference = _simulation(clients, **settings).calibrations()
+    assert _simulation(reduced, declared_rows=full, **settings).calibrations() == reference
+    # The batch has to cover the declared rows, not only the rows that are there.
+    with pytest.raises(ValueError, match="whole-number noise"):
+        _simulation(reduced, declared_rows=full, plan=plan, batch_size=sum(full.values()) - 1)
+
+
+@pytest.mark.parametrize(
+    ("declared", "message"),
+    [
+        ({"site-0": 10**4, "site-1": 10**4}, "every participant exactly once"),
+        ({"site-0": 10**4, "site-1": 10**4, "site-2": 10**4, "x": 1}, "every participant"),
+        ({"site-0": 1, "site-1": 10**4, "site-2": 10**4}, "must not be smaller"),
+        ({"site-0": 1e4, "site-1": 10**4, "site-2": 10**4}, "whole numbers"),
+        ({"site-0": True, "site-1": 10**4, "site-2": 10**4}, "whole numbers"),
+    ],
+)
+def test_declared_sizes_that_make_no_sense_are_refused(
+    clients: list[ClientData], declared: dict[str, Any], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _simulation(clients, declared_rows=declared)
+
+
+def test_declared_sizes_do_not_go_with_oversampling(clients: list[ClientData]) -> None:
+    full = {client.name: client.n_train for client in clients}
+    with pytest.raises(ValueError, match="oversampling"):
+        _simulation(
+            clients,
+            plan=odp.Plan(dp=odp.LocalDPSGD(), imbalance=UnsafeOversampling(_double)),
+            allow_unsafe=True,
+            declared_rows=full,
+        )

@@ -104,6 +104,56 @@ OPTIMIZERS = ("sgd", "adam")
 GROUP_SCOPE = "all participants"
 
 
+# What a round's messages are: each participant's change to the shared model after its local
+# training, or one clipped gradient sum per participant (the one-step modes), or each
+# participant's shortened change (whole participants protected).
+RECORD_MODELS = "model changes"
+RECORD_SUMS = "gradient sums"
+RECORD_CHANGES = "shortened changes"
+
+
+@dataclass(frozen=True)
+class RoundRecord:
+    """Everything that left a participant or the server in one round. **For audits only.**
+
+    A record holds more than any single party sees. Whoever plays an attacker has to cut
+    it down to that attacker's view first (``obscuradp.audit.views``); handing a whole
+    record to anyone would break the plan's protection.
+
+    Attributes:
+        round: The round's number, counted from 0. In the modes that share the noise it is
+            the number of the attempt: a failed round has a record too.
+        kind: What the messages are, one of ``RECORD_MODELS``, ``RECORD_SUMS`` and
+            ``RECORD_CHANGES``.
+        start: The shared model at the start of the round.
+        messages: What each participant sent, before any masking, as one 64-bit vector
+            per participant. Participants that were missing have no entry. For
+            ``RECORD_MODELS`` it is the participant's change to the shared model; where the
+            messages are masked it is already multiplied by the participant's public
+            averaging weight, as it enters the sum. Masked messages add up to ``total``
+            (up to rounding).
+        masked: True if the messages went through the secure sum, so that the server saw
+            none of them on its own.
+        total: What moved the shared model in this round. For ``RECORD_MODELS`` the average
+            change of the model, which is all the server gets where the messages are
+            masked. Otherwise the opened secure sum, or the noised total of a trusted
+            server. ``None`` for a round whose sum could not be opened.
+        divisor: The public number ``total`` is divided by before it moves the model (1
+            where it is used as it is).
+    """
+
+    round: int
+    kind: str
+    start: State
+    messages: Mapping[str, np.ndarray[Any, Any]]
+    masked: bool
+    total: np.ndarray[Any, Any] | None
+    divisor: float = 1.0
+
+
+RoundObserver = Callable[[RoundRecord], None]
+
+
 @dataclass(frozen=True)
 class SimulationResult:
     """Everything one run produced.
@@ -206,6 +256,12 @@ class Simulation:
             round, as a mapping from the round's number (counted from 0) to their names.
             Such a round fails: the secure sum cannot be opened, the model does not move,
             and everyone who sent a message is still charged.
+        declared_rows: The public number of training rows of each participant, by name,
+            where it differs from the number of rows actually given. Every place that
+            would use a participant's size (the noise level, the chance of a row joining a
+            step, the averaging weights) uses this number instead, so that leaving a row
+            out changes nothing an observer could see directly. It must not be smaller
+            than the real number. Meant for audits that leave some rows out by coin flip.
     """
 
     model_fn: Callable[[], nn.Module]
@@ -224,6 +280,7 @@ class Simulation:
     secure_noise: bool = False
     outputs: str | None = None
     dropouts: Mapping[int, Collection[str]] | None = None
+    declared_rows: Mapping[str, int] | None = None
     _flags: UnsafeFlags = field(init=False, repr=False)
     _missing: dict[int, frozenset[str]] = field(init=False, repr=False)
 
@@ -257,6 +314,21 @@ class Simulation:
                 "a privacy budget was given but the plan adds no noise; use Plan(dp=LocalDPSGD()) "
                 "or pass policy=None for an unprotected baseline"
             )
+        if self.declared_rows is not None:
+            if isinstance(self.plan.imbalance, UnsafeOversampling):
+                raise ValueError("declared_rows cannot be combined with oversampling")
+            if set(self.declared_rows) != set(names):
+                raise ValueError("declared_rows must name every participant exactly once")
+            for client in self.clients:
+                declared = self.declared_rows[client.name]
+                if isinstance(declared, bool) or not isinstance(declared, int):
+                    raise ValueError("declared_rows must hold whole numbers")
+                if declared < client.n_train:
+                    raise ValueError(
+                        f"{client.name} declares {declared} rows but has {client.n_train}; "
+                        "a declared size must not be smaller than the real one"
+                    )
+            self.declared_rows = dict(self.declared_rows)
         whole = isinstance(self.plan.dp, ClientLevelDP)
         if self.policy is not None and whole != (self.policy.unit == "client"):
             raise ValueError(
@@ -298,7 +370,7 @@ class Simulation:
                 )
         if isinstance(self.plan.dp, DistributedDPSGD):
             self.plan.dp.honest_shares(len(self.clients))
-            rows = sum(client.n_train for client in self.clients)
+            rows = sum(self._public_size(client) for client in self.clients)
             if self.plan.dp.noise == "skellam" and self.batch_size < rows:
                 raise ValueError(
                     "whole-number noise is counted for rounds in which every row takes part; "
@@ -360,7 +432,7 @@ class Simulation:
                     f"delta = {self.policy.delta:g} with {len(self.clients)} participants",
                 )
             return
-        weak = [c.name for c in self.clients if self.policy.delta_is_weak_for(c.n_train)]
+        weak = [c.name for c in self.clients if self.policy.delta_is_weak_for(self._public_size(c))]
         if weak:
             self._flags.raise_or_record(
                 "weak_delta", f"delta = {self.policy.delta:g}; affected: {', '.join(weak)}"
@@ -444,10 +516,16 @@ class Simulation:
             )
         return result
 
+    def _public_size(self, client: ClientData) -> int:
+        """The number of training rows a participant is taken to have."""
+        if self.declared_rows is None:
+            return client.n_train
+        return self.declared_rows[client.name]
+
     def _training_sizes(self) -> list[int]:
         """Training rows per participant. Oversampling changes them, so it is applied first."""
         if not isinstance(self.plan.imbalance, UnsafeOversampling):
-            return [client.n_train for client in self.clients]
+            return [self._public_size(client) for client in self.clients]
         return [int(x.shape[0]) for x, _ in self._training_tables(seed=0)]
 
     def _training_tables(self, seed: int) -> list[tuple[torch.Tensor, torch.Tensor]]:
@@ -519,12 +597,21 @@ class Simulation:
             },
             "policy": None if self.policy is None else self.policy.to_dict(),
             "clients": {client.name: client.n_train for client in self.clients},
+            # Only present when it was set, so that earlier records keep their fingerprint.
+            **({} if self.declared_rows is None else {"declared_rows": dict(self.declared_rows)}),
         }
 
     # ------------------------------------------------------------------ running
 
-    def run(self, seed: int) -> SimulationResult:
+    def run(self, seed: int, observer: RoundObserver | None = None) -> SimulationResult:
         """Run all rounds and return the final model, its scores and the privacy report.
+
+        Args:
+            seed: The run's seed.
+            observer: Optional function called once per round with a ``RoundRecord`` of
+                everything that was sent in that round. It is meant for audits, which play
+                an attacker; it must not change anything it is given. The run itself is
+                the same with and without it.
 
         Raises:
             BudgetExceeded: If the run cannot fit the policy's budget. Nothing is trained.
@@ -538,6 +625,8 @@ class Simulation:
         loss_fn = self.plan.imbalance.loss(from_logits=from_logits)
         tables = self._training_tables(seed)
         sizes = [int(x.shape[0]) for x, _ in tables]
+        if self.declared_rows is not None:
+            sizes = [self.declared_rows[client.name] for client in self.clients]
 
         ledger: PrivacyLedger | None = None
         calibrations: dict[str, Calibration | SkellamCalibration] = {}
@@ -567,7 +656,16 @@ class Simulation:
         if self.plan.single_step:
             assert ledger is not None
             state, mode = self._single_step_rounds(
-                shared, tables, sizes, loss_fn, ledger, calibrations, seed, history, communication
+                shared,
+                tables,
+                sizes,
+                loss_fn,
+                ledger,
+                calibrations,
+                seed,
+                history,
+                communication,
+                observer,
             )
         elif isinstance(self.plan.dp, ClientLevelDP):
             assert ledger is not None
@@ -582,6 +680,7 @@ class Simulation:
                 seed,
                 history,
                 communication,
+                observer,
             )
         elif self.plan.secure_sum is not None:
             maskers, aggregator = self.plan.secure_sum.build(names)
@@ -608,8 +707,10 @@ class Simulation:
                     seed,
                     round_index,
                     index,
+                    None if self.declared_rows is None else sizes[index],
                 )
                 updates.append(get_state(worker))
+            start = state
             if aggregator is None:
                 state = aggregate_states(updates, sizes, weighted=self.weighted_average)
             else:
@@ -617,6 +718,26 @@ class Simulation:
                     state, updates, sizes, maskers, aggregator, seed, round_index
                 )
                 communication["saturated_share"] = max(communication["saturated_share"], saturated)
+            if observer is not None:
+                origin = flatten_state(start)
+                factors = (
+                    np.ones(len(names))
+                    if aggregator is None
+                    else fedavg_weights(sizes, weighted=self.weighted_average)
+                )
+                observer(
+                    RoundRecord(
+                        round=round_index,
+                        kind=RECORD_MODELS,
+                        start=start,
+                        messages={
+                            name: factor * (flatten_state(update) - origin)
+                            for name, factor, update in zip(names, factors, updates, strict=True)
+                        },
+                        masked=aggregator is not None,
+                        total=flatten_state(state) - origin,
+                    )
+                )
             last = round_index == self.rounds - 1
             due = self.evaluate_every > 0 and (round_index + 1) % self.evaluate_every == 0
             if (due or last) and self._has_rows("validation"):
@@ -674,6 +795,7 @@ class Simulation:
         seed: int,
         round_index: int,
         index: int,
+        declared: int | None = None,
     ) -> None:
         features, targets = table
         optimizer: torch.optim.Optimizer
@@ -712,6 +834,7 @@ class Simulation:
             # The budget counts on the choice of rows being secret, like the noise.
             sampling_generator=self._torch_stream(seed, "sampling", round_index, index),
             noise_generator=noise,
+            declared_records=declared,
             clip_scale=self.plan.imbalance.clip_scale,
             proximal_mu=mu,
             reference=reference if mu > 0 else None,
@@ -734,6 +857,7 @@ class Simulation:
         seed: int,
         history: list[dict[str, Any]],
         communication: dict[str, float],
+        observer: RoundObserver | None = None,
     ) -> tuple[State, ModeReport]:
         """The rounds of ``DistributedDPSGD`` and ``CentralDPSGD``: one step each.
 
@@ -795,6 +919,8 @@ class Simulation:
         completed = 0
         for attempt in range(self.rounds):
             total: np.ndarray[Any, Any] | None = None
+            sent: dict[str, np.ndarray[Any, Any]] = {}
+            start = get_state(shared) if observer is not None else None
             if grid is not None and aggregator is not None:
                 absent = self._missing.get(attempt, frozenset())
                 messages: dict[str, bytes] = {}
@@ -846,6 +972,9 @@ class Simulation:
                         grid.outside_share(vector),
                         local.get("limited_share", 0.0),
                     )
+                    if observer is not None:
+                        # The message as the sum will count it: on the grid, before masking.
+                        sent[client.name] = grid.decode_sum(encoded)
                     # Every attempt has its own sum index: masks are never used twice.
                     messages[client.name] = maskers[client.name].protect(attempt, encoded)
                 try:
@@ -878,7 +1007,23 @@ class Simulation:
                     dtype=torch.float64,
                 )
                 total = (torch.stack(sums).sum(dim=0) + noise).numpy()
+                if observer is not None:
+                    sent = {
+                        name: clean.numpy().copy() for name, clean in zip(names, sums, strict=True)
+                    }
 
+            if observer is not None and start is not None:
+                observer(
+                    RoundRecord(
+                        round=attempt,
+                        kind=RECORD_SUMS,
+                        start=start,
+                        messages=sent,
+                        masked=grid is not None,
+                        total=None if total is None else total.copy(),
+                        divisor=divisor,
+                    )
+                )
             if total is not None:
                 self._apply_step(trainable, optimizer, total / divisor)
                 completed += 1
@@ -933,6 +1078,7 @@ class Simulation:
         seed: int,
         history: list[dict[str, Any]],
         communication: dict[str, float],
+        observer: RoundObserver | None = None,
     ) -> tuple[State, ModeReport]:
         """The rounds of ``ClientLevelDP``: the budget protects whole participants.
 
@@ -979,6 +1125,7 @@ class Simulation:
             start = [value.detach().clone() for value in trainable]
             total = torch.zeros(length, dtype=torch.float64)
             messages: dict[str, bytes] = {}
+            sent: dict[str, np.ndarray[Any, Any]] = {}
             for index, client in enumerate(self.clients):
                 if client.name in absent:
                     continue
@@ -1003,6 +1150,8 @@ class Simulation:
                     change = clipped_model_change(worker, start, dp.clip_norm, weights[index])
                 if grid is None:
                     total += change
+                    if observer is not None:
+                        sent[client.name] = change.numpy().copy()
                     continue
                 noise = gaussian_noise(
                     (length,),
@@ -1014,10 +1163,10 @@ class Simulation:
                 communication["saturated_share"] = max(
                     communication["saturated_share"], grid.outside_share(vector)
                 )
-                messages[client.name] = maskers[client.name].protect(
-                    attempt,
-                    grid.encode(vector, self._numpy_stream(seed, "quantize", attempt, index)),
-                )
+                encoded = grid.encode(vector, self._numpy_stream(seed, "quantize", attempt, index))
+                if observer is not None:
+                    sent[client.name] = grid.decode_sum(encoded)
+                messages[client.name] = maskers[client.name].protect(attempt, encoded)
             opened: np.ndarray[Any, Any] | None
             if grid is not None and aggregator is not None:
                 try:
@@ -1032,6 +1181,18 @@ class Simulation:
                     dtype=torch.float64,
                 )
                 opened = (total + server_noise).numpy()
+            if observer is not None:
+                observer(
+                    RoundRecord(
+                        round=attempt,
+                        kind=RECORD_CHANGES,
+                        start=state,
+                        messages=sent,
+                        masked=grid is not None,
+                        total=None if opened is None else opened.copy(),
+                        divisor=divisor,
+                    )
+                )
             if opened is not None:
                 offset = 0
                 with torch.no_grad():

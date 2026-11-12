@@ -9,4 +9,4 @@ Status is one of: proposed (waiting for the owner), accepted, replaced.
 | 0002 | Privacy unit and how the budget is counted | Accepted (owner, 2026-11-10) |
 | 0003 | Default way to hide individual updates from the server | Accepted (owner, 2026-11-10) |
 | 0004 | Class imbalance without SMOTE inside private training | Accepted (owner, 2026-11-10) |
-| 0005 | The default plan (which way of adding the noise) | Proposed (waiting for the owner) |
+| 0005 | The default plan (which way of adding the noise) | Accepted (owner, 2026-11-11) |

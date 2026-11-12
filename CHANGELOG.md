@@ -91,6 +91,23 @@ public interface.
 - `docs/SHARED_NOISE.md` (the argument behind the shared-noise mode and what is not yet proven) and
   `docs/DATASETS.md` (source and license of the two dataset files, as far as they could be found).
 
+- `obscuradp.audit.membership`: an attack test on a whole training run that trains only once (the method
+  of Steinke, Nasr and Jagielski, 2023). About a quarter of each participant's rows become test records,
+  each kept or left out by a fair coin; two attacks guess the coins from what their attacker can see.
+  Every result shows the proven limit for any method, the proven limit for the noise used and the
+  measured value side by side, with the most the test could have shown.
+- `obscuradp.audit.mechanism`: the strongest-attacker checks of the private training step, the two
+  shared-noise modes and the whole-participant mode, which lived in the tests, as public functions.
+- `obscuradp.audit.views`: what the server (with any colluding participants) and a model observer may see
+  of a round. `obscuradp.audit.one_run_epsilon_lower_bound` and `one_run_p_value`: the paper's routine.
+- `obscuradp audit self-test` (`obscuradp.audit.selftest`): the auditor is shown a correct and a broken
+  pipeline and must tell them apart.
+- `Simulation.run(observer=...)` hands an audit everything that was sent in each round (a `RoundRecord`),
+  and `Simulation(declared_rows=...)` fixes the participants' public sizes so that leaving a row out
+  changes nothing an observer could read off directly. Runs that use neither are unchanged.
+- Phase 4 results (`benchmarks/results/phase4/`, `docs/PHASE4_ATTACK_TESTS.md`): attack tests on the two
+  research tables, 1,080 runs, with the measured attacker advantage at every budget.
+
 ### Changed
 
 - Root `.gitignore` rules are anchored to the repository root so they can no longer hide source folders.

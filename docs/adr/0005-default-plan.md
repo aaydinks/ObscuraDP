@@ -1,7 +1,8 @@
 # 0005. The default plan
 
-Status: **proposed (waiting for the owner).** Written in step S14 on 2026-11-11 from
-`docs/PHASE3_RESULTS.md`. Until the owner decides, nothing changes in the library's defaults.
+Status: **accepted by the owner on 2026-11-11.** Written as a proposal in step S14 on 2026-11-11 from
+`docs/PHASE3_RESULTS.md`; the owner chose it as proposed the same day (recorded in step S15). Nothing in
+the library's defaults had to change: `Plan()` already used `LocalDPSGD`.
 
 ## Context
 
@@ -21,7 +22,7 @@ protects whole participants. They were compared at equal total budgets on the tw
 Two things the comparison could not settle: how the plans compare with many participants or more assumed
 colluders, and whether the settings found on made-up tables are near the best for any of them.
 
-## Proposed decision
+## Decision
 
 1. **`Plan()` keeps `LocalDPSGD` as its default.** A default should hold with the fewest assumptions,
    and local noise is the only plan whose guarantee does not depend on a secure sum, on public keys
@@ -43,16 +44,17 @@ colluders, and whether the settings found on made-up tables are near the best fo
 6. **`ClientLevelDP` is documented as a plan for a thousand participants or more.** With five it does not
    work, and the library says so when it is used.
 
-## The alternative the owner may prefer
+## The alternative that was not chosen
 
 Make shared noise the default plan. For: it gave the better model on the small table at every budget
 where a difference could be shown, and never a worse one. Against: a default that needs a secure sum
 would make the simplest call (`Plan()`) refuse to run without further settings, the caller cannot be
 spared the choice of `t`, the plan uploads more in total, and its ordinary-noise form still carries the
-argued rounding step. If the owner chooses this, the change is one line in `src/obscuradp/plan.py` plus
-the examples, and the decision should name the noise kind and whether `t` gets a default.
+argued rounding step. Had the owner chosen this, the change would have been one line in
+`src/obscuradp/plan.py` plus the examples, and the decision would have had to name the noise kind and
+whether `t` gets a default.
 
-## Consequences of the proposal
+## Consequences
 
 - No stored result and no example changes.
 - Step S21 (documentation) gets a short guide: which plan for which situation, with the table above.

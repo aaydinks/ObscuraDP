@@ -64,6 +64,15 @@ Items 18 and 19 ("mathematically guaranteed", "a bound you can check") now have 
 are counted for the whole run, checked three ways, and `obscuradp report verify` recomputes any report.
 They still wait for S22 and for the statement that no outside audit has been done.
 
+## Added in S15 (2026-11-11)
+
+The attack tests (`docs/PHASE4_ATTACK_TESTS.md`) give the measured value that items 13 and 14 waited for.
+This waits for S22 with the items above; it has not been applied.
+
+| # | Where | Current wording | Problem | Proposed change |
+|---|---|---|---|---|
+| 33 | `website/src/sections/Impact.astro:7-10` (extends items 13 and 14) | "≤ 5% attacker advantage at ε = 1.0." and "Our goal: in our own attack tests, an attacker ... should be right no more than 52.5% of the time ... We have not run these tests yet." | The tests have been run. At a total budget of 1 the strongest attacker's measured advantage is -1.1% and 0.5% on the stroke table and 4.3% and 5.3% on the loan table (upper ends of the intervals 5.6% and 6.3%). So the target is met on one table and not on the other, and "We have not run these tests yet" is no longer true | "In our attack tests the strongest attacker's advantage at a total budget of 1 was 0% to 5%, depending on the table (proven worst case: 10.6%). An outsider who only gets the finished model learned nothing we could measure." Show the table of measured values beside both proven limits, and say that the tests cannot confirm a budget, only catch a broken one |
+
 ## Checks to run after any edit
 
 ```bash

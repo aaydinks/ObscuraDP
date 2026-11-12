@@ -23,13 +23,11 @@ from obscuradp.accounting import (
     calibrate_skellam,
 )
 from obscuradp.audit import gaussian_epsilon_lower_bound
-from obscuradp.client import integer_sum_step, private_sum_step
-from obscuradp.compression import plan_integer_grid, plan_sum_grid
+from obscuradp.audit.mechanism import shared_sum_scores, whole_number_sum_scores
 from obscuradp.crypto import PairwiseMasking, pairwise_masking, setup_pairwise_masking
 from obscuradp.imbalance import ClassWeighted
 from obscuradp.ledger import PrivacyLedger
 from obscuradp.mechanisms import (
-    default_sum_bound,
     gaussian_noise,
     plan_integer_step,
     share_std,
@@ -585,53 +583,8 @@ def test_a_missing_honest_participant_keeps_everything_hidden() -> None:
 
 
 def _attack_scores(with_target: bool, trials: int, sigma: float, seed: int) -> list[float]:
-    """Play the strongest attacker the plan allows against one shared step.
-
-    Three participants, one of them (the last) works with the server. The attacker sees the
-    opened sum, knows the colluder's whole message and every record except the target, and
-    must decide whether the target record was in the first participant's table. Every row
-    joins (full batch), so the best attack is known: remove the colluder's message and
-    project what is left on the target's gradient.
-    """
-    width, clip, count = 6, 1.0, 3
-    one_slice = share_std(sigma, clip, count, 1, 0)
-    grid = plan_sum_grid(one_slice, default_sum_bound(clip, 1.0, 4), count)
-    modulus = np.uint64(2**grid.modulus_bits)
-    data = torch.Generator().manual_seed(0)
-    tables = [torch.randn(3, width, generator=data) for _ in range(count)]
-    target = torch.zeros(1, width)
-    target[0, 0] = 3.0  # longer than the clipping norm, so it is clipped to exactly that
-    if with_target:
-        tables[0] = torch.cat([tables[0], target])
-    sampling = torch.Generator().manual_seed(seed)
-    noise = torch.Generator().manual_seed(seed + 1)
-    rounding = np.random.default_rng(seed + 2)
-    model = _Silent(width)
-    scores = []
-    for _ in range(trials):
-        ledger = PrivacyLedger(odp.PrivacyPolicy(50.0, DELTA))
-        total = np.zeros(width, dtype=np.uint64)
-        messages = []
-        for index, table in enumerate(tables):
-            message = private_sum_step(
-                model,
-                table,
-                torch.ones(table.shape[0]),
-                loss_fn=lambda output, label: -output * label,
-                ledger=ledger,
-                scope=f"site-{index}",
-                sampling_rate=1.0,
-                clip_norm=clip,
-                noise_multiplier=sigma,
-                share_std=one_slice,
-                sampling_generator=sampling,
-                noise_generator=noise,
-            ).numpy()
-            messages.append(message)
-            total = (total + grid.encode(message, rounding)) % modulus
-        honest = grid.decode_sum(total) - messages[-1]
-        scores.append(-float(honest[0]) / clip)
-    return scores
+    """The attack itself is public: ``obscuradp.audit.mechanism.shared_sum_scores``."""
+    return shared_sum_scores(with_target, trials, noise_multiplier=sigma, seed=seed)[0]
 
 
 ATTACK_SIGMA = 3.73  # one full-batch release at this noise level costs a budget of 1
@@ -828,51 +781,8 @@ def test_the_opened_sum_carries_the_stated_whole_number_noise(
 
 
 def _whole_attack_scores(with_target: bool, trials: int, seed: int) -> tuple[list[float], float]:
-    """The attack of ``_attack_scores`` against one release with whole-number noise."""
-    width, clip, count = 6, 1.0, 3
-    step = plan_integer_step(width)
-    planned = calibrate_skellam(1.0, DELTA, 1, step.l2_sensitivity, step.l1_sensitivity)
-    slice_variance = planned.variance / (count - 1)
-    grid = plan_integer_grid(
-        clip / step.scale, math.ceil(4 * step.l2_sensitivity), math.sqrt(slice_variance), count
-    )
-    modulus = np.uint64(2**grid.modulus_bits)
-    data = torch.Generator().manual_seed(0)
-    tables = [torch.randn(3, width, generator=data) for _ in range(count)]
-    target = torch.zeros(1, width)
-    target[0, 0] = 3.0
-    if with_target:
-        tables[0] = torch.cat([tables[0], target])
-    rounding = np.random.default_rng(seed)
-    noise = np.random.default_rng(seed + 1)
-    model = _Silent(width)
-    scores = []
-    spent = 0.0
-    for _ in range(trials):
-        ledger = PrivacyLedger(odp.PrivacyPolicy(50.0, DELTA))
-        total = np.zeros(width, dtype=np.uint64)
-        messages = []
-        for index, table in enumerate(tables):
-            message = integer_sum_step(
-                model,
-                table,
-                torch.ones(table.shape[0]),
-                loss_fn=lambda output, label: -output * label,
-                ledger=ledger,
-                scope=f"site-{index}",
-                clip_norm=clip,
-                step=step,
-                variance=planned.variance,
-                share_variance=slice_variance,
-                rounding_generator=rounding,
-                noise_generator=noise,
-            )
-            messages.append(message)
-            total = (total + grid.wrap(message)) % modulus
-        honest = grid.decode_sum(total) / grid.step - messages[-1]
-        scores.append(-float(honest[0]))
-        spent = ledger.spent("site-0")
-    return scores, spent
+    """The attack itself is public: ``obscuradp.audit.mechanism.whole_number_sum_scores``."""
+    return whole_number_sum_scores(with_target, trials, seed=seed)
 
 
 def test_the_attack_on_whole_number_noise_proves_no_more_than_the_ledger() -> None:

@@ -17,7 +17,7 @@ the mitigation. Review this file at every gate.
 | 10 | No independent security review before release | High | High | Release label "Prerun + novel research action" (owner's wording); README and docs state that there has been no independent audit; `SECURITY.md`; ask for outside review after release | S22 |
 | 11 | Dataset licenses are unclear | Medium | Low | Owner decision at the gate (the files stay; `docs/DATASETS.md` says what is known and that both licenses are "not found"); the wheel never ships data; downloaders with checksums | S1, S12, S17 |
 | 12 | The cloud environment cannot reach the CPU-only torch download host, so each session downloads several gigabytes of GPU libraries | High | Low | Propose a setup script or an allowed host; cache wheels | S4 |
-| 13 | The one-run audit is too weak on tables of about 4,000 rows to say anything useful | Medium | Medium | Pilot first; report the audit's own detection power; shadow-model attack as a second opinion | S15, S16 |
+| 13 | The one-run audit is too weak on tables of about 4,000 rows to say anything useful | Medium | Medium | Pilot first; report the audit's own detection power; shadow-model attack as a second opinion. Outcome (S15): partly true. Thirty pooled runs can prove at most about half of a budget of 1 and a single run next to nothing, so the audit cannot confirm a budget. It does measure the attacker's advantage (to about one point either way) and it catches a pipeline whose noise is missing. Every result carries "the most the test could show" (`docs/PHASE4_ATTACK_TESTS.md`) | S15, S16 |
 | 14 | A partner misreads the report and deploys an unsafe configuration | Medium | High | Unsafe flags in plain words; "what this does not protect against" page; `obscuradp doctor` | S9, S21 |
 
 ## Changes at the Phase 2 gate (2026-11-10)
@@ -36,6 +36,22 @@ the mitigation. Review this file at every gate.
 - **New, low:** the dependency bot's own configuration check stayed queued on one commit of
   aaydinks/ObscuraDP#28 and never reported. The rules were verified by the bot acting on them (it closed
   aaydinks/ObscuraDP#22).
+
+## Changes after S15 (2026-11-11)
+
+- **Risk 8, attacker advantage, has happened for one table.** Measured against the attacker the default
+  plan is written for, the advantage at a total budget of 1 is within 5% on the stroke table and not on
+  the loan table (4.3% and 5.3%, upper ends 5.6% and 6.3%). The website sentence cannot stay a single
+  promise (item 33 of `docs/WEBSITE_MISMATCHES.md`, for S22).
+- **Risk 13:** see its row. The single-step check, which attacks the noise itself, remains the test that
+  can tell a mechanism with too little noise from a correct one; the whole-run audit cannot.
+- **Risk 1** now has a public tool behind it: the strongest-attacker checks are in
+  `obscuradp.audit.mechanism`, and `obscuradp audit self-test` shows that the auditor flags a broken
+  pipeline and passes a correct one.
+- **New, medium: averages hide groups of rows.** Where the rare class is given more weight, rows of the
+  common class are shortened to a few percent of the clipping length and the rare rows carry the full
+  length. The measured average on the stroke table says little about the rare rows. To be measured
+  apart in S16.
 
 ## Triggers that reopen a decision
 
