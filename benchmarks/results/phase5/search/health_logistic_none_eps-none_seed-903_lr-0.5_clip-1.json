@@ -1,0 +1,91 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "none",
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "dataset": "health",
+   "epsilon": null,
+   "learning_rate": 0.5,
+   "local_epochs": 1.0,
+   "model": "logistic",
+   "rounds": 30,
+   "seed": 903
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 0.5,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": null,
+  "rounds": 30,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "epsilon_spent": null,
+  "label": "health_logistic_none_eps-none_seed-903",
+  "seconds": 3.427067268000428,
+  "validation": {
+   "accuracy": 0.7540819726757747,
+   "ap": 0.2784204682219437,
+   "auc": 0.8316287534121929,
+   "f1": 0.262,
+   "loss": 0.5091704219161038,
+   "precision": 0.15878787878787878,
+   "pred_pos_rate": 0.2749083638787071,
+   "recall": 0.7485714285714286
+  },
+  "within_budget": null
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "30bccadb7f3d4fcf1e88addc7d7aed20fc20d1196453e58b92b11dcb328bfc08",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T06:54:35+00:00",
+  "git_commit": "bac59e0a0e946e6e092a0950cd3479f0acea8177",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   903
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

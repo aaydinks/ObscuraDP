@@ -1,0 +1,249 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "local",
+   "batch_size": 32,
+   "clip_norm": 0.5,
+   "dataset": "stroke",
+   "epsilon": 1.0,
+   "learning_rate": 0.05,
+   "local_epochs": 3.0,
+   "model": "network",
+   "rounds": 20,
+   "seed": 1002
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 781,
+   "site-1": 1813,
+   "site-2": 46,
+   "site-3": 446,
+   "site-4": 350
+  },
+  "learning_rate": 0.05,
+  "local_epochs": 3.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": {
+    "clip_norm": 0.5
+   },
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.029,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": {
+   "accountant": "pld",
+   "adjacency": "add_remove",
+   "delta": 1e-05,
+   "epsilon": 1.0,
+   "max_records_per_person": 1,
+   "per_scope_epsilon": {},
+   "unit": "record"
+  },
+  "rounds": 20,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "communication": {
+   "bits_per_value": 32.0,
+   "plain_bytes_per_round": 13828.0,
+   "ratio": 1.0,
+   "saturated_share": 0.0,
+   "setup_bytes": 0.0,
+   "upload_bytes_per_round": 13828.0
+  },
+  "history": [
+   {
+    "accuracy": 0.9578804347826086,
+    "ap": 0.14249225382701253,
+    "auc": 0.7558453443148021,
+    "f1": 0.0,
+    "loss": 0.37937486747235066,
+    "precision": 0.0,
+    "pred_pos_rate": 0.0,
+    "recall": 0.0,
+    "round": 20
+   }
+  ],
+  "label": "stroke_network_local_eps-1_seed-1002",
+  "noise_multipliers": {
+   "site-0": 5.9669016865815045,
+   "site-1": 3.9335759235479717,
+   "site-2": 26.027809717081986,
+   "site-3": 7.848896411108619,
+   "site-4": 8.852635263657138
+  },
+  "privacy_report": {
+   "attacker_advantage_ceiling": 0.10630533586280029,
+   "caveats": [
+    "Validation and test rows are not protected by this budget; only training rows are.",
+    "The noise was drawn from the run's seed so that the experiment can be repeated. Anyone who knows the seed can remove it. Real data needs secure_noise=True."
+   ],
+   "epsilon": 0.9996093379868245,
+   "general_attacker_advantage_ceiling": 0.461968906131726,
+   "library_version": "0.1.0.dev0",
+   "not_covered": [
+    "Anything computed from private data outside this library, such as statistics used for preprocessing or settings chosen by looking at private results.",
+    "The evaluation data and the numbers computed on it.",
+    "Side channels: timing, message sizes, and which participants were online.",
+    "The facts the protocol treats as public: declared dataset sizes, the feature layout and the model architecture.",
+    "A participant or server that does not follow the protocol."
+   ],
+   "policy": {
+    "accountant": "pld",
+    "adjacency": "add_remove",
+    "delta": 1e-05,
+    "epsilon": 1.0,
+    "max_records_per_person": 1,
+    "per_scope_epsilon": {},
+    "unit": "record"
+   },
+   "protection": [
+    "Each participant adds its own noise before anything leaves its machine. Its training records are protected, at the stated budget, from the server, from the other participants and from anyone who sees a model.",
+    "The updates themselves travel in the clear: the server sees each participant's noisy update."
+   ],
+   "schema": "obscuradp.privacy_report/1",
+   "scopes": [
+    {
+     "attacker_advantage_ceiling": 0.10573134715433004,
+     "budget": 1.0,
+     "epsilon": 0.9994606302985724,
+     "epsilon_lower_estimate": 0.9744428982279268,
+     "epsilon_rdp": 1.0934685987674535,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 5.9669016865815045,
+       "sampling_rate": 0.040973111395646605,
+       "steps": 1480
+      }
+     ],
+     "scope": "site-0"
+    },
+    {
+     "attacker_advantage_ceiling": 0.10568699411317321,
+     "budget": 1.0,
+     "epsilon": 0.9994120607291835,
+     "epsilon_lower_estimate": 0.9743694961587802,
+     "epsilon_rdp": 1.0934478818986504,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 3.9335759235479717,
+       "sampling_rate": 0.01765030336458908,
+       "steps": 3400
+      }
+     ],
+     "scope": "site-1"
+    },
+    {
+     "attacker_advantage_ceiling": 0.10630533586280029,
+     "budget": 1.0,
+     "epsilon": 0.999147213417008,
+     "epsilon_lower_estimate": 0.9941465356432533,
+     "epsilon_rdp": 1.0921380586523135,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 26.027809717081986,
+       "sampling_rate": 0.6956521739130435,
+       "steps": 100
+      }
+     ],
+     "scope": "site-2"
+    },
+    {
+     "attacker_advantage_ceiling": 0.10572586957824058,
+     "budget": 1.0,
+     "epsilon": 0.9991410550269408,
+     "epsilon_lower_estimate": 0.9741321776281114,
+     "epsilon_rdp": 1.0931041439560005,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 7.848896411108619,
+       "sampling_rate": 0.07174887892376682,
+       "steps": 840
+      }
+     ],
+     "scope": "site-3"
+    },
+    {
+     "attacker_advantage_ceiling": 0.1057892685951058,
+     "budget": 1.0,
+     "epsilon": 0.9996093379868245,
+     "epsilon_lower_estimate": 0.9746032304566082,
+     "epsilon_rdp": 1.0935753804810968,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 8.852635263657138,
+       "sampling_rate": 0.09142857142857143,
+       "steps": 660
+      }
+     ],
+     "scope": "site-4"
+    }
+   ],
+   "unsafe_flags": [],
+   "within_budget": true
+  },
+  "seconds": 18.81341042300005,
+  "test": {
+   "accuracy": 0.9578804347826086,
+   "ap": 0.13479246775791365,
+   "auc": 0.7700754975978037,
+   "f1": 0.0,
+   "loss": 0.37896822926432605,
+   "precision": 0.0,
+   "pred_pos_rate": 0.0,
+   "recall": 0.0
+  },
+  "test_at_chosen_threshold": null,
+  "threshold": 0.5,
+  "validation": {
+   "accuracy": 0.9578804347826086,
+   "ap": 0.14249225382701253,
+   "auc": 0.7558453443148021,
+   "f1": 0.0,
+   "loss": 0.37937486747235066,
+   "precision": 0.0,
+   "pred_pos_rate": 0.0,
+   "recall": 0.0
+  }
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "d10ad60dac968b35bffb9b001aab407e5f4add2a1e2e8db874830c1ded03b672",
+  "cpu_count": 4,
+  "created_utc": "2026-11-13T00:52:55+00:00",
+  "git_commit": "73daba9f04556749ed9da39c660979a3baeb0035",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v445-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   1002
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}
