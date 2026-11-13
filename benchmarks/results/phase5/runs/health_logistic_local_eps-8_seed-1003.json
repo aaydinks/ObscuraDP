@@ -1,0 +1,339 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "local",
+   "batch_size": 32,
+   "clip_norm": 2.0,
+   "dataset": "health",
+   "epsilon": 8.0,
+   "learning_rate": 0.5,
+   "local_epochs": 1.0,
+   "model": "logistic",
+   "rounds": 30,
+   "seed": 1003
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 0.5,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": {
+    "clip_norm": 2.0
+   },
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": {
+   "accountant": "pld",
+   "adjacency": "add_remove",
+   "delta": 1e-05,
+   "epsilon": 8.0,
+   "max_records_per_person": 1,
+   "per_scope_epsilon": {},
+   "unit": "record"
+  },
+  "rounds": 30,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "communication": {
+   "bits_per_value": 32.0,
+   "plain_bytes_per_round": 48.0,
+   "ratio": 1.0,
+   "saturated_share": 0.0,
+   "setup_bytes": 0.0,
+   "upload_bytes_per_round": 48.0
+  },
+  "history": [
+   {
+    "accuracy": 0.8113962012662446,
+    "ap": 0.27197576103579213,
+    "auc": 0.8213749873622485,
+    "f1": 0.2960199004975124,
+    "loss": 0.47148150317668186,
+    "precision": 0.1891891891891892,
+    "pred_pos_rate": 0.20959680106631123,
+    "recall": 0.68,
+    "round": 30
+   }
+  ],
+  "label": "health_logistic_local_eps-8_seed-1003",
+  "noise_multipliers": {
+   "site-0": 1.0661342571702497,
+   "site-1": 0.7173110784116633,
+   "site-2": 0.7316839184653845,
+   "site-3": 1.1566242890795413,
+   "site-4": 0.7677285298075153,
+   "site-5": 1.049664434735779,
+   "site-6": 0.9827238326600563,
+   "site-7": 0.9361065416834601,
+   "site-8": 0.9597152091113677,
+   "site-9": 0.6846342739198265
+  },
+  "privacy_report": {
+   "attacker_advantage_ceiling": 0.5396116807192827,
+   "caveats": [
+    "Validation and test rows are not protected by this budget; only training rows are.",
+    "The noise was drawn from the run's seed so that the experiment can be repeated. Anyone who knows the seed can remove it. Real data needs secure_noise=True."
+   ],
+   "epsilon": 7.999867413162453,
+   "general_attacker_advantage_ceiling": 0.9993292175448639,
+   "library_version": "0.1.0.dev0",
+   "not_covered": [
+    "Anything computed from private data outside this library, such as statistics used for preprocessing or settings chosen by looking at private results.",
+    "The evaluation data and the numbers computed on it.",
+    "Side channels: timing, message sizes, and which participants were online.",
+    "The facts the protocol treats as public: declared dataset sizes, the feature layout and the model architecture.",
+    "A participant or server that does not follow the protocol."
+   ],
+   "policy": {
+    "accountant": "pld",
+    "adjacency": "add_remove",
+    "delta": 1e-05,
+    "epsilon": 8.0,
+    "max_records_per_person": 1,
+    "per_scope_epsilon": {},
+    "unit": "record"
+   },
+   "protection": [
+    "Each participant adds its own noise before anything leaves its machine. Its training records are protected, at the stated budget, from the server, from the other participants and from anyone who sees a model.",
+    "The updates themselves travel in the clear: the server sees each participant's noisy update."
+   ],
+   "schema": "obscuradp.privacy_report/1",
+   "scopes": [
+    {
+     "attacker_advantage_ceiling": 0.5376401351453064,
+     "budget": 8.0,
+     "epsilon": 7.999291158569211,
+     "epsilon_lower_estimate": 7.97429005214655,
+     "epsilon_rdp": 8.778231937107764,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 1.0661342571702497,
+       "sampling_rate": 0.055267702936096716,
+       "steps": 570
+      }
+     ],
+     "scope": "site-0"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5061145892771034,
+     "budget": 8.0,
+     "epsilon": 7.9985533758768925,
+     "epsilon_lower_estimate": 7.973547506681999,
+     "epsilon_rdp": 8.942018511066088,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.7173110784116633,
+       "sampling_rate": 0.012539184952978056,
+       "steps": 2400
+      }
+     ],
+     "scope": "site-1"
+    },
+    {
+     "attacker_advantage_ceiling": 0.508243026474751,
+     "budget": 8.0,
+     "epsilon": 7.9829124644148415,
+     "epsilon_lower_estimate": 7.957907022078758,
+     "epsilon_rdp": 8.912963108798252,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.7316839184653845,
+       "sampling_rate": 0.01365770379854887,
+       "steps": 2220
+      }
+     ],
+     "scope": "site-2"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5396116807192827,
+     "budget": 8.0,
+     "epsilon": 7.998112330353397,
+     "epsilon_lower_estimate": 7.97711159959012,
+     "epsilon_rdp": 8.766892334615331,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 1.1566242890795413,
+       "sampling_rate": 0.07272727272727272,
+       "steps": 420
+      }
+     ],
+     "scope": "site-3"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5135770253528041,
+     "budget": 8.0,
+     "epsilon": 7.997375551178338,
+     "epsilon_lower_estimate": 7.972371278507899,
+     "epsilon_rdp": 8.897122518161616,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.7677285298075153,
+       "sampling_rate": 0.017241379310344827,
+       "steps": 1740
+      }
+     ],
+     "scope": "site-4"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5359226924618915,
+     "budget": 8.0,
+     "epsilon": 7.99876821254045,
+     "epsilon_lower_estimate": 7.973767106346725,
+     "epsilon_rdp": 8.784684183445112,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 1.049664434735779,
+       "sampling_rate": 0.05387205387205387,
+       "steps": 570
+      }
+     ],
+     "scope": "site-5"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5330434659882097,
+     "budget": 8.0,
+     "epsilon": 7.995381667796588,
+     "epsilon_lower_estimate": 7.970380093643661,
+     "epsilon_rdp": 8.795174665212254,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.9827238326600563,
+       "sampling_rate": 0.04306864064602961,
+       "steps": 720
+      }
+     ],
+     "scope": "site-6"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5303290593319709,
+     "budget": 8.0,
+     "epsilon": 7.999867413162453,
+     "epsilon_lower_estimate": 7.974865486220411,
+     "epsilon_rdp": 8.811820541702879,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.9361065416834601,
+       "sampling_rate": 0.03669724770642202,
+       "steps": 840
+      }
+     ],
+     "scope": "site-7"
+    },
+    {
+     "attacker_advantage_ceiling": 0.5309623217731769,
+     "budget": 8.0,
+     "epsilon": 7.9964484217326754,
+     "epsilon_lower_estimate": 7.971446758929419,
+     "epsilon_rdp": 8.803747755432155,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.9597152091113677,
+       "sampling_rate": 0.04050632911392405,
+       "steps": 750
+      }
+     ],
+     "scope": "site-8"
+    },
+    {
+     "attacker_advantage_ceiling": 0.4995221857032025,
+     "budget": 8.0,
+     "epsilon": 7.99221734716028,
+     "epsilon_lower_estimate": 7.967210029331827,
+     "epsilon_rdp": 8.972085739940812,
+     "events": [
+      {
+       "mechanism": "poisson_subsampled_gaussian",
+       "noise_multiplier": 0.6846342739198265,
+       "sampling_rate": 0.009910188912976153,
+       "steps": 3030
+      }
+     ],
+     "scope": "site-9"
+    }
+   ],
+   "unsafe_flags": [],
+   "within_budget": true
+  },
+  "seconds": 23.00267912399977,
+  "test": {
+   "accuracy": 0.801732755748084,
+   "ap": 0.29981918961481857,
+   "auc": 0.8095480740066727,
+   "f1": 0.27527405602923266,
+   "loss": 0.5035572459565808,
+   "precision": 0.17492260061919504,
+   "pred_pos_rate": 0.21526157947350882,
+   "recall": 0.6457142857142857
+  },
+  "test_at_chosen_threshold": null,
+  "threshold": 0.5,
+  "validation": {
+   "accuracy": 0.8113962012662446,
+   "ap": 0.27197576103579213,
+   "auc": 0.8213749873622485,
+   "f1": 0.2960199004975124,
+   "loss": 0.47148150317668186,
+   "precision": 0.1891891891891892,
+   "pred_pos_rate": 0.20959680106631123,
+   "recall": 0.68
+  }
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "5211bab5e3858b5ae1ed32a6bae85b01f531f9183cc51eeb71010508bdafd444",
+  "cpu_count": 4,
+  "created_utc": "2026-11-13T01:02:04+00:00",
+  "git_commit": "73daba9f04556749ed9da39c660979a3baeb0035",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v445-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   1003
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}
