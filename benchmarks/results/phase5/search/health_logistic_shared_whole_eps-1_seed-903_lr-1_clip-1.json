@@ -1,0 +1,111 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 1000000000,
+  "benchmark": {
+   "arm": "shared_whole",
+   "batch_size": 1000000000,
+   "clip_norm": 1.0,
+   "dataset": "health",
+   "epsilon": 1.0,
+   "learning_rate": 1.0,
+   "local_epochs": 1.0,
+   "model": "logistic",
+   "rounds": 100,
+   "seed": 903
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 1.0,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": {
+    "clip_norm": 1.0,
+    "dropouts": {},
+    "kind": "DistributedDPSGD",
+    "max_colluding": 1,
+    "max_dropouts": 0,
+    "noise": "skellam",
+    "sum_bound": null
+   },
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": {
+    "kind": "PairwiseMasking",
+    "value_bits": 12,
+    "value_range": 1.0
+   }
+  },
+  "policy": {
+   "accountant": "pld",
+   "adjacency": "add_remove",
+   "delta": 1e-05,
+   "epsilon": 1.0,
+   "max_records_per_person": 1,
+   "per_scope_epsilon": {},
+   "unit": "record"
+  },
+  "rounds": 100,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "epsilon_spent": 0.9994973956836926,
+  "label": "health_logistic_shared_whole_eps-1_seed-903",
+  "seconds": 3.459899246000532,
+  "validation": {
+   "accuracy": 0.9143618793735422,
+   "ap": 0.24307380514601137,
+   "auc": 0.8165018703872207,
+   "f1": 0.32545931758530183,
+   "loss": 0.2971618565909884,
+   "precision": 0.30097087378640774,
+   "pred_pos_rate": 0.06864378540486504,
+   "recall": 0.35428571428571426
+  },
+  "within_budget": true
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "bb7f2c1183b0c01bb9606d643691ee1b521cc17e8ff6e23ee2426ca2b90c48a4",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T06:53:45+00:00",
+  "git_commit": "bac59e0a0e946e6e092a0950cd3479f0acea8177",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   903
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

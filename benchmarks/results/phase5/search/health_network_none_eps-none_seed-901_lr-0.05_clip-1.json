@@ -1,0 +1,91 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "none",
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "dataset": "health",
+   "epsilon": null,
+   "learning_rate": 0.05,
+   "local_epochs": 1.0,
+   "model": "network",
+   "rounds": 30,
+   "seed": 901
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 0.05,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": null,
+  "rounds": 30,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "epsilon_spent": null,
+  "label": "health_network_none_eps-none_seed-901",
+  "seconds": 5.805787151999539,
+  "validation": {
+   "accuracy": 0.7714095301566145,
+   "ap": 0.27388625227271335,
+   "auc": 0.8136063087655444,
+   "f1": 0.25757575757575757,
+   "loss": 0.47589628532197514,
+   "precision": 0.1588785046728972,
+   "pred_pos_rate": 0.24958347217594135,
+   "recall": 0.68
+  },
+  "within_budget": null
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "5ac6030f8ae5bdafa305e2fecc82d7d716de9c5d8dea393a8d66761a47536798",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T06:54:23+00:00",
+  "git_commit": "bac59e0a0e946e6e092a0950cd3479f0acea8177",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   901
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

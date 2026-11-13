@@ -1,0 +1,91 @@
+{
+ "config": {
+  "allow_unsafe": false,
+  "batch_size": 32,
+  "benchmark": {
+   "arm": "none",
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "dataset": "health",
+   "epsilon": null,
+   "learning_rate": 0.05,
+   "local_epochs": 1.0,
+   "model": "logistic",
+   "rounds": 30,
+   "seed": 902
+  },
+  "choose_threshold": false,
+  "clients": {
+   "site-0": 579,
+   "site-1": 2552,
+   "site-2": 2343,
+   "site-3": 440,
+   "site-4": 1856,
+   "site-5": 594,
+   "site-6": 743,
+   "site-7": 872,
+   "site-8": 790,
+   "site-9": 3229
+  },
+  "learning_rate": 0.05,
+  "local_epochs": 1.0,
+  "optimizer": "sgd",
+  "plan": {
+   "dp": null,
+   "imbalance": "ClassWeighted",
+   "positive_prior": 0.06,
+   "proximal_mu": 0.0,
+   "secure_sum": null
+  },
+  "policy": null,
+  "rounds": 30,
+  "secure_noise": false,
+  "weighted_average": true
+ },
+ "data": {
+  "epsilon_spent": null,
+  "label": "health_logistic_none_eps-none_seed-902",
+  "seconds": 3.561176950999652,
+  "validation": {
+   "accuracy": 0.7910696434521826,
+   "ap": 0.33005628410151205,
+   "auc": 0.8212617531088868,
+   "f1": 0.2768166089965398,
+   "loss": 0.45748659843184397,
+   "precision": 0.17341040462427745,
+   "pred_pos_rate": 0.23058980339886703,
+   "recall": 0.6857142857142857
+  },
+  "within_budget": null
+ },
+ "kind": "phase5_run",
+ "manifest": {
+  "config_sha256": "fc2f6977773874eb07d1c29d2084129c54d9692a9a901e9f2aef87abc7e43692",
+  "cpu_count": 4,
+  "created_utc": "2026-11-12T06:54:27+00:00",
+  "git_commit": "bac59e0a0e946e6e092a0950cd3479f0acea8177",
+  "implementation": "cpython",
+  "machine": "x86_64",
+  "packages": {
+   "cryptography": "50.0.2",
+   "dp-accounting": "0.6.0",
+   "flwr": null,
+   "imbalanced-learn": null,
+   "numpy": "2.5.4",
+   "obscuradp": "0.1.0.dev0",
+   "opacus": null,
+   "pandas": null,
+   "scikit-learn": null,
+   "scipy": "1.18.1",
+   "tenseal": null,
+   "torch": "2.15.0+cpu"
+  },
+  "platform": "Linux-6.18.44-fc-v378-x86_64-with-glibc2.39",
+  "python": "3.13.18",
+  "seeds": [
+   902
+  ],
+  "torch_threads": 1
+ },
+ "schema": "obscuradp.result/1"
+}

@@ -1,0 +1,1283 @@
+{
+ "chosen": {
+  "femnist/cnn/none/none": {
+   "batch_size": 20,
+   "clip_norm": 1.0,
+   "learning_rate": 0.2,
+   "local_epochs": 1.0,
+   "measure": "accuracy",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.7743223115877271
+  },
+  "femnist/cnn/participant/8": {
+   "batch_size": 20,
+   "clip_norm": 1.0,
+   "learning_rate": 0.2,
+   "local_epochs": 1.0,
+   "measure": "accuracy",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.7401549002085195
+  },
+  "health/logistic/local/1": {
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "learning_rate": 0.5,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8159805210123681
+  },
+  "health/logistic/local/8": {
+   "batch_size": 32,
+   "clip_norm": 2.0,
+   "learning_rate": 0.5,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8231847133757961
+  },
+  "health/logistic/none/none": {
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "learning_rate": 0.1,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8234826273042835
+  },
+  "health/logistic/shared/1": {
+   "batch_size": 640,
+   "clip_norm": 2.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8165126546018265
+  },
+  "health/logistic/shared/8": {
+   "batch_size": 640,
+   "clip_norm": 2.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8186641054156979
+  },
+  "health/logistic/shared_whole/1": {
+   "batch_size": 1000000000,
+   "clip_norm": 2.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.820223098439659
+  },
+  "health/logistic/shared_whole/8": {
+   "batch_size": 1000000000,
+   "clip_norm": 2.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901,
+    902,
+    903
+   ],
+   "validation_mean": 0.8206403127422236
+  },
+  "health/network/local/1": {
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "learning_rate": 0.2,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8015387726215751
+  },
+  "health/network/local/8": {
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "learning_rate": 0.2,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8076999292285917
+  },
+  "health/network/none/none": {
+   "batch_size": 32,
+   "clip_norm": 1.0,
+   "learning_rate": 0.05,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 30,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8136063087655444
+  },
+  "health/network/shared/1": {
+   "batch_size": 640,
+   "clip_norm": 1.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8047093317157011
+  },
+  "health/network/shared/8": {
+   "batch_size": 640,
+   "clip_norm": 1.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8023617429986857
+  },
+  "health/network/shared_whole/1": {
+   "batch_size": 1000000000,
+   "clip_norm": 1.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.797108482458801
+  },
+  "health/network/shared_whole/8": {
+   "batch_size": 1000000000,
+   "clip_norm": 1.0,
+   "learning_rate": 3.0,
+   "local_epochs": 1.0,
+   "measure": "auc",
+   "rounds": 100,
+   "seeds": [
+    901
+   ],
+   "validation_mean": 0.8042007885956931
+  }
+ },
+ "commits": [
+  "bac59e0a0e946e6e092a0950cd3479f0acea8177"
+ ],
+ "computing_seconds": 9330,
+ "note": "Chosen on validation rows with seeds 901 to 903, which no reported run uses. Scores on test rows were neither stored nor looked at.",
+ "rule": "highest mean on validation rows; on a tie the smaller learning rate, then the smaller clipping norm; a score that is not a number counts as the worst",
+ "runs": 241,
+ "tried": {
+  "femnist/cnn/none/none": [
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.6359249329758713,
+    "values": [
+     0.6359249329758713
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.7313226094727435,
+    "values": [
+     0.7313226094727435
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.7743223115877271,
+    "values": [
+     0.7743223115877271
+    ]
+   }
+  ],
+  "femnist/cnn/participant/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.05,
+    "mean": 0.6172028596961573,
+    "values": [
+     0.6172028596961573
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.6762436699434018,
+    "values": [
+     0.6762436699434018
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.1,
+    "mean": 0.6609770628537385,
+    "values": [
+     0.6609770628537385
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.7311438784629133,
+    "values": [
+     0.7311438784629133
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.2,
+    "mean": 0.661915400655347,
+    "values": [
+     0.661915400655347
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.7401549002085195,
+    "values": [
+     0.7401549002085195
+    ]
+   }
+  ],
+  "health/logistic/local/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.05,
+    "mean": 0.7700791965760119,
+    "values": [
+     0.7674734607218684,
+     0.7511960368011323,
+     0.7915680922050349
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.787844842112358,
+    "values": [
+     0.7816702052370842,
+     0.7740167829339804,
+     0.8078475381660095
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.05,
+    "mean": 0.803585751356452,
+    "values": [
+     0.7931250631887574,
+     0.7910362956222828,
+     0.8265958952583157
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.1,
+    "mean": 0.7870555724058909,
+    "values": [
+     0.7809564250328581,
+     0.7735294712364776,
+     0.8066808209483368
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.8009732753681797,
+    "values": [
+     0.7904539480335658,
+     0.7890870488322718,
+     0.8233788292387019
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.1,
+    "mean": 0.8113881306237994,
+    "values": [
+     0.8006005459508644,
+     0.8008573450611667,
+     0.8327065008593671
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.2,
+    "mean": 0.7988730495736865,
+    "values": [
+     0.7883166515013649,
+     0.7876392680214336,
+     0.8206632291982611
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8094382098203754,
+    "values": [
+     0.7982165605095541,
+     0.7988514811444748,
+     0.8312465878070974
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.2,
+    "mean": 0.8158959323290533,
+    "values": [
+     0.8052249519765443,
+     0.8077161055505004,
+     0.8347467394601152
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.5,
+    "mean": 0.8098972129545378,
+    "values": [
+     0.7985542412294004,
+     0.7997735314932767,
+     0.8313638661409362
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.5,
+    "mean": 0.8159805210123681,
+    "values": [
+     0.805213830755232,
+     0.807946618137701,
+     0.8347811141441714
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.5,
+    "mean": 0.8159141306912008,
+    "values": [
+     0.8068203417248003,
+     0.8093701344656759,
+     0.831551915883126
+    ]
+   }
+  ],
+  "health/logistic/local/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.05,
+    "mean": 0.7748855862231658,
+    "values": [
+     0.7715054089576383,
+     0.7617187342028107,
+     0.7914326155090486
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.7925430526067468,
+    "values": [
+     0.7869113335355373,
+     0.7831847133757962,
+     0.8075331109089071
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.05,
+    "mean": 0.8082667745088128,
+    "values": [
+     0.8005843696289556,
+     0.7983459710848246,
+     0.825869982812658
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.1,
+    "mean": 0.7918013008458868,
+    "values": [
+     0.7863087655444343,
+     0.7828025477707007,
+     0.8062925892225256
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.8054520944966805,
+    "values": [
+     0.7976443231220302,
+     0.7960570215347286,
+     0.8226549388332828
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.1,
+    "mean": 0.8159154787180265,
+    "values": [
+     0.8080537862703467,
+     0.8068911131331513,
+     0.8328015367505813
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.2,
+    "mean": 0.8033329963266268,
+    "values": [
+     0.7954605196643413,
+     0.7944171469012233,
+     0.820121322414316
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8139857783169885,
+    "values": [
+     0.8062946112627641,
+     0.8047032655949854,
+     0.830959458093216
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.2,
+    "mean": 0.8208701513160112,
+    "values": [
+     0.8123384895359418,
+     0.8138044687089273,
+     0.8364674957031645
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.5,
+    "mean": 0.8143740100427999,
+    "values": [
+     0.8065675866949752,
+     0.8054049135577798,
+     0.8311495298756445
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.5,
+    "mean": 0.8208654332221211,
+    "values": [
+     0.8122899605702153,
+     0.8138368213527449,
+     0.8364695177434031
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.5,
+    "mean": 0.8231847133757961,
+    "values": [
+     0.8154443433424325,
+     0.8175775957941563,
+     0.8365322009907997
+    ]
+   }
+  ],
+  "health/logistic/none/none": [
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.8234758871701547,
+    "values": [
+     0.8149165908401578,
+     0.8212617531088868,
+     0.8342493175614195
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.8234826273042835,
+    "values": [
+     0.8151187948640178,
+     0.8223920736022647,
+     0.8329370134465676
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8231914535099248,
+    "values": [
+     0.8150702658982913,
+     0.8225801233444545,
+     0.8319239712870287
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.5,
+    "mean": 0.822907019849695,
+    "values": [
+     0.8146375492872309,
+     0.8224547568496613,
+     0.8316287534121929
+    ]
+   }
+  ],
+  "health/logistic/shared/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.6676786978060862,
+    "values": [
+     0.678064907491659,
+     0.6171822869275099,
+     0.70778889899909
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7487898089171975,
+    "values": [
+     0.7452896572641795,
+     0.7336548377312708,
+     0.7674249317561419
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.3,
+    "mean": 0.7884383109223873,
+    "values": [
+     0.7848528965726418,
+     0.7757587705995349,
+     0.8047032655949854
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7814861995753715,
+    "values": [
+     0.7783196845617227,
+     0.7684339298352038,
+     0.7977049843291881
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.7988905739224211,
+    "values": [
+     0.7932423415225963,
+     0.7876837529066828,
+     0.8157456273379841
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 1.0,
+    "mean": 0.807819229602669,
+    "values": [
+     0.7986270346779901,
+     0.7987321807703973,
+     0.8260984733596198
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.8023617429986857,
+    "values": [
+     0.7942756040845212,
+     0.7926296633303003,
+     0.8201799615812355
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8099234994776396,
+    "values": [
+     0.7992478010312405,
+     0.8016803154382772,
+     0.8288423819634011
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 3.0,
+    "mean": 0.8165126546018265,
+    "values": [
+     0.8030108179152765,
+     0.8113820645030836,
+     0.8351450813871196
+    ]
+   }
+  ],
+  "health/logistic/shared/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.669814983318168,
+    "values": [
+     0.6757698918208472,
+     0.6260661207158023,
+     0.7076089374178546
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7505422437906514,
+    "values": [
+     0.7429501567081185,
+     0.74020220402386,
+     0.7684743706399757
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.3,
+    "mean": 0.790169514373336,
+    "values": [
+     0.7839611768274188,
+     0.7802244464664847,
+     0.8063229198261045
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7831368584234827,
+    "values": [
+     0.7767303609341826,
+     0.7733232231321403,
+     0.799356991204125
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.8007252384322449,
+    "values": [
+     0.7938206450308362,
+     0.7910949347892023,
+     0.817260135476696
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 1.0,
+    "mean": 0.8100461699187814,
+    "values": [
+     0.801093923769083,
+     0.8018056819330704,
+     0.8272389040541906
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.8044842112358036,
+    "values": [
+     0.7962026084319078,
+     0.7958042665049034,
+     0.8214457587705996
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8122852424763253,
+    "values": [
+     0.8023435446365382,
+     0.8048630067738348,
+     0.8296491760186028
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 3.0,
+    "mean": 0.8186641054156979,
+    "values": [
+     0.8069396420988778,
+     0.8139743200889697,
+     0.8350783540592458
+    ]
+   }
+  ],
+  "health/logistic/shared_whole/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.671688740605938,
+    "values": [
+     0.6753735719340815,
+     0.6333677080173895,
+     0.7063249418663431
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.751289050652108,
+    "values": [
+     0.7431240521686382,
+     0.7439490445859872,
+     0.7667940552016985
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.3,
+    "mean": 0.7902942068547164,
+    "values": [
+     0.784304923667981,
+     0.7816075219896876,
+     0.8049701749064806
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7834974555993665,
+    "values": [
+     0.7768597715094531,
+     0.7755616216762714,
+     0.7980709736123749
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.8012078320358574,
+    "values": [
+     0.7950379132544738,
+     0.792083712465878,
+     0.8165018703872207
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 1.0,
+    "mean": 0.8116826744852222,
+    "values": [
+     0.8038924274593064,
+     0.8029521787483571,
+     0.8282034172480033
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.8052384322448017,
+    "values": [
+     0.7980891719745223,
+     0.7966515013648772,
+     0.8209746233950056
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.814094968489873,
+    "values": [
+     0.805641492265696,
+     0.8060661207158022,
+     0.8305772924881205
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 3.0,
+    "mean": 0.820223098439659,
+    "values": [
+     0.8102032150439794,
+     0.8141461935092509,
+     0.8363198867657466
+    ]
+   }
+  ],
+  "health/logistic/shared_whole/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.6702217504128333,
+    "values": [
+     0.6733161459913052,
+     0.6289475280558083,
+     0.7084015771913861
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7509823745492535,
+    "values": [
+     0.7418744313011829,
+     0.7417268223637651,
+     0.7693458699828126
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 0.3,
+    "mean": 0.7905833586088363,
+    "values": [
+     0.7846911333535538,
+     0.7807198463249418,
+     0.8063390961480134
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7835392444309642,
+    "values": [
+     0.7768375290668285,
+     0.7740653118997068,
+     0.7997148923263573
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.8017551309271055,
+    "values": [
+     0.7960004044080478,
+     0.7916873925791124,
+     0.8175775957941563
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 1.0,
+    "mean": 0.8120048528965725,
+    "values": [
+     0.8041168739257911,
+     0.803109897886968,
+     0.8287877868769589
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.8056138577157684,
+    "values": [
+     0.7989849358002225,
+     0.7963320190071782,
+     0.821524618339905
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8144009705793146,
+    "values": [
+     0.8057830350823981,
+     0.8060762309169952,
+     0.8313436457385502
+    ]
+   },
+   {
+    "clip_norm": 2.0,
+    "learning_rate": 3.0,
+    "mean": 0.8206403127422236,
+    "values": [
+     0.8100940248710949,
+     0.8149246790011121,
+     0.8369022343544636
+    ]
+   }
+  ],
+  "health/network/local/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.05,
+    "mean": 0.7732928925285614,
+    "values": [
+     0.7732928925285614
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.7820240622788394,
+    "values": [
+     0.7820240622788394
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.1,
+    "mean": 0.7819411586290567,
+    "values": [
+     0.7819411586290567
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.7936103528460217,
+    "values": [
+     0.7936103528460217
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.2,
+    "mean": 0.7931695480740066,
+    "values": [
+     0.7931695480740066
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8015387726215751,
+    "values": [
+     0.8015387726215751
+    ]
+   }
+  ],
+  "health/network/local/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.05,
+    "mean": 0.7752886462440602,
+    "values": [
+     0.7752886462440602
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.7879142654938833,
+    "values": [
+     0.7879142654938833
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.1,
+    "mean": 0.7879263977353149,
+    "values": [
+     0.7879263977353149
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.7980467091295117,
+    "values": [
+     0.7980467091295117
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.2,
+    "mean": 0.7976847639268021,
+    "values": [
+     0.7976847639268021
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8076999292285917,
+    "values": [
+     0.8076999292285917
+    ]
+   }
+  ],
+  "health/network/none/none": [
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.05,
+    "mean": 0.8136063087655444,
+    "values": [
+     0.8136063087655444
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.1,
+    "mean": 0.8134162369831159,
+    "values": [
+     0.8134162369831159
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.2,
+    "mean": 0.8108644222020018,
+    "values": [
+     0.8108644222020018
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.5,
+    "mean": 0.8107794965119806,
+    "values": [
+     0.8107794965119806
+    ]
+   }
+  ],
+  "health/network/shared/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.668599737134769,
+    "values": [
+     0.668599737134769
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7355414012738853,
+    "values": [
+     0.7355414012738853
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7592296026690931,
+    "values": [
+     0.7592296026690931
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.7823556768779699,
+    "values": [
+     0.7823556768779699
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.7917136791022141,
+    "values": [
+     0.7917136791022141
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8047093317157011,
+    "values": [
+     0.8047093317157011
+    ]
+   }
+  ],
+  "health/network/shared/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.6749812961277929,
+    "values": [
+     0.6749812961277929
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7386937620058639,
+    "values": [
+     0.7386937620058639
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7603700333636639,
+    "values": [
+     0.7603700333636639
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.7834718430896774,
+    "values": [
+     0.7834718430896774
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.790878576483672,
+    "values": [
+     0.790878576483672
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8023617429986857,
+    "values": [
+     0.8023617429986857
+    ]
+   }
+  ],
+  "health/network/shared_whole/1": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.6813284804367606,
+    "values": [
+     0.6813284804367606
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7427489637043777,
+    "values": [
+     0.7427489637043777
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7643595187544232,
+    "values": [
+     0.7643595187544232
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.7864361540794662,
+    "values": [
+     0.7864361540794662
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.7924901425538369,
+    "values": [
+     0.7924901425538369
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.797108482458801,
+    "values": [
+     0.797108482458801
+    ]
+   }
+  ],
+  "health/network/shared_whole/8": [
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 0.3,
+    "mean": 0.678343949044586,
+    "values": [
+     0.678343949044586
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 0.3,
+    "mean": 0.7371024163380852,
+    "values": [
+     0.7371024163380852
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 1.0,
+    "mean": 0.7588585582853099,
+    "values": [
+     0.7588585582853099
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 1.0,
+    "mean": 0.784877161055505,
+    "values": [
+     0.784877161055505
+    ]
+   },
+   {
+    "clip_norm": 0.5,
+    "learning_rate": 3.0,
+    "mean": 0.7938570417551309,
+    "values": [
+     0.7938570417551309
+    ]
+   },
+   {
+    "clip_norm": 1.0,
+    "learning_rate": 3.0,
+    "mean": 0.8042007885956931,
+    "values": [
+     0.8042007885956931
+    ]
+   }
+  ]
+ }
+}
